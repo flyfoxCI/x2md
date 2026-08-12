@@ -2,11 +2,12 @@
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
   "lastCheckpointRef": "docs/aegis/work/2026-08-12-expert-content-studio/todo-checkpoint-draft.json",
-  "resumeInstruction": "Task 4 connector must only fetch via SafeHttpClient and yield normalized ready/partial/blocked records.",
+  "resumeInstruction": "Task 5 connectors must use get_public and NormalizedSource; build fixture-driven public GitHub/arXiv/Hugging Face tests.",
   "knownPartialWork": [
     "Task 1: service scaffold and safe health configuration",
     "Task 2: canonical persistence and migration integrity",
-    "Task 3: URL classification and SSRF protection"
+    "Task 3: URL classification and SSRF protection",
+    "Task 4: generic normalized connector contract and web extraction"
   ],
   "mustReadBeforeContinuing": [
     "docs/aegis/work/2026-08-12-expert-content-studio/10-intent.md",
@@ -14,6 +15,6 @@
     "docs/aegis/work/2026-08-12-expert-content-studio/todo-checkpoint-draft.json"
   ],
   "unsafeToAssume": [
-    "Readability extraction output is a complete or licensed source; preserve provenance/status and size/MIME limits."
+    "Public platform response shape/version is stable; preserve provenance and explicit partial/blocked behavior."
   ]
 }

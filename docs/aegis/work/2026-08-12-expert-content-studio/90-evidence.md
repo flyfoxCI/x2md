@@ -33,3 +33,11 @@ No evidence has been recorded yet.
 - Source: Controller verification: URL safety
 - Summary: Focused SSRF suite 20 passed; full warning-strict backend suite 36 passed; Ruff and diff check passed. Spec and quality reviews approved.
 - Verifier: Primary controller
+
+## EvidenceBundleDraft
+
+- Artifact key: task4-green
+- Type: verification
+- Source: Controller verification: generic web connector
+- Summary: Connector suite 25 passed; full warning-strict backend suite 61 passed; lock, Ruff and diff checks passed. Two-stage review approved normalized contract, safe capability, charset/status and extraction behavior.
+- Verifier: Primary controller

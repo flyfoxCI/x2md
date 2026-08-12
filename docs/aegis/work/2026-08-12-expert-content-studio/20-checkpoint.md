@@ -119,3 +119,26 @@
 - Task 3: controller verified 20 focused and 36 full warning-strict tests
 - Blocked on: none
 - Next step: Commit Task 3 and dispatch generic web connector implementer
+
+## DriftCheckDraft
+
+- Scope status: Task 4 generic web contract/router/extraction only; no source API, persistence service, AI or frontend added
+- Compatibility status: All generic remote retrieval requires SafeHttpClient.get_public; output records are status-aware and JSON-shaped immutable source records
+- Retirement status: No legacy direct HTTP connector path exists; in-buffer size guard remains explicitly limited until a shared streaming client task
+- New risk signals:
+- Future platform connectors must implement the shared NormalizedSource contract and cannot use raw httpx clients
+- Advisory decision: continue
+
+## Checkpoint Update
+
+- Current todo: Implement Task 5: GitHub, arXiv and Hugging Face connectors
+- Active slice: Task 5 structured platform connectors
+- Completed todos:
+- Task 1: service scaffold and safe health configuration
+- Task 2: canonical persistence and migration integrity
+- Task 3: URL classification and SSRF protection
+- Task 4: generic normalized connector contract and web extraction
+- Evidence refs:
+- Task 4 controller verified: 25 connector tests and 61 full warning-strict tests
+- Blocked on: none
+- Next step: Commit Task 4 then dispatch structured platform connector implementer

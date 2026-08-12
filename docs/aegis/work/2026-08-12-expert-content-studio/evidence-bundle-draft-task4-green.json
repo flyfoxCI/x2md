@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "task4-green",
+  "type": "verification",
+  "source": "Controller verification: generic web connector",
+  "summary": "Connector suite 25 passed; full warning-strict backend suite 61 passed; lock, Ruff and diff checks passed. Two-stage review approved normalized contract, safe capability, charset/status and extraction behavior.",
+  "verifier": "Primary controller"
+}

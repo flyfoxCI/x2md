@@ -96,7 +96,11 @@ class SafeHttpClient:
         await self._client.aclose()
 
     async def get(self, url: str | Url, **kwargs: object) -> httpx.Response:
-        """Fetch a validated URL without following redirects automatically."""
+        """Compatibility alias for :meth:`get_public`."""
+        return await self.get_public(url, **kwargs)
+
+    async def get_public(self, url: str | Url, **kwargs: object) -> httpx.Response:
+        """Fetch a public URL without following redirects automatically."""
         return await self.request("GET", url, **kwargs)
 
     async def request(
