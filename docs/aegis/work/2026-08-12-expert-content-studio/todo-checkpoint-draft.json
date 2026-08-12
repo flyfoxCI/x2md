@@ -1,19 +1,20 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
-  "currentTodo": "Implement Task 6: constrained YouTube and X source handling",
+  "currentTodo": "Implement Task 7: persisted import and knowledge-library API",
   "completedTodos": [
     "Task 1: service scaffold and safe health configuration",
     "Task 2: canonical persistence and migration integrity",
     "Task 3: URL classification, SSRF protection and rate limits",
     "Task 4: generic normalized connector contract and web extraction",
-    "Task 5: GitHub, arXiv and Hugging Face connectors"
+    "Task 5: GitHub, arXiv and Hugging Face connectors",
+    "Task 6: constrained YouTube and X source handling"
   ],
-  "activeSlice": "Task 6 YouTube and X access boundaries",
+  "activeSlice": "Task 7 persistence-backed import and library API",
   "evidenceRefs": [
-    "Task 5 controller verification: 105 targeted and 118 full warning-strict tests"
+    "Task 6 controller verification: 53 focused, 123 connector and 171 full warning-strict tests"
   ],
   "blockedOn": null,
-  "nextStep": "Commit Task5 and rate limiter changes, then dispatch Task6 implementer",
+  "nextStep": "Commit Task6 then dispatch knowledge API implementer",
   "updatedAt": "2026-08-12"
 }

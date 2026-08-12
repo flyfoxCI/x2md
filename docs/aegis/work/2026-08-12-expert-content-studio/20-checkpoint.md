@@ -166,3 +166,28 @@
 - Task 5 controller verification: 105 targeted and 118 full warning-strict tests
 - Blocked on: none
 - Next step: Commit Task5 and rate limiter changes, then dispatch Task6 implementer
+
+## DriftCheckDraft
+
+- Scope status: Task 6 constrained YouTube/X connectors only; no API/persistence/AI/frontend work added
+- Compatibility status: No captions/no X credentials yield empty metadata-only states; v2 text only with SecretStr; safe timedtext parsing denies DTD/entity content
+- Retirement status: No scraping/fabricated transcript path exists; parser accepts only declared legacy transcript MIME/root
+- New risk signals:
+- X access and captions remain external-platform dependent; user credentials/availability determine ready vs partial/blocked
+- Advisory decision: continue
+
+## Checkpoint Update
+
+- Current todo: Implement Task 7: persisted import and knowledge-library API
+- Active slice: Task 7 persistence-backed import and library API
+- Completed todos:
+- Task 1: service scaffold and safe health configuration
+- Task 2: canonical persistence and migration integrity
+- Task 3: URL classification, SSRF protection and rate limits
+- Task 4: generic normalized connector contract and web extraction
+- Task 5: GitHub, arXiv and Hugging Face connectors
+- Task 6: constrained YouTube and X source handling
+- Evidence refs:
+- Task 6 controller verification: 53 focused, 123 connector and 171 full warning-strict tests
+- Blocked on: none
+- Next step: Commit Task6 then dispatch knowledge API implementer

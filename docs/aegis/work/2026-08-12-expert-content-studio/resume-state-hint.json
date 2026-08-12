@@ -2,13 +2,14 @@
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
   "lastCheckpointRef": "docs/aegis/work/2026-08-12-expert-content-studio/todo-checkpoint-draft.json",
-  "resumeInstruction": "Task6 must return metadata-only/blocked states honestly for missing captions or X credentials; never fabricate retrieved content.",
+  "resumeInstruction": "Task7 must compose safe client/router/connectors, persist normalized sources idempotently, and expose structured failures/search/artifact download.",
   "knownPartialWork": [
     "Task 1: service scaffold and safe health configuration",
     "Task 2: canonical persistence and migration integrity",
     "Task 3: URL classification, SSRF protection and rate limits",
     "Task 4: generic normalized connector contract and web extraction",
-    "Task 5: GitHub, arXiv and Hugging Face connectors"
+    "Task 5: GitHub, arXiv and Hugging Face connectors",
+    "Task 6: constrained YouTube and X source handling"
   ],
   "mustReadBeforeContinuing": [
     "docs/aegis/work/2026-08-12-expert-content-studio/10-intent.md",
@@ -16,6 +17,6 @@
     "docs/aegis/work/2026-08-12-expert-content-studio/todo-checkpoint-draft.json"
   ],
   "unsafeToAssume": [
-    "Public video captions and X full post access are available; config/response must make limitations explicit."
+    "The API may mutate raw Source fields; only KnowledgeService owns source/artifact writes."
   ]
 }

@@ -49,3 +49,11 @@ No evidence has been recorded yet.
 - Source: Controller verification: structured platform imports and transport limiter
 - Summary: Connector, URL safety and health suites: 105 passed; full backend warning-strict suite: 118 passed; lock/Ruff/diff checks passed. Two-stage reviews approved platform and rate-limit integration.
 - Verifier: Primary controller
+
+## EvidenceBundleDraft
+
+- Artifact key: task6-green
+- Type: verification
+- Source: Controller verification: constrained YouTube and X connectors
+- Summary: Task6 focused 53 passed; all connector tests 123 passed; full backend warning-strict suite 171 passed; lock/Ruff/diff checks passed. Two-stage reviews approved strict URL/token/transcript and XML safety boundaries.
+- Verifier: Primary controller

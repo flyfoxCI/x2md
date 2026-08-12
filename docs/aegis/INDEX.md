@@ -23,3 +23,4 @@ Entries are workspace records, not authoritative runtime decisions.
 | 2026-08-12 | artifact | docs/aegis/work/2026-08-12-expert-content-studio/evidence-bundle-draft-task3-green.json | 2026-08-12-expert-content-studio evidence task3-green |
 | 2026-08-12 | artifact | docs/aegis/work/2026-08-12-expert-content-studio/evidence-bundle-draft-task4-green.json | 2026-08-12-expert-content-studio evidence task4-green |
 | 2026-08-12 | artifact | docs/aegis/work/2026-08-12-expert-content-studio/evidence-bundle-draft-task5-green.json | 2026-08-12-expert-content-studio evidence task5-green |
+| 2026-08-12 | artifact | docs/aegis/work/2026-08-12-expert-content-studio/evidence-bundle-draft-task6-green.json | 2026-08-12-expert-content-studio evidence task6-green |

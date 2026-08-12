@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "task6-green",
+  "type": "verification",
+  "source": "Controller verification: constrained YouTube and X connectors",
+  "summary": "Task6 focused 53 passed; all connector tests 123 passed; full backend warning-strict suite 171 passed; lock/Ruff/diff checks passed. Two-stage reviews approved strict URL/token/transcript and XML safety boundaries.",
+  "verifier": "Primary controller"
+}
