@@ -1,4 +1,5 @@
 .worktrees/
+/backend/expert-content-studio.db
 .env
 __pycache__/
 *.py[cod]

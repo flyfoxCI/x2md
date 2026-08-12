@@ -1,15 +1,16 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
-  "currentTodo": "Implement Task 2: canonical persistence and migration ownership",
+  "currentTodo": "Implement Task 3: URL classification and SSRF protection",
   "completedTodos": [
-    "Task 1: service scaffold and safe health configuration"
+    "Task 1: service scaffold and safe health configuration",
+    "Task 2: canonical persistence and migration integrity"
   ],
-  "activeSlice": "Task 2 persistence",
+  "activeSlice": "Task 3 URL safety",
   "evidenceRefs": [
-    "Task 1 verified: uv lock --check, pytest -q -W error (3 passed), ruff check, isolated uvicorn import"
+    "Task 2 controller verification: 16 tests warning-strict, ruff, SQLite Alembic upgrade/current/downgrade"
   ],
   "blockedOn": null,
-  "nextStep": "Commit verified Task 1 changes, then dispatch Task 2 persistence implementer",
+  "nextStep": "Commit Task 2 then dispatch URL safety implementer",
   "updatedAt": "2026-08-12"
 }

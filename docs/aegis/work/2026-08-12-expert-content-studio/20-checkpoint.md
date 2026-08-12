@@ -56,3 +56,44 @@
 - Task 1 verified: uv lock --check, pytest -q -W error (3 passed), ruff check, isolated uvicorn import
 - Blocked on: none
 - Next step: Commit verified Task 1 changes, then dispatch Task 2 persistence implementer
+
+## Checkpoint Update
+
+- Current todo: Resolve Task 2 persistence integrity review findings
+- Active slice: Task 2 database integrity repair
+- Completed todos:
+- Task 1: service scaffold and safe health configuration
+- Evidence refs:
+- Task 2 spec review found P1: no PostgreSQL driver, SQLite foreign keys disabled, cross-source artifact parent permitted
+- Blocked on: none
+- Next step: Implement and test DB-level referential and lineage constraints, then re-review Task 2
+
+## DriftCheckDraft
+
+- Scope status: Task 2 repair stays within canonical persistence and migrations
+- Compatibility status: Strengthens source/artifact contract without adding routes or changing health API
+- Retirement status: No fallback is added; database becomes canonical enforcement layer
+- New risk signals:
+- Artifact lineage and foreign-key integrity must be DB-enforced on default SQLite and PostgreSQL dialect
+- Advisory decision: continue
+
+## DriftCheckDraft
+
+- Scope status: Task 2 persistence only; no connector/API/AI/frontend scope introduced
+- Compatibility status: DB now enforces source/artifact/note provenance; bare PostgreSQL and special credentials normalize consistently for app and Alembic
+- Retirement status: No legacy fallback; deprecated test client remains retired; default DB file excluded from version control
+- New risk signals:
+- No live PostgreSQL instance tested; offline dialect/DDL and URL handoff are covered
+- Advisory decision: continue
+
+## Checkpoint Update
+
+- Current todo: Implement Task 3: URL classification and SSRF protection
+- Active slice: Task 3 URL safety
+- Completed todos:
+- Task 1: service scaffold and safe health configuration
+- Task 2: canonical persistence and migration integrity
+- Evidence refs:
+- Task 2 controller verification: 16 tests warning-strict, ruff, SQLite Alembic upgrade/current/downgrade
+- Blocked on: none
+- Next step: Commit Task 2 then dispatch URL safety implementer

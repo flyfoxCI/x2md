@@ -2,9 +2,10 @@
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
   "lastCheckpointRef": "docs/aegis/work/2026-08-12-expert-content-studio/todo-checkpoint-draft.json",
-  "resumeInstruction": "Start Task 2 only after confirming Task 1 commit. Review Task 2 spec then run TDD red/green and two-stage review.",
+  "resumeInstruction": "Task 3 must validate public URLs/DNS before any connector; retain safe no-network failures.",
   "knownPartialWork": [
-    "Task 1: service scaffold and safe health configuration"
+    "Task 1: service scaffold and safe health configuration",
+    "Task 2: canonical persistence and migration integrity"
   ],
   "mustReadBeforeContinuing": [
     "docs/aegis/work/2026-08-12-expert-content-studio/10-intent.md",
@@ -12,6 +13,6 @@
     "docs/aegis/work/2026-08-12-expert-content-studio/todo-checkpoint-draft.json"
   ],
   "unsafeToAssume": [
-    "No database schema exists yet; artifacts must not mutate Source raw text."
+    "A syntactically valid URL is safe to fetch; DNS can resolve to private addresses."
   ]
 }

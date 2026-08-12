@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     database_url: str = Field(
         default="sqlite:///./expert-content-studio.db",
         validation_alias=AliasChoices("DATABASE_URL", "APP_DATABASE_URL"),
+        repr=False,
     )
     ai_base_url: str | None = Field(
         default=None,

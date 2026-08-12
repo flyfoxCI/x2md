@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "task2-green",
+  "type": "verification",
+  "source": "Controller verification: backend persistence",
+  "summary": "uv lock --check; pytest -q -W error (16 passed); ruff check; temporary SQLite Alembic upgrade/current/downgrade all succeeded. Task 2 spec and quality reviews approved.",
+  "verifier": "Primary controller"
+}

@@ -5,11 +5,11 @@
   "baselineRefs": [
     "docs/aegis/plans/2026-08-11-expert-content-studio.md"
   ],
-  "scopeStatus": "Task 1 only: backend service configuration and health contract; no unplanned product feature",
-  "compatStatus": "Secrets remain server-only; response contract typed and stable; AI absence is explicit",
-  "retirementStatus": "Deprecated TestClient test path retired; no legacy production path exists",
+  "scopeStatus": "Task 2 persistence only; no connector/API/AI/frontend scope introduced",
+  "compatStatus": "DB now enforces source/artifact/note provenance; bare PostgreSQL and special credentials normalize consistently for app and Alembic",
+  "retirementStatus": "No legacy fallback; deprecated test client remains retired; default DB file excluded from version control",
   "newRiskSignals": [
-    "No AI/X credentials expected; later tasks must retain configuration-missing behavior"
+    "No live PostgreSQL instance tested; offline dialect/DDL and URL handoff are covered"
   ],
   "decision": "continue"
 }

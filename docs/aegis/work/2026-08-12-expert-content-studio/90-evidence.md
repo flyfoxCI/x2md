@@ -17,3 +17,11 @@ No evidence has been recorded yet.
 - Source: Controller verification: cd backend
 - Summary: uv lock --check; uv run pytest -q -W error; uv run ruff check .; isolated Uvicorn import all succeeded. Pytest: 3 passed; Uvicorn 0.52.1.
 - Verifier: Primary controller after spec and quality re-reviews
+
+## EvidenceBundleDraft
+
+- Artifact key: task2-green
+- Type: verification
+- Source: Controller verification: backend persistence
+- Summary: uv lock --check; pytest -q -W error (16 passed); ruff check; temporary SQLite Alembic upgrade/current/downgrade all succeeded. Task 2 spec and quality reviews approved.
+- Verifier: Primary controller
