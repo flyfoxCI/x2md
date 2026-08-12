@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "task9-green",
+  "type": "verification",
+  "source": "Controller frontend verification + independent reviews",
+  "summary": "Task 9 typed React client: 23 tests, ESLint, production build and diff checks pass; response and abort boundary reviews closed.",
+  "verifier": "npm run lint; npm run test -- --run; npm run build; contract/quality reviews"
+}

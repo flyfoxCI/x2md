@@ -231,3 +231,23 @@
 - task8-green
 - Blocked on: none
 - Next step: Read frontend builder guidance; dispatch Task 9 client scaffold implementer, then reviews.
+
+## DriftCheckDraft
+
+- Scope status: Task 9 client scaffold complete within approved API boundary; extra guards harden malformed response handling.
+- Compatibility status: Browser uses only public VITE API base URL and same-origin FastAPI contract; no credentials exposed.
+- Retirement status: Proceed to Task 10 three-pane workspace after committing Task 9.
+- New risk signals:
+- No unretired Task 9 finding.
+- Advisory decision: continue
+
+## Checkpoint Update
+
+- Current todo: Implement Task 10: functional three-pane knowledge studio
+- Active slice: Task 10
+- Completed todos:
+- Tasks 1-9 complete: backend service/import/AI pipeline and hardened typed React client
+- Evidence refs:
+- task9-green
+- Blocked on: none
+- Next step: Implement three-pane workspace using generated desktop/mobile design baselines, then visual and code reviews.

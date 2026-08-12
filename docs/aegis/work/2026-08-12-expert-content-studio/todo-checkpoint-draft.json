@@ -1,15 +1,15 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
-  "currentTodo": "Implement Task 9: typed React client and API contract",
+  "currentTodo": "Implement Task 10: functional three-pane knowledge studio",
   "completedTodos": [
-    "Tasks 1-8 complete: foundation, persistence, SSRF safety, all source connectors, library APIs, and AI derivation/chat/settings APIs"
+    "Tasks 1-9 complete: backend service/import/AI pipeline and hardened typed React client"
   ],
-  "activeSlice": "Task 9",
+  "activeSlice": "Task 10",
   "evidenceRefs": [
-    "task8-green"
+    "task9-green"
   ],
   "blockedOn": null,
-  "nextStep": "Read frontend builder guidance; dispatch Task 9 client scaffold implementer, then reviews.",
+  "nextStep": "Implement three-pane workspace using generated desktop/mobile design baselines, then visual and code reviews.",
   "updatedAt": "2026-08-12"
 }

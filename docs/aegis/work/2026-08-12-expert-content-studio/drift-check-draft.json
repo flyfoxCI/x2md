@@ -3,11 +3,11 @@
   "taskId": "2026-08-12-expert-content-studio",
   "taskIntentRef": "docs/aegis/work/2026-08-12-expert-content-studio/task-intent-draft.json",
   "baselineRefs": [],
-  "scopeStatus": "Task 8 complete within approved AI derivation and source-grounded chat scope; reviews added safety budgets and cleanup semantics.",
-  "compatStatus": "OpenAI-compatible contract retained; provider credentials remain server-only and optional.",
-  "retirementStatus": "Proceed to Task 9 client scaffold after Task 8 commit.",
+  "scopeStatus": "Task 9 client scaffold complete within approved API boundary; extra guards harden malformed response handling.",
+  "compatStatus": "Browser uses only public VITE API base URL and same-origin FastAPI contract; no credentials exposed.",
+  "retirementStatus": "Proceed to Task 10 three-pane workspace after committing Task 9.",
   "newRiskSignals": [
-    "No unretired Task 8 finding; production provider requires user-configured credentials."
+    "No unretired Task 9 finding."
   ],
   "decision": "continue"
 }
