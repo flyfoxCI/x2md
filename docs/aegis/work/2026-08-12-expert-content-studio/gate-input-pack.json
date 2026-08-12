@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "baselineRefs": [],
+  "impactStatement": "docs/aegis/work/2026-08-12-expert-content-studio/impact-statement-draft.json",
+  "compatPlan": "OpenAI-compatible AI configuration and structured source-restriction status",
+  "retirementPlan": "All implementation tasks complete; final integration and verification handoff next.",
+  "evidenceBundle": [
+    "docs/aegis/work/2026-08-12-expert-content-studio/evidence-bundle-draft-task1-green.json",
+    "docs/aegis/work/2026-08-12-expert-content-studio/evidence-bundle-draft-task1-red.json",
+    "docs/aegis/work/2026-08-12-expert-content-studio/evidence-bundle-draft-task10-green.json",
+    "docs/aegis/work/2026-08-12-expert-content-studio/evidence-bundle-draft-task11-green.json",
+    "docs/aegis/work/2026-08-12-expert-content-studio/evidence-bundle-draft-task12-green.json",
+    "docs/aegis/work/2026-08-12-expert-content-studio/evidence-bundle-draft-task2-green.json",
+    "docs/aegis/work/2026-08-12-expert-content-studio/evidence-bundle-draft-task3-green.json",
+    "docs/aegis/work/2026-08-12-expert-content-studio/evidence-bundle-draft-task4-green.json",
+    "docs/aegis/work/2026-08-12-expert-content-studio/evidence-bundle-draft-task5-green.json",
+    "docs/aegis/work/2026-08-12-expert-content-studio/evidence-bundle-draft-task6-green.json",
+    "docs/aegis/work/2026-08-12-expert-content-studio/evidence-bundle-draft-task7-green.json",
+    "docs/aegis/work/2026-08-12-expert-content-studio/evidence-bundle-draft-task8-green.json",
+    "docs/aegis/work/2026-08-12-expert-content-studio/evidence-bundle-draft-task9-green.json"
+  ]
+}
