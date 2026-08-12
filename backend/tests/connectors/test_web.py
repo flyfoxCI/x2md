@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -11,7 +12,11 @@ import pytest
 from app.services.connectors.base import NormalizedSource
 from app.services.connectors.router import ConnectorRouter
 from app.services.connectors.web import MAX_RESPONSE_BYTES, WebConnector
-from app.services.url_safety import UnsafeUrlError
+from app.services.url_safety import (
+    RateLimitExceededError,
+    SafeHttpClient,
+    UnsafeUrlError,
+)
 
 
 @dataclass(frozen=True)
@@ -179,6 +184,25 @@ async def test_web_connector_blocks_non_success_http_status_before_parsing(
 
 
 @pytest.mark.asyncio
+async def test_web_connector_applies_response_policy_before_non_success_status() -> (
+    None
+):
+    client = FakeSafeHttpClient(
+        FakeResponse(
+            status_code=404,
+            headers={"Content-Type": "application/pdf"},
+            content=b"untrusted error body",
+        )
+    )
+
+    source = await WebConnector(client).fetch("https://example.com/missing-report")
+
+    assert source.status == "blocked"
+    assert source.reason == "unsupported_mime"
+    assert source.metadata == {"http_status": 404, "content_type": "application/pdf"}
+
+
+@pytest.mark.asyncio
 async def test_web_connector_blocks_unsafe_url_error_from_safe_client() -> None:
     client = FakeSafeHttpClient(UnsafeUrlError())
 
@@ -189,6 +213,47 @@ async def test_web_connector_blocks_unsafe_url_error_from_safe_client() -> None:
     assert source.reason == "unsafe_url"
     assert source.text == ""
     assert source.markdown == ""
+
+
+@pytest.mark.asyncio
+async def test_web_connector_maps_safe_client_rate_limit_to_rate_limited() -> None:
+    client = FakeSafeHttpClient(RateLimitExceededError())
+
+    source = await WebConnector(client).fetch("https://example.com/limited")
+
+    assert client.public_requested_urls == ["https://example.com/limited"]
+    assert source.status == "blocked"
+    assert source.reason == "rate_limited"
+    assert source.canonical_url == "https://example.com/limited"
+    assert source.text == ""
+    assert source.markdown == ""
+
+
+@pytest.mark.asyncio
+async def test_web_connector_direct_fetch_rejects_credentials_without_safe_client_fetch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    requests: list[httpx.Request] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, request=request)
+
+    async with SafeHttpClient(
+        resolver=lambda _: pytest.fail("credentialed URLs must not be resolved"),
+        transport=httpx.MockTransport(handler),
+    ) as client:
+        get_public = AsyncMock(wraps=client.get_public)
+        monkeypatch.setattr(client, "get_public", get_public)
+
+        source = await WebConnector(client).fetch(
+            "https://reader:never-reflect-this@example.com/article"
+        )
+
+    get_public.assert_not_awaited()
+    assert requests == []
+    assert source.canonical_url == "https://invalid.invalid/"
+    assert "never-reflect-this" not in repr(source)
 
 
 @pytest.mark.asyncio

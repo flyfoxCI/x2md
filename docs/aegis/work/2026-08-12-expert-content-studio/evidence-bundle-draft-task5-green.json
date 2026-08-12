@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "task5-green",
+  "type": "verification",
+  "source": "Controller verification: structured platform imports and transport limiter",
+  "summary": "Connector, URL safety and health suites: 105 passed; full backend warning-strict suite: 118 passed; lock/Ruff/diff checks passed. Two-stage reviews approved platform and rate-limit integration.",
+  "verifier": "Primary controller"
+}

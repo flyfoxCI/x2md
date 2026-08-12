@@ -41,3 +41,11 @@ No evidence has been recorded yet.
 - Source: Controller verification: generic web connector
 - Summary: Connector suite 25 passed; full warning-strict backend suite 61 passed; lock, Ruff and diff checks passed. Two-stage review approved normalized contract, safe capability, charset/status and extraction behavior.
 - Verifier: Primary controller
+
+## EvidenceBundleDraft
+
+- Artifact key: task5-green
+- Type: verification
+- Source: Controller verification: structured platform imports and transport limiter
+- Summary: Connector, URL safety and health suites: 105 passed; full backend warning-strict suite: 118 passed; lock/Ruff/diff checks passed. Two-stage reviews approved platform and rate-limit integration.
+- Verifier: Primary controller

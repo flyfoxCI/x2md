@@ -3,13 +3,13 @@
   "taskId": "2026-08-12-expert-content-studio",
   "taskIntentRef": "docs/aegis/work/2026-08-12-expert-content-studio/task-intent-draft.json",
   "baselineRefs": [
-    "docs/aegis/plans/2026-08-11-expert-content-studio.md"
+    "docs/aegis/specs/2026-08-11-expert-content-studio-design.md"
   ],
-  "scopeStatus": "Task 4 generic web contract/router/extraction only; no source API, persistence service, AI or frontend added",
-  "compatStatus": "All generic remote retrieval requires SafeHttpClient.get_public; output records are status-aware and JSON-shaped immutable source records",
-  "retirementStatus": "No legacy direct HTTP connector path exists; in-buffer size guard remains explicitly limited until a shared streaming client task",
+  "scopeStatus": "Task 5 plus design-required SafeHttpClient rate limiter; no Task6/API/persistence/frontend work added",
+  "compatStatus": "Public connectors use get_public, direct unsafe inputs nonreflective, all response bodies policy-checked, GitHub token server-only, rate limit preserves rate_limited reason",
+  "retirementStatus": "No direct HTTP connector path or duplicate response policy remains; generic Web now shares policy",
   "newRiskSignals": [
-    "Future platform connectors must implement the shared NormalizedSource contract and cannot use raw httpx clients"
+    "Responses are still buffered by SafeHttpClient before connector size check; a streaming transport cap is deferred as documented"
   ],
   "decision": "continue"
 }

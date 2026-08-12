@@ -8,12 +8,24 @@ import httpx
 from bs4 import BeautifulSoup, Tag
 
 from app.services.connectors.base import NormalizedSource
-from app.services.url_safety import UnsafeUrlError
+from app.services.connectors.response_policy import (
+    MAX_RESPONSE_BYTES,
+    validate_response_body,
+)
+from app.services.url_safety import (
+    RateLimitExceededError,
+    UnsafeUrlError,
+    validate_public_url,
+)
 
-MAX_RESPONSE_BYTES = 5 * 1024 * 1024
 ALLOWED_HTML_MIME_TYPES = frozenset({"text/html", "application/xhtml+xml"})
-_REMOVABLE_TAGS = frozenset({"aside", "footer", "form", "nav", "noscript", "script", "style"})
+_INVALID_URL = "https://invalid.invalid/"
+_REMOVABLE_TAGS = frozenset(
+    {"aside", "footer", "form", "nav", "noscript", "script", "style"}
+)
 _READABLE_TAGS = ("h1", "h2", "h3", "h4", "h5", "h6", "p", "li", "blockquote", "div")
+
+__all__ = ["MAX_RESPONSE_BYTES", "WebConnector"]
 
 
 class SafeResponse(Protocol):
@@ -44,57 +56,43 @@ class WebConnector:
     async def fetch(self, url: str) -> NormalizedSource:
         """Fetch and extract a bounded HTML document without direct HTTP access."""
         try:
-            response = await self._client.get_public(url)
+            safe_url = str(validate_public_url(url))
         except UnsafeUrlError:
-            return _blocked_source(url, "unsafe_url", {})
+            return _blocked_source(_INVALID_URL, "unsafe_url", {})
+        try:
+            response = await self._client.get_public(safe_url)
+        except RateLimitExceededError:
+            return _blocked_source(safe_url, "rate_limited", {})
+        except UnsafeUrlError:
+            return _blocked_source(_INVALID_URL, "unsafe_url", {})
         except httpx.RequestError:
-            return _blocked_source(url, "network_error", {})
-        metadata = _response_metadata(response.status_code, response.headers)
+            return _blocked_source(safe_url, "network_error", {})
 
+        response_policy = validate_response_body(
+            response, allowed_mime_types=ALLOWED_HTML_MIME_TYPES
+        )
+        if response_policy.reason is not None:
+            return _blocked_source(
+                safe_url, response_policy.reason, response_policy.metadata
+            )
         if not 200 <= response.status_code < 300:
-            return _blocked_source(url, "http_status", metadata)
-
-        content_type = _content_type(response.headers)
-        if content_type not in ALLOWED_HTML_MIME_TYPES:
-            return _blocked_source(url, "unsupported_mime", metadata)
-
-        content_length = _declared_content_length(response.headers)
-        if content_length is not None and content_length > MAX_RESPONSE_BYTES:
-            return _blocked_source(url, "response_too_large", metadata)
-        if len(response.content) > MAX_RESPONSE_BYTES:
-            return _blocked_source(url, "response_too_large", metadata)
+            return _blocked_source(
+                safe_url,
+                "http_status",
+                response_policy.metadata,
+            )
 
         try:
             content = _decode_declared_charset(response.content, response.headers)
         except (LookupError, UnicodeDecodeError):
-            return _blocked_source(url, "invalid_charset", metadata)
-        return _extract_article(url, content, metadata)
-
-
-def _response_metadata(status_code: int, headers: Mapping[str, str]) -> dict[str, object]:
-    return {
-        "http_status": status_code,
-        "content_type": _content_type(headers),
-    }
-
-
-def _content_type(headers: Mapping[str, str]) -> str:
-    return _content_type_header(headers).split(";", 1)[0].strip().lower()
+            return _blocked_source(
+                safe_url, "invalid_charset", response_policy.metadata
+            )
+        return _extract_article(safe_url, content, response_policy.metadata)
 
 
 def _content_type_header(headers: Mapping[str, str]) -> str:
     return _header_value(headers, "content-type")
-
-
-def _declared_content_length(headers: Mapping[str, str]) -> int | None:
-    value = _header_value(headers, "content-length")
-    if not value:
-        return None
-    try:
-        content_length = int(value)
-    except ValueError:
-        return None
-    return content_length if content_length >= 0 else None
 
 
 def _header_value(headers: Mapping[str, str], name: str) -> str:

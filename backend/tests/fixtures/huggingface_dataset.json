@@ -1,0 +1,10 @@
+{
+  "id": "openai/expert-traces",
+  "author": "openai",
+  "private": false,
+  "gated": false,
+  "downloads": 88,
+  "likes": 9,
+  "lastModified": "2026-08-09T09:00:00.000Z",
+  "tags": ["reasoning", "dataset"]
+}

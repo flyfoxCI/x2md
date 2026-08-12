@@ -1,0 +1,15 @@
+{
+  "name": "expert-reasoner",
+  "full_name": "openai/expert-reasoner",
+  "html_url": "https://github.com/openai/expert-reasoner",
+  "description": "Reference implementation for inspectable reasoning.",
+  "private": false,
+  "default_branch": "main",
+  "owner": {"login": "openai"},
+  "stargazers_count": 42,
+  "forks_count": 7,
+  "language": "Python",
+  "topics": ["reasoning", "agents"],
+  "license": {"spdx_id": "MIT"},
+  "updated_at": "2026-08-10T12:00:00Z"
+}

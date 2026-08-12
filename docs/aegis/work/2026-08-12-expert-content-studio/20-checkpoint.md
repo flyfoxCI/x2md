@@ -142,3 +142,27 @@
 - Task 4 controller verified: 25 connector tests and 61 full warning-strict tests
 - Blocked on: none
 - Next step: Commit Task 4 then dispatch structured platform connector implementer
+
+## DriftCheckDraft
+
+- Scope status: Task 5 plus design-required SafeHttpClient rate limiter; no Task6/API/persistence/frontend work added
+- Compatibility status: Public connectors use get_public, direct unsafe inputs nonreflective, all response bodies policy-checked, GitHub token server-only, rate limit preserves rate_limited reason
+- Retirement status: No direct HTTP connector path or duplicate response policy remains; generic Web now shares policy
+- New risk signals:
+- Responses are still buffered by SafeHttpClient before connector size check; a streaming transport cap is deferred as documented
+- Advisory decision: continue
+
+## Checkpoint Update
+
+- Current todo: Implement Task 6: constrained YouTube and X source handling
+- Active slice: Task 6 YouTube and X access boundaries
+- Completed todos:
+- Task 1: service scaffold and safe health configuration
+- Task 2: canonical persistence and migration integrity
+- Task 3: URL classification, SSRF protection and rate limits
+- Task 4: generic normalized connector contract and web extraction
+- Task 5: GitHub, arXiv and Hugging Face connectors
+- Evidence refs:
+- Task 5 controller verification: 105 targeted and 118 full warning-strict tests
+- Blocked on: none
+- Next step: Commit Task5 and rate limiter changes, then dispatch Task6 implementer

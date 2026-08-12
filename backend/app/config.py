@@ -31,6 +31,10 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("X_BEARER_TOKEN", "APP_X_BEARER_TOKEN"),
     )
+    github_token: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices("GITHUB_TOKEN", "APP_GITHUB_TOKEN"),
+    )
 
     @property
     def ai_configured(self) -> bool:

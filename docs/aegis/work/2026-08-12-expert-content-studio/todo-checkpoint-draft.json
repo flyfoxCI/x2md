@@ -1,18 +1,19 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
-  "currentTodo": "Implement Task 5: GitHub, arXiv and Hugging Face connectors",
+  "currentTodo": "Implement Task 6: constrained YouTube and X source handling",
   "completedTodos": [
     "Task 1: service scaffold and safe health configuration",
     "Task 2: canonical persistence and migration integrity",
-    "Task 3: URL classification and SSRF protection",
-    "Task 4: generic normalized connector contract and web extraction"
+    "Task 3: URL classification, SSRF protection and rate limits",
+    "Task 4: generic normalized connector contract and web extraction",
+    "Task 5: GitHub, arXiv and Hugging Face connectors"
   ],
-  "activeSlice": "Task 5 structured platform connectors",
+  "activeSlice": "Task 6 YouTube and X access boundaries",
   "evidenceRefs": [
-    "Task 4 controller verified: 25 connector tests and 61 full warning-strict tests"
+    "Task 5 controller verification: 105 targeted and 118 full warning-strict tests"
   ],
   "blockedOn": null,
-  "nextStep": "Commit Task 4 then dispatch structured platform connector implementer",
+  "nextStep": "Commit Task5 and rate limiter changes, then dispatch Task6 implementer",
   "updatedAt": "2026-08-12"
 }

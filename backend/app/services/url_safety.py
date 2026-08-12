@@ -4,6 +4,7 @@ import asyncio
 import ipaddress
 import math
 import socket
+import time
 from collections.abc import Callable, Iterable
 from typing import Self
 from urllib.parse import urljoin
@@ -12,6 +13,7 @@ import httpx
 from pydantic_core import Url
 
 Resolver = Callable[[str], Iterable[str]]
+MonotonicClock = Callable[[], float]
 
 
 class UnsafeUrlError(ValueError):
@@ -21,6 +23,12 @@ class UnsafeUrlError(ValueError):
 
     def __init__(self) -> None:
         super().__init__(self.detail)
+
+
+class RateLimitExceededError(UnsafeUrlError):
+    """A public host has exhausted this client's request budget."""
+
+    detail = "rate_limited"
 
 
 def validate_public_url(url: str | Url) -> Url:
@@ -73,12 +81,32 @@ class SafeHttpClient:
         timeout: float = 10.0,
         resolver: Resolver = resolve_hostname,
         transport: httpx.AsyncBaseTransport | None = None,
+        max_requests_per_host: int = 20,
+        rate_window_seconds: float = 60.0,
+        monotonic_clock: MonotonicClock = time.monotonic,
     ) -> None:
         if not math.isfinite(timeout) or timeout <= 0:
             raise ValueError("timeout must be finite and positive")
+        if (
+            isinstance(max_requests_per_host, bool)
+            or not isinstance(max_requests_per_host, int)
+            or max_requests_per_host <= 0
+        ):
+            raise ValueError("max_requests_per_host must be a positive integer")
+        if (
+            isinstance(rate_window_seconds, bool)
+            or not isinstance(rate_window_seconds, (int, float))
+            or not math.isfinite(rate_window_seconds)
+            or rate_window_seconds <= 0
+        ):
+            raise ValueError("rate_window_seconds must be finite and positive")
         self.timeout = timeout
         self.follow_redirects = False
         self._resolver = resolver
+        self._max_requests_per_host = max_requests_per_host
+        self._rate_window_seconds = float(rate_window_seconds)
+        self._monotonic_clock = monotonic_clock
+        self._host_request_times: dict[str, list[float]] = {}
         self._client = httpx.AsyncClient(
             follow_redirects=False,
             timeout=timeout,
@@ -111,6 +139,7 @@ class SafeHttpClient:
             if argument in kwargs:
                 raise ValueError(f"{argument} may not override SafeHttpClient policy")
         target = await self._validate_target(url)
+        self._consume_host_request_budget(target)
         kwargs.pop("follow_redirects", None)
         response = await self._client.request(
             method, str(target), follow_redirects=False, **kwargs
@@ -138,6 +167,26 @@ class SafeHttpClient:
         if any(not _is_public_address(address) for address in addresses):
             raise UnsafeUrlError()
         return target
+
+    def _consume_host_request_budget(self, target: Url) -> None:
+        now = self._monotonic_clock()
+        cutoff = now - self._rate_window_seconds
+        for host, request_times in list(self._host_request_times.items()):
+            unexpired_times = [
+                requested_at for requested_at in request_times if requested_at > cutoff
+            ]
+            if unexpired_times:
+                self._host_request_times[host] = unexpired_times
+            else:
+                del self._host_request_times[host]
+
+        host = target.host
+        assert host is not None
+        normalized_host = host.strip("[]").rstrip(".").lower()
+        request_times = self._host_request_times.setdefault(normalized_host, [])
+        if len(request_times) >= self._max_requests_per_host:
+            raise RateLimitExceededError()
+        request_times.append(now)
 
 
 def _is_public_address(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:

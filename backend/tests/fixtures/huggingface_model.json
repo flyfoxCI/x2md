@@ -1,0 +1,12 @@
+{
+  "id": "openai/expert-encoder",
+  "author": "openai",
+  "private": false,
+  "gated": false,
+  "pipeline_tag": "text-generation",
+  "library_name": "transformers",
+  "downloads": 1250,
+  "likes": 42,
+  "lastModified": "2026-08-10T12:00:00.000Z",
+  "tags": ["transformers", "text-generation"]
+}

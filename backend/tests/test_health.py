@@ -45,6 +45,7 @@ def test_settings_read_direct_and_prefixed_environment_aliases(monkeypatch):
     monkeypatch.setenv("AI_API_KEY", "direct-key")
     monkeypatch.setenv("AI_MODEL", "direct-model")
     monkeypatch.setenv("X_BEARER_TOKEN", "direct-x-token")
+    monkeypatch.setenv("GITHUB_TOKEN", "direct-github-token")
 
     direct_settings = Settings()
 
@@ -53,17 +54,21 @@ def test_settings_read_direct_and_prefixed_environment_aliases(monkeypatch):
     assert direct_settings.ai_api_key.get_secret_value() == "direct-key"
     assert direct_settings.ai_model == "direct-model"
     assert direct_settings.x_bearer_token.get_secret_value() == "direct-x-token"
+    assert direct_settings.github_token.get_secret_value() == "direct-github-token"
+    assert "direct-github-token" not in repr(direct_settings)
 
     monkeypatch.delenv("DATABASE_URL")
     monkeypatch.delenv("AI_BASE_URL")
     monkeypatch.delenv("AI_API_KEY")
     monkeypatch.delenv("AI_MODEL")
     monkeypatch.delenv("X_BEARER_TOKEN")
+    monkeypatch.delenv("GITHUB_TOKEN")
     monkeypatch.setenv("APP_DATABASE_URL", "sqlite:///prefixed.db")
     monkeypatch.setenv("APP_AI_BASE_URL", "https://prefixed.example.test/v1")
     monkeypatch.setenv("APP_AI_API_KEY", "prefixed-key")
     monkeypatch.setenv("APP_AI_MODEL", "prefixed-model")
     monkeypatch.setenv("APP_X_BEARER_TOKEN", "prefixed-x-token")
+    monkeypatch.setenv("APP_GITHUB_TOKEN", "prefixed-github-token")
 
     prefixed_settings = Settings()
 
@@ -72,3 +77,5 @@ def test_settings_read_direct_and_prefixed_environment_aliases(monkeypatch):
     assert prefixed_settings.ai_api_key.get_secret_value() == "prefixed-key"
     assert prefixed_settings.ai_model == "prefixed-model"
     assert prefixed_settings.x_bearer_token.get_secret_value() == "prefixed-x-token"
+    assert prefixed_settings.github_token.get_secret_value() == "prefixed-github-token"
+    assert "prefixed-github-token" not in repr(prefixed_settings)

@@ -2,12 +2,13 @@
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
   "lastCheckpointRef": "docs/aegis/work/2026-08-12-expert-content-studio/todo-checkpoint-draft.json",
-  "resumeInstruction": "Task 5 connectors must use get_public and NormalizedSource; build fixture-driven public GitHub/arXiv/Hugging Face tests.",
+  "resumeInstruction": "Task6 must return metadata-only/blocked states honestly for missing captions or X credentials; never fabricate retrieved content.",
   "knownPartialWork": [
     "Task 1: service scaffold and safe health configuration",
     "Task 2: canonical persistence and migration integrity",
-    "Task 3: URL classification and SSRF protection",
-    "Task 4: generic normalized connector contract and web extraction"
+    "Task 3: URL classification, SSRF protection and rate limits",
+    "Task 4: generic normalized connector contract and web extraction",
+    "Task 5: GitHub, arXiv and Hugging Face connectors"
   ],
   "mustReadBeforeContinuing": [
     "docs/aegis/work/2026-08-12-expert-content-studio/10-intent.md",
@@ -15,6 +16,6 @@
     "docs/aegis/work/2026-08-12-expert-content-studio/todo-checkpoint-draft.json"
   ],
   "unsafeToAssume": [
-    "Public platform response shape/version is stable; preserve provenance and explicit partial/blocked behavior."
+    "Public video captions and X full post access are available; config/response must make limitations explicit."
   ]
 }

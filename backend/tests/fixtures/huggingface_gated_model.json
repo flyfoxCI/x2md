@@ -1,0 +1,5 @@
+{
+  "id": "openai/gated-expert-model",
+  "private": false,
+  "gated": "manual"
+}
