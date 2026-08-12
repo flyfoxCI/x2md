@@ -4,6 +4,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import DatabaseSession
@@ -44,6 +45,26 @@ def _presentation(session: Session) -> PresentationSettings:
     return PresentationSettings.model_validate(setting.value_json)
 
 
+def _save_presentation(session: Session, values: dict[str, str]) -> None:
+    """Replace the singleton preference record even during first-write races."""
+    setting = session.get(AppSetting, "presentation")
+    if setting is not None:
+        setting.value_json = values
+        session.commit()
+        return
+
+    session.add(AppSetting(key="presentation", value_json=values))
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        setting = session.get(AppSetting, "presentation")
+        if setting is None:
+            raise
+        setting.value_json = values
+        session.commit()
+
+
 @router.get("", response_model=SettingsRead)
 def get_settings(request: Request, session: DatabaseSession) -> SettingsRead:
     """Return browser-safe display configuration and provider availability only."""
@@ -58,14 +79,8 @@ def update_settings(
     request: Request, payload: SettingsPatch, session: DatabaseSession
 ) -> SettingsRead:
     """Persist a complete replacement of the browser-visible presentation settings."""
-    setting = session.get(AppSetting, "presentation")
     values = payload.presentation.model_dump()
-    if setting is None:
-        setting = AppSetting(key="presentation", value_json=values)
-        session.add(setting)
-    else:
-        setting.value_json = values
-    session.commit()
+    _save_presentation(session, values)
     return SettingsRead(
         ai_configured=request.app.state.settings.ai_configured,
         presentation=payload.presentation,

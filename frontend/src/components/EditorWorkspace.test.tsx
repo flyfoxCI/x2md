@@ -1,15 +1,18 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "../App";
 import {
+  chatWithSource,
   deriveSource,
   editArtifact,
+  getSettings,
   getSource,
   importSource,
   listSources,
+  updateSettings,
 } from "../api";
-import type { Artifact } from "../types";
+import type { Artifact, Settings } from "../types";
 
 vi.mock("../api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../api")>()),
@@ -18,6 +21,9 @@ vi.mock("../api", async (importOriginal) => ({
   getSource: vi.fn(),
   deriveSource: vi.fn(),
   editArtifact: vi.fn(),
+  chatWithSource: vi.fn(),
+  getSettings: vi.fn(),
+  updateSettings: vi.fn(),
 }));
 
 const mockedListSources = vi.mocked(listSources);
@@ -25,6 +31,14 @@ const mockedImportSource = vi.mocked(importSource);
 const mockedGetSource = vi.mocked(getSource);
 const mockedDeriveSource = vi.mocked(deriveSource);
 const mockedEditArtifact = vi.mocked(editArtifact);
+const mockedChatWithSource = vi.mocked(chatWithSource);
+const mockedGetSettings = vi.mocked(getSettings);
+const mockedUpdateSettings = vi.mocked(updateSettings);
+
+const defaultSettings: Settings = {
+  aiConfigured: false,
+  presentation: { theme: "system", preview_device: "desktop" },
+};
 
 let compactViewport = false;
 const mediaQueryListeners = new Set<(event: MediaQueryListEvent) => void>();
@@ -102,6 +116,22 @@ const skill = {
   language: "en",
 };
 
+const citedAnswer = {
+  id: 44,
+  source_id: source.id,
+  question: "这个方法什么时候适用？",
+  answer_markdown: "当问题需要分步验证时适用。",
+  citations_json: [
+    {
+      source_id: source.id,
+      artifact_id: skill.id,
+      url: source.canonical_url,
+      section: "When to use",
+    },
+  ],
+  created_at: "2026-08-12T00:00:00Z",
+};
+
 const secondSource = {
   ...source,
   id: 8,
@@ -137,6 +167,11 @@ describe("three-pane studio", () => {
     mediaQueryListeners.clear();
     installMatchMedia();
     mockedListSources.mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20 });
+    mockedGetSettings.mockResolvedValue(defaultSettings);
+    mockedUpdateSettings.mockImplementation(async (presentation) => ({
+      aiConfigured: false,
+      presentation,
+    }));
     configureSourceDetail();
   });
 
@@ -212,6 +247,154 @@ describe("three-pane studio", () => {
     fireEvent.click(screen.getByRole("button", { name: "生成中文翻译" }));
 
     expect(await screen.findByText(/AI 功能尚未配置/)).toBeVisible();
+  });
+
+  it("asks the selected source, then renders its cited answer with source and artifact provenance", async () => {
+    mockedListSources.mockResolvedValue({ items: [source], total: 1, page: 1, page_size: 20 });
+    mockedChatWithSource.mockResolvedValue(citedAnswer);
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Reasoning at Scale/ }));
+    await screen.findByRole("heading", { name: "Reasoning at Scale" });
+
+    fireEvent.change(screen.getByLabelText("向来源提问"), {
+      target: { value: citedAnswer.question },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "发送问题" }));
+
+    await waitFor(() => expect(mockedChatWithSource).toHaveBeenCalledWith(
+      source.id,
+      citedAnswer.question,
+      expect.any(AbortSignal),
+    ));
+    expect(await screen.findByText(citedAnswer.answer_markdown)).toBeVisible();
+    expect(screen.getByRole("link", { name: /原始来源：When to use/ })).toHaveAttribute("href", source.canonical_url);
+    expect(screen.getByRole("link", { name: /引用版本 #22/ })).toHaveAttribute("href", "/api/artifacts/22/download");
+  });
+
+  it("keeps AI chat errors actionable instead of inventing an answer", async () => {
+    mockedListSources.mockResolvedValue({ items: [source], total: 1, page: 1, page_size: 20 });
+    mockedChatWithSource.mockRejectedValue({
+      code: "provider_not_configured",
+      message: "The requested provider is not configured.",
+    });
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Reasoning at Scale/ }));
+    await screen.findByRole("heading", { name: "Reasoning at Scale" });
+    fireEvent.change(screen.getByLabelText("向来源提问"), { target: { value: "请总结" } });
+    fireEvent.click(screen.getByRole("button", { name: "发送问题" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("AI 功能尚未配置");
+    expect(screen.queryByText(/当问题需要分步验证/)).not.toBeInTheDocument();
+  });
+
+  it("exports only the persisted artifact currently selected in the workspace", async () => {
+    mockedListSources.mockResolvedValue({ items: [source], total: 1, page: 1, page_size: 20 });
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Reasoning at Scale/ }));
+    await screen.findByRole("heading", { name: "Reasoning at Scale" });
+    expect(screen.queryByRole("link", { name: "下载 Markdown" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Distilled Skill" }));
+    await waitFor(() => expect(screen.getByLabelText("Markdown 内容")).toHaveValue(skill.markdown));
+    expect(screen.getByRole("link", { name: "下载 Markdown" })).toHaveAttribute(
+      "href",
+      "/api/artifacts/22/download",
+    );
+  });
+
+  it("switches the preview to its mobile frame without hiding the current content", async () => {
+    mockedListSources.mockResolvedValue({ items: [source], total: 1, page: 1, page_size: 20 });
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Reasoning at Scale/ }));
+    await screen.findByRole("heading", { name: "Reasoning at Scale" });
+    fireEvent.click(screen.getByRole("button", { name: "手机预览" }));
+
+    await waitFor(() => expect(mockedUpdateSettings).toHaveBeenLastCalledWith(
+      { theme: "system", preview_device: "mobile" },
+      expect.any(AbortSignal),
+    ));
+    expect(screen.getByRole("button", { name: "手机预览" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByLabelText("Markdown 预览")).toHaveClass("is-mobile-device");
+    expect(screen.getByText("Original source text")).toBeVisible();
+  });
+
+  it("labels collapsed preview controls with the panel they operate", async () => {
+    await setCompactViewport(true);
+    mockedListSources.mockResolvedValue({ items: [source], total: 1, page: 1, page_size: 20 });
+    render(<App />);
+    await screen.findByText("Reasoning at Scale");
+
+    const toolbar = screen.getByRole("group", { name: "移动工作区工具" });
+    const previewButton = within(toolbar).getByRole("button", { name: "预览" });
+    const chatButton = within(toolbar).getByRole("button", { name: "来源助手" });
+    expect(previewButton).toHaveAttribute("aria-controls", "markdown-preview-surface");
+    expect(chatButton).toHaveAttribute("aria-controls", "knowledge-chat-surface");
+
+    fireEvent.click(previewButton);
+    expect(previewButton).toHaveAttribute("aria-expanded", "true");
+    expect(document.getElementById("markdown-preview-surface")).toBeVisible();
+  });
+
+  it("keeps only the selected compact workspace surface reachable", async () => {
+    await setCompactViewport(true);
+    mockedListSources.mockResolvedValue({ items: [source], total: 1, page: 1, page_size: 20 });
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "打开知识库" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Reasoning at Scale/ }));
+    await screen.findByRole("heading", { name: "Reasoning at Scale" });
+
+    const previewPanel = screen.getByLabelText("Markdown 预览");
+    const toolbar = within(previewPanel).getByRole("group", { name: "移动工作区工具" });
+    const previewButton = within(toolbar).getByRole("button", { name: "预览" });
+    const chatButton = within(toolbar).getByRole("button", { name: "来源助手" });
+    const previewSurface = document.getElementById("markdown-preview-surface")!;
+    const chatSurface = document.getElementById("knowledge-chat-surface")!;
+
+    expect(toolbar).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Reasoning at Scale" })).toBeVisible();
+    expect(previewButton).toHaveAttribute("aria-expanded", "false");
+    expect(chatButton).toHaveAttribute("aria-expanded", "false");
+    expect(previewSurface).toHaveAttribute("aria-hidden", "true");
+    expect(previewSurface).toHaveAttribute("inert");
+    expect(chatSurface).toHaveAttribute("aria-hidden", "true");
+    expect(chatSurface).toHaveAttribute("inert");
+
+    fireEvent.click(previewButton);
+
+    expect(previewButton).toHaveAttribute("aria-expanded", "true");
+    expect(chatButton).toHaveAttribute("aria-expanded", "false");
+    expect(previewSurface).not.toHaveAttribute("aria-hidden");
+    expect(previewSurface).not.toHaveAttribute("inert");
+    expect(chatSurface).toHaveAttribute("aria-hidden", "true");
+    expect(chatSurface).toHaveAttribute("inert");
+    expect(within(previewPanel).getByRole("heading", { name: "预览" })).toBeVisible();
+    expect(within(previewSurface).getByText("Original source text")).toBeVisible();
+
+    fireEvent.click(chatButton);
+
+    expect(toolbar).toBeVisible();
+    expect(previewButton).toHaveAttribute("aria-expanded", "false");
+    expect(chatButton).toHaveAttribute("aria-expanded", "true");
+    expect(previewSurface).toHaveAttribute("aria-hidden", "true");
+    expect(previewSurface).toHaveAttribute("inert");
+    expect(chatSurface).not.toHaveAttribute("aria-hidden");
+    expect(chatSurface).not.toHaveAttribute("inert");
+    expect(within(chatSurface).getByRole("textbox", { name: "向来源提问" })).toBeEnabled();
+  });
+
+  it("mounts compact preview controls outside the clipped studio shell", async () => {
+    await setCompactViewport(true);
+    mockedListSources.mockResolvedValue({ items: [source], total: 1, page: 1, page_size: 20 });
+    render(<App />);
+    await screen.findByText("Reasoning at Scale");
+
+    const previewPanel = screen.getByLabelText("Markdown 预览");
+    expect(previewPanel.parentElement).toBe(document.body);
   });
 
   it("supports arrow-key movement between artifact tabs", async () => {

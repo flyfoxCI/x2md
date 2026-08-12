@@ -2,9 +2,9 @@
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
   "lastCheckpointRef": "docs/aegis/work/2026-08-12-expert-content-studio/todo-checkpoint-draft.json",
-  "resumeInstruction": "Keep chat source-scoped with rendered citations and download only current persisted artifact.",
+  "resumeInstruction": "Keep documentation honest about optional AI/X credentials and platform limits; verify actual compose health and representative workflow.",
   "knownPartialWork": [
-    "Tasks 1-10 complete: full backend import/AI pipeline, hardened client, and functional accessible three-pane studio"
+    "Tasks 1-11 complete: secure source imports, persistence, AI derivation/chat, responsive accessible three-pane client, safe rendering/export, and settings UX"
   ],
   "mustReadBeforeContinuing": [
     "docs/aegis/work/2026-08-12-expert-content-studio/10-intent.md",
@@ -12,6 +12,6 @@
     "docs/aegis/work/2026-08-12-expert-content-studio/todo-checkpoint-draft.json"
   ],
   "unsafeToAssume": [
-    "Do not present AI output without server confirmation or citations without source context."
+    "Do not include real keys in examples or claim real provider output without configured compatible endpoint."
   ]
 }

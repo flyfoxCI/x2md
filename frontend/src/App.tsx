@@ -4,10 +4,12 @@ import {
   deriveSource,
   editArtifact,
   getSource,
+  getSettings,
   importSource,
   isAbortError,
   isApiError,
   listSources,
+  updateSettings,
 } from "./api";
 import { AppHeader } from "./components/AppHeader";
 import { EditorWorkspace, type WorkspaceTab } from "./components/EditorWorkspace";
@@ -15,20 +17,33 @@ import { ImportDialog } from "./components/ImportDialog";
 import { KnowledgeSidebar } from "./components/KnowledgeSidebar";
 import { PreviewPanel } from "./components/PreviewPanel";
 import { StatusMessage } from "./components/StatusMessage";
-import type { ApiError, Artifact, ArtifactKind, Source, SourceDetail } from "./types";
+import type { ApiError, Artifact, ArtifactKind, PresentationSettings, Source, SourceDetail } from "./types";
 import "./styles/app.css";
 import "./styles/tokens.css";
 import "./styles/workspace.css";
 
 const compactViewportQuery = "(max-width: 720px)";
+const previewOverlayViewportQuery = "(max-width: 1120px)";
 
 const defaultError: ApiError = {
   code: "network_error",
   message: "无法连接到知识库服务，请确认服务正在运行。",
 };
 
+const defaultPresentation: PresentationSettings = {
+  theme: "system",
+  preview_device: "desktop",
+};
+
+const presentationSaveMaxAttempts = 3;
+const presentationSaveRetryDelayMs = 500;
+
 function asApiError(reason: unknown): ApiError {
   return isApiError(reason) ? reason : defaultError;
+}
+
+function samePresentation(left: PresentationSettings, right: PresentationSettings): boolean {
+  return left.theme === right.theme && left.preview_device === right.preview_device;
 }
 
 function useMediaQuery(query: string) {
@@ -78,18 +93,99 @@ function App() {
   const [savingBySourceId, setSavingBySourceId] = useState<Record<number, true | undefined>>({});
   const [currentMarkdown, setCurrentMarkdown] = useState("");
   const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(null);
+  const [presentation, setPresentation] = useState<PresentationSettings>(defaultPresentation);
+  const [presentationError, setPresentationError] = useState<string | null>(null);
   const detailRequestRef = useRef<AbortController | null>(null);
   const detailRequestIdRef = useRef(0);
   const importTriggerRef = useRef<HTMLButtonElement | null>(null);
   const libraryTriggerRef = useRef<HTMLButtonElement | null>(null);
   const selectedSourceRef = useRef<Source | null>(null);
   const restoreImportFocusRef = useRef(false);
+  const settingsRequestRef = useRef<AbortController | null>(null);
+  const settingsSaveRef = useRef<AbortController | null>(null);
+  const settingsSaveInFlightRef = useRef(false);
+  const presentationSaveAttemptRef = useRef(0);
+  const presentationRetryTimeoutRef = useRef<number | null>(null);
+  const flushPresentationSaveRef = useRef<() => void>(() => undefined);
+  const isMountedRef = useRef(false);
+  const desiredPresentationRef = useRef<PresentationSettings>(defaultPresentation);
+  const presentationDirtyRef = useRef(false);
+  const presentationRef = useRef<PresentationSettings>(defaultPresentation);
   const isCompactViewport = useMediaQuery(compactViewportQuery);
+  const isPreviewOverlayViewport = useMediaQuery(previewOverlayViewportQuery);
 
   const handleContentChange = useCallback((markdown: string, artifact: Artifact | null) => {
     setCurrentMarkdown(markdown);
     setSelectedArtifact(artifact);
   }, []);
+
+  const applyPresentation = useCallback((nextPresentation: PresentationSettings) => {
+    if (samePresentation(presentationRef.current, nextPresentation)) {
+      return;
+    }
+    presentationRef.current = nextPresentation;
+    setPresentation(nextPresentation);
+  }, []);
+
+  const flushPresentationSave = useCallback(() => {
+    if (!isMountedRef.current || settingsSaveInFlightRef.current) {
+      return;
+    }
+
+    const requestedPresentation = desiredPresentationRef.current;
+    const attempt = presentationSaveAttemptRef.current + 1;
+    presentationSaveAttemptRef.current = attempt;
+    const controller = new AbortController();
+    settingsSaveRef.current = controller;
+    settingsSaveInFlightRef.current = true;
+    let acceptedResponse = false;
+    void updateSettings(requestedPresentation, controller.signal)
+      .then((settings) => {
+        if (controller.signal.aborted || !isMountedRef.current) {
+          return;
+        }
+        if (samePresentation(desiredPresentationRef.current, requestedPresentation)) {
+          acceptedResponse = true;
+          desiredPresentationRef.current = settings.presentation;
+          applyPresentation(settings.presentation);
+          setPresentationError(attempt > 1 ? "显示设置已保存。" : null);
+        }
+      })
+      .catch((reason) => {
+        if (
+          !controller.signal.aborted
+          && isMountedRef.current
+          && samePresentation(desiredPresentationRef.current, requestedPresentation)
+          && !isAbortError(reason)
+        ) {
+          if (attempt < presentationSaveMaxAttempts) {
+            setPresentationError(`显示设置保存失败，正在重试（第 ${attempt}/${presentationSaveMaxAttempts - 1} 次）。`);
+            presentationRetryTimeoutRef.current = window.setTimeout(() => {
+              presentationRetryTimeoutRef.current = null;
+              flushPresentationSaveRef.current();
+            }, presentationSaveRetryDelayMs);
+          } else {
+            setPresentationError("显示设置仍未保存。请再次选择所需显示设置以重试。");
+          }
+        }
+      })
+      .finally(() => {
+        settingsSaveInFlightRef.current = false;
+        if (settingsSaveRef.current === controller) {
+          settingsSaveRef.current = null;
+        }
+        if (
+          !controller.signal.aborted
+          && isMountedRef.current
+          && !acceptedResponse
+          && !samePresentation(desiredPresentationRef.current, requestedPresentation)
+        ) {
+          flushPresentationSaveRef.current();
+        }
+      });
+  }, [applyPresentation]);
+
+  flushPresentationSaveRef.current = flushPresentationSave;
 
   const focusLibraryTrigger = useCallback(() => {
     libraryTriggerRef.current?.focus();
@@ -165,6 +261,45 @@ function App() {
   useEffect(() => () => detailRequestRef.current?.abort(), []);
 
   useEffect(() => {
+    document.documentElement.dataset.theme = presentation.theme;
+    return () => {
+      if (document.documentElement.dataset.theme === presentation.theme) {
+        delete document.documentElement.dataset.theme;
+      }
+    };
+  }, [presentation.theme]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    settingsRequestRef.current = controller;
+    void getSettings(controller.signal)
+      .then((settings) => {
+        if (!controller.signal.aborted && !presentationDirtyRef.current) {
+          applyPresentation(settings.presentation);
+        }
+      })
+      .catch((reason) => {
+        if (!controller.signal.aborted && !isAbortError(reason)) {
+          setPresentationError("显示设置无法加载，已使用默认设置。");
+        }
+      });
+    return () => controller.abort();
+  }, [applyPresentation]);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      settingsRequestRef.current?.abort();
+      settingsSaveRef.current?.abort();
+      if (presentationRetryTimeoutRef.current !== null) {
+        window.clearTimeout(presentationRetryTimeoutRef.current);
+        presentationRetryTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (!dialogOpen && restoreImportFocusRef.current) {
       restoreImportFocusRef.current = false;
       importTriggerRef.current?.focus();
@@ -180,6 +315,19 @@ function App() {
     restoreImportFocusRef.current = true;
     setDialogOpen(false);
   }, []);
+
+  const handlePresentationChange = useCallback((nextPresentation: PresentationSettings) => {
+    presentationDirtyRef.current = true;
+    presentationSaveAttemptRef.current = 0;
+    if (presentationRetryTimeoutRef.current !== null) {
+      window.clearTimeout(presentationRetryTimeoutRef.current);
+      presentationRetryTimeoutRef.current = null;
+    }
+    desiredPresentationRef.current = nextPresentation;
+    applyPresentation(nextPresentation);
+    setPresentationError(null);
+    flushPresentationSaveRef.current();
+  }, [applyPresentation]);
 
   async function handleImport(urlToImport: string = url) {
     const candidate = urlToImport.trim();
@@ -312,8 +460,16 @@ function App() {
             selectedArtifact={selectedArtifact}
           />
         </div>
-        <PreviewPanel artifact={selectedArtifact} markdown={currentMarkdown} />
+        <PreviewPanel
+          artifact={selectedArtifact}
+          markdown={currentMarkdown}
+          onPresentationChange={handlePresentationChange}
+          presentation={presentation}
+          isOverlayViewport={isPreviewOverlayViewport}
+          source={detail?.source ?? null}
+        />
       </div>
+      {presentationError ? <p className="presentation-status" role="status">{presentationError}</p> : null}
       <ImportDialog
         importing={importing}
         onClose={closeImportDialog}

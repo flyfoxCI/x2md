@@ -89,3 +89,11 @@ No evidence has been recorded yet.
 - Source: Controller frontend checks, browser workflow QA, and independent reviews
 - Summary: Task 10 three-pane studio: 33 tests, ESLint, production build and diff checks pass. Local browser confirmed empty state plus public GitHub import/partial status. Desktop concept/render inspected with view_image; mobile focus review closed.
 - Verifier: npm run lint; npm run test -- --run; npm run build; local FastAPI/Vite browser QA; visual concept/render view_image; reviews
+
+## EvidenceBundleDraft
+
+- Artifact key: task11-green
+- Type: verification
+- Source: Controller multi-run verification, browser QA, and staged independent reviews
+- Summary: Task 11 source chat, safe preview/export, settings and responsive UX: 61 frontend tests passed three controller runs; lint/build; 215 strict backend tests/Ruff/lock/diff pass. Independent browser QA verified desktop, 900px, 390px and dark mode; final review found no issues.
+- Verifier: npm run lint; repeated Vitest; npm run build; uv lock/pytest -W error/Ruff; browser geometry/screenshots; staged security/spec/quality reviews

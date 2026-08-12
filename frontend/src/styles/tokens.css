@@ -18,15 +18,113 @@
   --ocean-700: #106171;
   --accent: #07515d;
   --accent-hover: #063f49;
+  --on-accent: #ffffff;
+  --control-surface: #eef3f4;
+  --control-ink: #45565c;
+  --control-active-surface: #ffffff;
+  --control-active-ink: #0c4752;
+  --editor-gutter: #f7f9fa;
+  --link: #0b5361;
   --success: #148557;
+  --success-ink: #087548;
   --warning-bg: #fff7e7;
   --warning-ink: #79520c;
   --success-bg: #edfbf4;
+  --preview-frame-surface: #ffffff;
+  --preview-frame-ink: #172227;
   --radius-sm: 6px;
   --radius-md: 10px;
   --shadow-dialog: 0 22px 65px rgb(9 30 36 / 28%);
   --focus-ring: 0 0 0 3px rgb(33 118 135 / 30%);
 }
+
+:root[data-theme="dark"] {
+  color: #e8f2f3;
+  --ink: #e8f2f3;
+  --muted: #aebec2;
+  --paper: #132228;
+  --ground: #0c181c;
+  --line: #2b4148;
+  --line-strong: #496068;
+  --accent: #57aeb9;
+  --accent-hover: #7bc7d0;
+  --on-accent: #06252d;
+  --control-surface: #1d3036;
+  --control-ink: #e8f2f3;
+  --control-active-surface: #2a4650;
+  --control-active-ink: #ffffff;
+  --editor-gutter: #172c32;
+  --link: #8ed7df;
+  --warning-bg: #3c3117;
+  --warning-ink: #f2cd80;
+  --success-bg: #163b2c;
+  --success-ink: #9ee6bd;
+  --preview-frame-surface: #1b3037;
+  --preview-frame-ink: #e8f2f3;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] {
+    color: #e8f2f3;
+    --ink: #e8f2f3;
+    --muted: #aebec2;
+    --paper: #132228;
+    --ground: #0c181c;
+    --line: #2b4148;
+    --line-strong: #496068;
+    --accent: #57aeb9;
+    --accent-hover: #7bc7d0;
+    --on-accent: #06252d;
+    --control-surface: #1d3036;
+    --control-ink: #e8f2f3;
+    --control-active-surface: #2a4650;
+    --control-active-ink: #ffffff;
+    --editor-gutter: #172c32;
+    --link: #8ed7df;
+    --warning-bg: #3c3117;
+    --warning-ink: #f2cd80;
+    --success-bg: #163b2c;
+    --success-ink: #9ee6bd;
+    --preview-frame-surface: #1b3037;
+    --preview-frame-ink: #e8f2f3;
+  }
+
+  :root[data-theme="system"] .app-header,
+  :root[data-theme="system"] .preview-panel,
+  :root[data-theme="system"] .workspace-column,
+  :root[data-theme="system"] .editor-workspace,
+  :root[data-theme="system"] .knowledge-chat { background: var(--paper); }
+  :root[data-theme="system"] .source-provenance h2,
+  :root[data-theme="system"] .markdown-preview h1,
+  :root[data-theme="system"] .markdown-preview h2,
+  :root[data-theme="system"] .markdown-preview h3,
+  :root[data-theme="system"] .markdown-preview,
+  :root[data-theme="system"] .chat-answer { color: var(--ink); }
+  :root[data-theme="system"] .markdown-editor-wrap textarea,
+  :root[data-theme="system"] .knowledge-chat-form textarea,
+  :root[data-theme="system"] .import-bar input,
+  :root[data-theme="system"] .import-dialog { color: var(--ink); background: var(--paper); }
+  :root[data-theme="system"] .preview-device-toggle button[aria-pressed="true"] { color: var(--control-active-ink); background: var(--control-active-surface); }
+  :root[data-theme="system"] .mobile-workspace-tools { background: var(--control-surface); }
+}
+
+:root[data-theme="dark"] .app-header,
+:root[data-theme="dark"] .preview-panel,
+:root[data-theme="dark"] .workspace-column,
+:root[data-theme="dark"] .editor-workspace,
+:root[data-theme="dark"] .knowledge-chat { background: var(--paper); }
+:root[data-theme="dark"] .source-provenance h2,
+:root[data-theme="dark"] .markdown-preview h1,
+:root[data-theme="dark"] .markdown-preview h2,
+:root[data-theme="dark"] .markdown-preview h3,
+:root[data-theme="dark"] .markdown-preview,
+:root[data-theme="dark"] .chat-answer { color: var(--ink); }
+:root[data-theme="dark"] .markdown-editor-wrap textarea,
+:root[data-theme="dark"] .knowledge-chat-form textarea,
+:root[data-theme="dark"] .import-bar input,
+:root[data-theme="dark"] .import-dialog { color: var(--ink); background: var(--paper); }
+:root[data-theme="dark"] .preview-device-toggle button[aria-pressed="true"] { color: var(--control-active-ink); background: var(--control-active-surface); }
+:root[data-theme="dark"] .mobile-workspace-tools { background: var(--control-surface); }
 
 * { box-sizing: border-box; }
 

@@ -1,6 +1,8 @@
+:root { --app-header-height: 70px; }
+
 .studio-shell {
   display: grid;
-  grid-template-rows: 70px minmax(0, 1fr);
+  grid-template-rows: var(--app-header-height) minmax(0, 1fr);
   min-height: 100vh;
   overflow: hidden;
 }
@@ -58,13 +60,13 @@
   font-size: .88rem;
   border-radius: var(--radius-sm);
 }
-.primary-button { color: #fff; background: var(--accent); border: 1px solid var(--accent); }
+.primary-button { color: var(--on-accent); background: var(--accent); border: 1px solid var(--accent); }
 .primary-button:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
 .secondary-button { color: var(--accent); background: #f8fcfc; border: 1px solid #98b7bd; }
 .secondary-button:hover:not(:disabled) { background: #ecf6f7; }
 .import-button { min-width: 5rem; }
 
-.header-status { display: flex; align-items: center; gap: .45rem; color: #44545a; font-size: .77rem; white-space: nowrap; }
+.header-status { display: flex; align-items: center; gap: .45rem; color: var(--muted); font-size: .77rem; white-space: nowrap; }
 .status-dot { width: .48rem; height: .48rem; background: #16a367; border-radius: 100%; }
 
 .status-message {
@@ -74,7 +76,8 @@
   border-bottom: 1px solid var(--line);
 }
 .status-message.is-warning { color: var(--warning-ink); background: var(--warning-bg); }
-.status-message.is-success { color: #087548; background: var(--success-bg); }
+.status-message.is-success { color: var(--success-ink); background: var(--success-bg); }
+.presentation-status { position: fixed; z-index: 15; right: 1rem; bottom: 1rem; max-width: min(28rem, calc(100vw - 2rem)); padding: .65rem .8rem; margin: 0; color: var(--warning-ink); font-size: .78rem; background: var(--warning-bg); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); box-shadow: 0 8px 20px rgb(7 25 29 / 16%); }
 
 .dialog-scrim {
   position: fixed;
@@ -101,8 +104,9 @@
 .dialog-actions { display: flex; justify-content: flex-end; gap: .65rem; margin-top: 1.25rem; }
 
 @media (max-width: 900px) {
-  .studio-shell { grid-template-rows: auto minmax(0, 1fr); overflow: visible; }
-  .app-header { grid-template-columns: auto 1fr auto; gap: .75rem; min-height: 65px; padding: .65rem 1rem; }
+  :root { --app-header-height: calc(7rem + env(safe-area-inset-top, 0px)); }
+  .studio-shell { grid-template-rows: var(--app-header-height) minmax(0, 1fr); overflow: visible; }
+  .app-header { grid-template-columns: auto 1fr auto; gap: .75rem; min-height: var(--app-header-height); padding: .65rem 1rem; }
   .brand-lockup span, .header-status { display: none; }
   .import-bar { grid-column: 1 / -1; grid-row: 2; }
 }

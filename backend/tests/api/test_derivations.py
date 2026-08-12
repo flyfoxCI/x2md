@@ -1,13 +1,16 @@
 """API contracts for persisted AI-derived artifacts and safe settings."""
 
+import asyncio
 import json
+from threading import Barrier, Lock
 
 import httpx
 import pytest
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.models import Artifact, Source
+from app.models import AppSetting, Artifact, Source
 from app.services.ai import AIService
 from tests.api.conftest import ApiHarness
 
@@ -196,3 +199,50 @@ async def test_settings_exposes_and_accepts_only_non_secret_presentation_values(
     serialized = json.dumps(saved.json())
     assert "api_key" not in serialized.lower()
     assert "bearer" not in serialized.lower()
+
+
+@pytest.mark.asyncio
+async def test_settings_concurrent_first_writes_both_succeed_and_leave_valid_preferences(
+    api_harness: ApiHarness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Two request sessions must safely initialize the initially absent setting."""
+    original_get = Session.get
+    first_reads = Barrier(2)
+    counter_lock = Lock()
+    setting_reads = 0
+
+    def synchronize_first_setting_reads(
+        session: Session, entity: type[object], ident: object, *args: object, **kwargs: object
+    ) -> object:
+        nonlocal setting_reads
+        setting = original_get(session, entity, ident, *args, **kwargs)
+        if entity is AppSetting and ident == "presentation":
+            with counter_lock:
+                setting_reads += 1
+                should_wait = setting_reads <= 2
+            if should_wait:
+                first_reads.wait(timeout=2)
+        return setting
+
+    monkeypatch.setattr(Session, "get", synchronize_first_setting_reads)
+    presentations = [
+        {"theme": "dark", "preview_device": "mobile"},
+        {"theme": "light", "preview_device": "desktop"},
+    ]
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=api_harness.app), base_url="http://testserver"
+    ) as client:
+        responses = await asyncio.gather(
+            *[
+                client.patch("/api/settings", json={"presentation": presentation})
+                for presentation in presentations
+            ]
+        )
+        saved = await client.get("/api/settings")
+
+    assert [response.status_code for response in responses] == [200, 200]
+    assert saved.status_code == 200
+    assert saved.json()["presentation"] in presentations
+    with api_harness.session_factory() as session:
+        assert session.get(AppSetting, "presentation") is not None

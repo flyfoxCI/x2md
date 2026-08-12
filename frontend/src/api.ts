@@ -331,21 +331,30 @@ export function editArtifact(
   });
 }
 
-export function chatWithSource(sourceId: number, question: string): Promise<ChatTurn> {
+export function chatWithSource(
+  sourceId: number,
+  question: string,
+  signal?: AbortSignal,
+): Promise<ChatTurn> {
   return request(`/sources/${sourceId}/chat`, isChatTurn, {
     method: "POST",
     body: JSON.stringify({ question }),
+    signal,
   });
 }
 
-export function getSettings(): Promise<Settings> {
-  return request("/settings", isSettings);
+export function getSettings(signal?: AbortSignal): Promise<Settings> {
+  return request("/settings", isSettings, { signal });
 }
 
-export function updateSettings(settings: Settings["presentation"]): Promise<Settings> {
+export function updateSettings(
+  settings: Settings["presentation"],
+  signal?: AbortSignal,
+): Promise<Settings> {
   return request("/settings", isSettings, {
     method: "PATCH",
     body: JSON.stringify({ presentation: settings }),
+    signal,
   });
 }
 

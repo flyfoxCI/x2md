@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "task11-green",
+  "type": "verification",
+  "source": "Controller multi-run verification, browser QA, and staged independent reviews",
+  "summary": "Task 11 source chat, safe preview/export, settings and responsive UX: 61 frontend tests passed three controller runs; lint/build; 215 strict backend tests/Ruff/lock/diff pass. Independent browser QA verified desktop, 900px, 390px and dark mode; final review found no issues.",
+  "verifier": "npm run lint; repeated Vitest; npm run build; uv lock/pytest -W error/Ruff; browser geometry/screenshots; staged security/spec/quality reviews"
+}

@@ -271,3 +271,23 @@
 - task10-green
 - Blocked on: none
 - Next step: Implement chat/preview/export client components, then complete desktop and 390px visual QA.
+
+## DriftCheckDraft
+
+- Scope status: Task 11 complete within planned chat/export/mobile scope; review repairs hardened markdown ownership, settings ordering, accessibility and visual contrast.
+- Compatibility status: Only non-secret settings are exposed; browser third-party image fetches are blocked; API/source/AI contracts preserved.
+- Retirement status: Proceed to Task 12 operations documentation, Compose and end-to-end verification after commit.
+- New risk signals:
+- No unretired Task 11 finding; provider-backed derivations remain correctly configuration-dependent.
+- Advisory decision: continue
+
+## Checkpoint Update
+
+- Current todo: Implement Task 12: runtime documentation, Docker Compose, and end-to-end QA
+- Active slice: Task 12
+- Completed todos:
+- Tasks 1-11 complete: secure source imports, persistence, AI derivation/chat, responsive accessible three-pane client, safe rendering/export, and settings UX
+- Evidence refs:
+- task11-green
+- Blocked on: none
+- Next step: Dispatch Task 12 implementer, then run Docker and documented end-to-end workflow verification.

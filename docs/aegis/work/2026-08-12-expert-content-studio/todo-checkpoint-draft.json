@@ -1,15 +1,15 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
-  "currentTodo": "Implement Task 11: source-scoped chat, Markdown preview/export, and mobile quality",
+  "currentTodo": "Implement Task 12: runtime documentation, Docker Compose, and end-to-end QA",
   "completedTodos": [
-    "Tasks 1-10 complete: full backend import/AI pipeline, hardened client, and functional accessible three-pane studio"
+    "Tasks 1-11 complete: secure source imports, persistence, AI derivation/chat, responsive accessible three-pane client, safe rendering/export, and settings UX"
   ],
-  "activeSlice": "Task 11",
+  "activeSlice": "Task 12",
   "evidenceRefs": [
-    "task10-green"
+    "task11-green"
   ],
   "blockedOn": null,
-  "nextStep": "Implement chat/preview/export client components, then complete desktop and 390px visual QA.",
+  "nextStep": "Dispatch Task 12 implementer, then run Docker and documented end-to-end workflow verification.",
   "updatedAt": "2026-08-13"
 }
