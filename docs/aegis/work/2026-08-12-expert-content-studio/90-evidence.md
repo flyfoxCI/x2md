@@ -97,3 +97,11 @@ No evidence has been recorded yet.
 - Source: Controller multi-run verification, browser QA, and staged independent reviews
 - Summary: Task 11 source chat, safe preview/export, settings and responsive UX: 61 frontend tests passed three controller runs; lint/build; 215 strict backend tests/Ruff/lock/diff pass. Independent browser QA verified desktop, 900px, 390px and dark mode; final review found no issues.
 - Verifier: npm run lint; repeated Vitest; npm run build; uv lock/pytest -W error/Ruff; browser geometry/screenshots; staged security/spec/quality reviews
+
+## EvidenceBundleDraft
+
+- Artifact key: task12-green
+- Type: verification
+- Source: Controller full-stack verification and independent operations review
+- Summary: Task 12 docs, compose and end-to-end workflow: backend 216 strict tests/Ruff/lock; frontend 61 tests/lint/build; Compose static config reviewed; E2E import→derive→edit→search→download passes. Docker runtime startup unavailable because current host lacks Docker CLI/daemon.
+- Verifier: uv lock --check; pytest -W error; Ruff; npm lint/test/build; docker compose config in implementation environment; operations/spec reviews

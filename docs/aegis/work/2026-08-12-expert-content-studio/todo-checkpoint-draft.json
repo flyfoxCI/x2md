@@ -1,15 +1,15 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
-  "currentTodo": "Implement Task 12: runtime documentation, Docker Compose, and end-to-end QA",
+  "currentTodo": "Integrate verified feature branch and hand off complete Expert Content Studio",
   "completedTodos": [
-    "Tasks 1-11 complete: secure source imports, persistence, AI derivation/chat, responsive accessible three-pane client, safe rendering/export, and settings UX"
+    "Tasks 1-12 complete: secure sources, persistence, AI, responsive studio, safe chat/export/settings, operations docs, Compose and end-to-end API workflow"
   ],
-  "activeSlice": "Task 12",
+  "activeSlice": "Final integration",
   "evidenceRefs": [
-    "task11-green"
+    "task12-green"
   ],
   "blockedOn": null,
-  "nextStep": "Dispatch Task 12 implementer, then run Docker and documented end-to-end workflow verification.",
+  "nextStep": "Commit Task 12, fast-forward main branch after final status review, report verification and Docker runtime limitation.",
   "updatedAt": "2026-08-13"
 }

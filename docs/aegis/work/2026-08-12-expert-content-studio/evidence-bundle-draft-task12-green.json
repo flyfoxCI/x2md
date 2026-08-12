@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "task12-green",
+  "type": "verification",
+  "source": "Controller full-stack verification and independent operations review",
+  "summary": "Task 12 docs, compose and end-to-end workflow: backend 216 strict tests/Ruff/lock; frontend 61 tests/lint/build; Compose static config reviewed; E2E import→derive→edit→search→download passes. Docker runtime startup unavailable because current host lacks Docker CLI/daemon.",
+  "verifier": "uv lock --check; pytest -W error; Ruff; npm lint/test/build; docker compose config in implementation environment; operations/spec reviews"
+}

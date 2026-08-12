@@ -3,11 +3,11 @@
   "taskId": "2026-08-12-expert-content-studio",
   "taskIntentRef": "docs/aegis/work/2026-08-12-expert-content-studio/task-intent-draft.json",
   "baselineRefs": [],
-  "scopeStatus": "Task 11 complete within planned chat/export/mobile scope; review repairs hardened markdown ownership, settings ordering, accessibility and visual contrast.",
-  "compatStatus": "Only non-secret settings are exposed; browser third-party image fetches are blocked; API/source/AI contracts preserved.",
-  "retirementStatus": "Proceed to Task 12 operations documentation, Compose and end-to-end verification after commit.",
+  "scopeStatus": "Task 12 complete within docs/Compose/e2e scope; container launch evidence limited only by absent Docker runtime.",
+  "compatStatus": "Local-only Compose ports, named PostgreSQL volume and Nginx same-origin /api proxy preserve deployment contracts.",
+  "retirementStatus": "All implementation tasks complete; final integration and verification handoff next.",
   "newRiskSignals": [
-    "No unretired Task 11 finding; provider-backed derivations remain correctly configuration-dependent."
+    "External environment limitation: Docker CLI/daemon unavailable, so docker compose up --build must be run on a Docker-enabled host."
   ],
   "decision": "continue"
 }

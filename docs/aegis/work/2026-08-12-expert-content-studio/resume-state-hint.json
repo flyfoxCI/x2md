@@ -2,9 +2,9 @@
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
   "lastCheckpointRef": "docs/aegis/work/2026-08-12-expert-content-studio/todo-checkpoint-draft.json",
-  "resumeInstruction": "Keep documentation honest about optional AI/X credentials and platform limits; verify actual compose health and representative workflow.",
+  "resumeInstruction": "Preserve all verified commits; integrate fast-forward only and never expose credentials.",
   "knownPartialWork": [
-    "Tasks 1-11 complete: secure source imports, persistence, AI derivation/chat, responsive accessible three-pane client, safe rendering/export, and settings UX"
+    "Tasks 1-12 complete: secure sources, persistence, AI, responsive studio, safe chat/export/settings, operations docs, Compose and end-to-end API workflow"
   ],
   "mustReadBeforeContinuing": [
     "docs/aegis/work/2026-08-12-expert-content-studio/10-intent.md",
@@ -12,6 +12,6 @@
     "docs/aegis/work/2026-08-12-expert-content-studio/todo-checkpoint-draft.json"
   ],
   "unsafeToAssume": [
-    "Do not include real keys in examples or claim real provider output without configured compatible endpoint."
+    "Do not claim Docker compose runtime started on this host; Docker is unavailable."
   ]
 }

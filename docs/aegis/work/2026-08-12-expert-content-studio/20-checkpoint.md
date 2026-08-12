@@ -291,3 +291,23 @@
 - task11-green
 - Blocked on: none
 - Next step: Dispatch Task 12 implementer, then run Docker and documented end-to-end workflow verification.
+
+## DriftCheckDraft
+
+- Scope status: Task 12 complete within docs/Compose/e2e scope; container launch evidence limited only by absent Docker runtime.
+- Compatibility status: Local-only Compose ports, named PostgreSQL volume and Nginx same-origin /api proxy preserve deployment contracts.
+- Retirement status: All implementation tasks complete; final integration and verification handoff next.
+- New risk signals:
+- External environment limitation: Docker CLI/daemon unavailable, so docker compose up --build must be run on a Docker-enabled host.
+- Advisory decision: continue
+
+## Checkpoint Update
+
+- Current todo: Integrate verified feature branch and hand off complete Expert Content Studio
+- Active slice: Final integration
+- Completed todos:
+- Tasks 1-12 complete: secure sources, persistence, AI, responsive studio, safe chat/export/settings, operations docs, Compose and end-to-end API workflow
+- Evidence refs:
+- task12-green
+- Blocked on: none
+- Next step: Commit Task 12, fast-forward main branch after final status review, report verification and Docker runtime limitation.
