@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "affectedLayers": [
+    "frontend",
+    "backend",
+    "connectors",
+    "persistence"
+  ],
+  "owners": [
+    "FastAPI owns remote retrieval, source records and AI calls; React owns presentation state"
+  ],
+  "invariants": [
+    "No secret in browser; raw sources are immutable; only public safe URLs are fetched"
+  ],
+  "compatBoundary": "OpenAI-compatible AI configuration and structured source-restriction status",
+  "nonGoals": [
+    "Accounts, billing, private-source access, bypassing platform restrictions, vector search and background jobs"
+  ]
+}

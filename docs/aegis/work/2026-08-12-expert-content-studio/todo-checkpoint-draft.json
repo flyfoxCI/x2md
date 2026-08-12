@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "taskId": "2026-08-12-expert-content-studio",
+  "currentTodo": "Prepare isolated development workspace and dispatch Task 1",
+  "completedTodos": [],
+  "activeSlice": "Task 1 service scaffold",
+  "evidenceRefs": [],
+  "blockedOn": null,
+  "nextStep": "Create a verified Git worktree, then dispatch the Task 1 implementer",
+  "updatedAt": "2026-08-12"
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "requestedOutcome": "Build the approved full-stack expert content studio",
+  "goal": "Implement and verify the single-user source-to-knowledge-to-Skill workflow",
+  "successEvidence": [
+    "Supported public imports persist; configured AI derivations work; UI supports import, edit, search, chat and export"
+  ],
+  "stopCondition": "Done when all planned tasks and acceptance verification pass; otherwise preserve a checkpoint with blockers",
+  "nonGoals": [
+    "Accounts, billing, private-source access, bypassing platform restrictions, vector search and background jobs"
+  ],
+  "scope": "React frontend, FastAPI backend, connectors, AI adapter, SQLite/PostgreSQL persistence and local runtime documentation",
+  "changeKinds": [
+    "feature"
+  ],
+  "riskHints": [
+    "Platform access limits, SSRF safety and provider configuration must remain explicit"
+  ]
+}
