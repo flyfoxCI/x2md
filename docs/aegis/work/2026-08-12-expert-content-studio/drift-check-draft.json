@@ -3,14 +3,11 @@
   "taskId": "2026-08-12-expert-content-studio",
   "taskIntentRef": "docs/aegis/work/2026-08-12-expert-content-studio/task-intent-draft.json",
   "baselineRefs": [
-    "docs/aegis/specs/2026-08-11-expert-content-studio-design.md",
     "docs/aegis/plans/2026-08-11-expert-content-studio.md"
   ],
-  "scopeStatus": "not-yet-verified",
-  "compatStatus": "not-yet-verified",
-  "retirementStatus": "not-yet-verified",
-  "newRiskSignals": [
-    "Platform access limits, SSRF safety and provider configuration must remain explicit"
-  ],
-  "decision": "needs-baseline-readback"
+  "scopeStatus": "Still aligned to the approved full-stack plan",
+  "compatStatus": "No source code or credential boundary changed during setup",
+  "retirementStatus": "No legacy owner or fallback exists in the greenfield worktree",
+  "newRiskSignals": [],
+  "decision": "continue"
 }

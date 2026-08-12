@@ -1,11 +1,13 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
-  "currentTodo": "Prepare isolated development workspace and dispatch Task 1",
+  "currentTodo": "Implement Task 1: scaffold service and safe health configuration",
   "completedTodos": [],
   "activeSlice": "Task 1 service scaffold",
-  "evidenceRefs": [],
+  "evidenceRefs": [
+    "Git worktree feature/expert-content-studio created from main 1c08c9d"
+  ],
   "blockedOn": null,
-  "nextStep": "Create a verified Git worktree, then dispatch the Task 1 implementer",
+  "nextStep": "Dispatch Task 1 implementation subagent",
   "updatedAt": "2026-08-12"
 }
