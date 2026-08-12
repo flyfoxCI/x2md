@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "task7-green",
+  "type": "verification",
+  "source": "Controller verification + two independent reviews",
+  "summary": "Task 7 import and knowledge-library API: 21 API tests, 192 total tests, Ruff and diff checks pass; repair reviews found no issues.",
+  "verifier": "uv lock --check; pytest -W error; ruff check; spec review; quality review"
+}

@@ -1,13 +1,12 @@
 """Database engine and request-session ownership."""
 
 from collections.abc import Generator
-from functools import lru_cache
+from dataclasses import dataclass
 
+from fastapi import Request
 from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.orm import Session, sessionmaker
-
-from app.config import Settings
 
 
 def normalize_database_url(database_url: str | URL) -> URL:
@@ -34,19 +33,28 @@ def create_database_engine(database_url: str | URL) -> Engine:
     return engine
 
 
-@lru_cache
-def get_engine() -> Engine:
-    """Return the process-wide database engine."""
-    return create_database_engine(Settings().database_url)
+@dataclass(slots=True)
+class DatabaseResources:
+    """One application's database engine and independent request sessions."""
+
+    engine: Engine
+    session_factory: sessionmaker[Session]
+
+    def dispose(self) -> None:
+        """Release connections owned by this application instance."""
+        self.engine.dispose()
 
 
-@lru_cache
-def get_session_factory() -> sessionmaker[Session]:
-    """Return the process-wide factory for independent database sessions."""
-    return sessionmaker(bind=get_engine(), autoflush=False, expire_on_commit=False)
+def create_database_resources(database_url: str | URL) -> DatabaseResources:
+    """Create app-owned database resources from explicit runtime configuration."""
+    engine = create_database_engine(database_url)
+    return DatabaseResources(
+        engine=engine,
+        session_factory=sessionmaker(bind=engine, autoflush=False, expire_on_commit=False),
+    )
 
 
-def get_db() -> Generator[Session, None, None]:
-    """Yield a request-scoped session for FastAPI dependencies."""
-    with get_session_factory()() as session:
+def get_db(request: Request) -> Generator[Session, None, None]:
+    """Yield a request session bound to the receiving application's configuration."""
+    with request.app.state.session_factory() as session:
         yield session

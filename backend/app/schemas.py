@@ -9,6 +9,19 @@ ArtifactKind = Literal["translation", "summary", "skill", "user_edit"]
 ImportStatus = Literal["ready", "partial", "blocked"]
 
 
+class ApiErrorDetail(BaseModel):
+    """Stable machine-readable code and safe message for a public failure."""
+
+    code: str
+    message: str
+
+
+class ApiErrorResponse(BaseModel):
+    """Documented envelope used by knowledge-library route failures."""
+
+    detail: ApiErrorDetail
+
+
 class SourceCreate(BaseModel):
     """Fields accepted when recording canonical connector output."""
 

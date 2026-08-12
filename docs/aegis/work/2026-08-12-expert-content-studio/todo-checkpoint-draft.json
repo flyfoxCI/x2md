@@ -1,20 +1,15 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
-  "currentTodo": "Implement Task 7: persisted import and knowledge-library API",
+  "currentTodo": "Implement Task 8: AI adapter, source derivations, grounded chat, and settings APIs",
   "completedTodos": [
-    "Task 1: service scaffold and safe health configuration",
-    "Task 2: canonical persistence and migration integrity",
-    "Task 3: URL classification, SSRF protection and rate limits",
-    "Task 4: generic normalized connector contract and web extraction",
-    "Task 5: GitHub, arXiv and Hugging Face connectors",
-    "Task 6: constrained YouTube and X source handling"
+    "Tasks 1-7 complete: foundation, persistence/migrations, URL safety, all connectors, persisted import and knowledge APIs"
   ],
-  "activeSlice": "Task 7 persistence-backed import and library API",
+  "activeSlice": "Task 8",
   "evidenceRefs": [
-    "Task 6 controller verification: 53 focused, 123 connector and 171 full warning-strict tests"
+    "task7-green"
   ],
   "blockedOn": null,
-  "nextStep": "Commit Task6 then dispatch knowledge API implementer",
+  "nextStep": "Dispatch Task 8 implementer, then specification and quality reviews.",
   "updatedAt": "2026-08-12"
 }

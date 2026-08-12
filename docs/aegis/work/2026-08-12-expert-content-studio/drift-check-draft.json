@@ -2,14 +2,12 @@
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
   "taskIntentRef": "docs/aegis/work/2026-08-12-expert-content-studio/task-intent-draft.json",
-  "baselineRefs": [
-    "docs/aegis/plans/2026-08-11-expert-content-studio.md"
-  ],
-  "scopeStatus": "Task 6 constrained YouTube/X connectors only; no API/persistence/AI/frontend work added",
-  "compatStatus": "No captions/no X credentials yield empty metadata-only states; v2 text only with SecretStr; safe timedtext parsing denies DTD/entity content",
-  "retirementStatus": "No scraping/fabricated transcript path exists; parser accepts only declared legacy transcript MIME/root",
+  "baselineRefs": [],
+  "scopeStatus": "Task 7 complete within approved scope; review added production pool/lifecycle regressions only.",
+  "compatStatus": "API contracts and prior connector behavior preserved.",
+  "retirementStatus": "Proceed to Task 8 after committing Task 7.",
   "newRiskSignals": [
-    "X access and captions remain external-platform dependent; user credentials/availability determine ready vs partial/blocked"
+    "No unretired Task 7 risk."
   ],
   "decision": "continue"
 }

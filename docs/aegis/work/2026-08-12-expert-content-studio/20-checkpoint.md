@@ -191,3 +191,23 @@
 - Task 6 controller verification: 53 focused, 123 connector and 171 full warning-strict tests
 - Blocked on: none
 - Next step: Commit Task6 then dispatch knowledge API implementer
+
+## DriftCheckDraft
+
+- Scope status: Task 7 complete within approved scope; review added production pool/lifecycle regressions only.
+- Compatibility status: API contracts and prior connector behavior preserved.
+- Retirement status: Proceed to Task 8 after committing Task 7.
+- New risk signals:
+- No unretired Task 7 risk.
+- Advisory decision: continue
+
+## Checkpoint Update
+
+- Current todo: Implement Task 8: AI adapter, source derivations, grounded chat, and settings APIs
+- Active slice: Task 8
+- Completed todos:
+- Tasks 1-7 complete: foundation, persistence/migrations, URL safety, all connectors, persisted import and knowledge APIs
+- Evidence refs:
+- task7-green
+- Blocked on: none
+- Next step: Dispatch Task 8 implementer, then specification and quality reviews.

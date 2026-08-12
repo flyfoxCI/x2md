@@ -2,14 +2,9 @@
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
   "lastCheckpointRef": "docs/aegis/work/2026-08-12-expert-content-studio/todo-checkpoint-draft.json",
-  "resumeInstruction": "Task7 must compose safe client/router/connectors, persist normalized sources idempotently, and expose structured failures/search/artifact download.",
+  "resumeInstruction": "Start Task 8 from the approved plan; retain server-only provider credentials and graceful no-provider behavior.",
   "knownPartialWork": [
-    "Task 1: service scaffold and safe health configuration",
-    "Task 2: canonical persistence and migration integrity",
-    "Task 3: URL classification, SSRF protection and rate limits",
-    "Task 4: generic normalized connector contract and web extraction",
-    "Task 5: GitHub, arXiv and Hugging Face connectors",
-    "Task 6: constrained YouTube and X source handling"
+    "Tasks 1-7 complete: foundation, persistence/migrations, URL safety, all connectors, persisted import and knowledge APIs"
   ],
   "mustReadBeforeContinuing": [
     "docs/aegis/work/2026-08-12-expert-content-studio/10-intent.md",
@@ -17,6 +12,6 @@
     "docs/aegis/work/2026-08-12-expert-content-studio/todo-checkpoint-draft.json"
   ],
   "unsafeToAssume": [
-    "The API may mutate raw Source fields; only KnowledgeService owns source/artifact writes."
+    "Do not use live provider keys or claim a derivation succeeded without an append-only artifact."
   ]
 }

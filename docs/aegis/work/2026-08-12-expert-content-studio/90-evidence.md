@@ -57,3 +57,11 @@ No evidence has been recorded yet.
 - Source: Controller verification: constrained YouTube and X connectors
 - Summary: Task6 focused 53 passed; all connector tests 123 passed; full backend warning-strict suite 171 passed; lock/Ruff/diff checks passed. Two-stage reviews approved strict URL/token/transcript and XML safety boundaries.
 - Verifier: Primary controller
+
+## EvidenceBundleDraft
+
+- Artifact key: task7-green
+- Type: verification
+- Source: Controller verification + two independent reviews
+- Summary: Task 7 import and knowledge-library API: 21 API tests, 192 total tests, Ruff and diff checks pass; repair reviews found no issues.
+- Verifier: uv lock --check; pytest -W error; ruff check; spec review; quality review
