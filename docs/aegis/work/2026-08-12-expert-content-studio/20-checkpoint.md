@@ -97,3 +97,25 @@
 - Task 2 controller verification: 16 tests warning-strict, ruff, SQLite Alembic upgrade/current/downgrade
 - Blocked on: none
 - Next step: Commit Task 2 then dispatch URL safety implementer
+
+## DriftCheckDraft
+
+- Scope status: Task 3 URL guard only; no source connector or HTTP API introduced
+- Compatibility status: HTTPS public targets only; DNS/private redirects rejected before next outbound request; caller cannot override client safety policy
+- Retirement status: No legacy fetch path exists; DNS IP pinning intentionally deferred outside approved task
+- New risk signals:
+- Future connector must use SafeHttpClient for all remote fetches; no direct httpx route around guard
+- Advisory decision: continue
+
+## Checkpoint Update
+
+- Current todo: Implement Task 4: normalized connector contract and generic web extraction
+- Active slice: Task 4 connector contract and web extraction
+- Completed todos:
+- Task 1: service scaffold and safe health configuration
+- Task 2: canonical persistence and migration integrity
+- Task 3: URL classification and SSRF protection
+- Evidence refs:
+- Task 3: controller verified 20 focused and 36 full warning-strict tests
+- Blocked on: none
+- Next step: Commit Task 3 and dispatch generic web connector implementer

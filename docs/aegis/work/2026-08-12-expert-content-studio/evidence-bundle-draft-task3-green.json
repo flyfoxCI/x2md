@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "task3-green",
+  "type": "verification",
+  "source": "Controller verification: URL safety",
+  "summary": "Focused SSRF suite 20 passed; full warning-strict backend suite 36 passed; Ruff and diff check passed. Spec and quality reviews approved.",
+  "verifier": "Primary controller"
+}

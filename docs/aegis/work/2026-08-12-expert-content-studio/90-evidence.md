@@ -25,3 +25,11 @@ No evidence has been recorded yet.
 - Source: Controller verification: backend persistence
 - Summary: uv lock --check; pytest -q -W error (16 passed); ruff check; temporary SQLite Alembic upgrade/current/downgrade all succeeded. Task 2 spec and quality reviews approved.
 - Verifier: Primary controller
+
+## EvidenceBundleDraft
+
+- Artifact key: task3-green
+- Type: verification
+- Source: Controller verification: URL safety
+- Summary: Focused SSRF suite 20 passed; full warning-strict backend suite 36 passed; Ruff and diff check passed. Spec and quality reviews approved.
+- Verifier: Primary controller

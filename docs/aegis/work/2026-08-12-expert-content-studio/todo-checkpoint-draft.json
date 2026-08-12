@@ -1,16 +1,17 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
-  "currentTodo": "Implement Task 3: URL classification and SSRF protection",
+  "currentTodo": "Implement Task 4: normalized connector contract and generic web extraction",
   "completedTodos": [
     "Task 1: service scaffold and safe health configuration",
-    "Task 2: canonical persistence and migration integrity"
+    "Task 2: canonical persistence and migration integrity",
+    "Task 3: URL classification and SSRF protection"
   ],
-  "activeSlice": "Task 3 URL safety",
+  "activeSlice": "Task 4 connector contract and web extraction",
   "evidenceRefs": [
-    "Task 2 controller verification: 16 tests warning-strict, ruff, SQLite Alembic upgrade/current/downgrade"
+    "Task 3: controller verified 20 focused and 36 full warning-strict tests"
   ],
   "blockedOn": null,
-  "nextStep": "Commit Task 2 then dispatch URL safety implementer",
+  "nextStep": "Commit Task 3 and dispatch generic web connector implementer",
   "updatedAt": "2026-08-12"
 }

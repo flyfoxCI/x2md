@@ -2,10 +2,11 @@
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
   "lastCheckpointRef": "docs/aegis/work/2026-08-12-expert-content-studio/todo-checkpoint-draft.json",
-  "resumeInstruction": "Task 3 must validate public URLs/DNS before any connector; retain safe no-network failures.",
+  "resumeInstruction": "Task 4 connector must only fetch via SafeHttpClient and yield normalized ready/partial/blocked records.",
   "knownPartialWork": [
     "Task 1: service scaffold and safe health configuration",
-    "Task 2: canonical persistence and migration integrity"
+    "Task 2: canonical persistence and migration integrity",
+    "Task 3: URL classification and SSRF protection"
   ],
   "mustReadBeforeContinuing": [
     "docs/aegis/work/2026-08-12-expert-content-studio/10-intent.md",
@@ -13,6 +14,6 @@
     "docs/aegis/work/2026-08-12-expert-content-studio/todo-checkpoint-draft.json"
   ],
   "unsafeToAssume": [
-    "A syntactically valid URL is safe to fetch; DNS can resolve to private addresses."
+    "Readability extraction output is a complete or licensed source; preserve provenance/status and size/MIME limits."
   ]
 }

@@ -5,11 +5,11 @@
   "baselineRefs": [
     "docs/aegis/plans/2026-08-11-expert-content-studio.md"
   ],
-  "scopeStatus": "Task 2 persistence only; no connector/API/AI/frontend scope introduced",
-  "compatStatus": "DB now enforces source/artifact/note provenance; bare PostgreSQL and special credentials normalize consistently for app and Alembic",
-  "retirementStatus": "No legacy fallback; deprecated test client remains retired; default DB file excluded from version control",
+  "scopeStatus": "Task 3 URL guard only; no source connector or HTTP API introduced",
+  "compatStatus": "HTTPS public targets only; DNS/private redirects rejected before next outbound request; caller cannot override client safety policy",
+  "retirementStatus": "No legacy fetch path exists; DNS IP pinning intentionally deferred outside approved task",
   "newRiskSignals": [
-    "No live PostgreSQL instance tested; offline dialect/DDL and URL handoff are covered"
+    "Future connector must use SafeHttpClient for all remote fetches; no direct httpx route around guard"
   ],
   "decision": "continue"
 }
