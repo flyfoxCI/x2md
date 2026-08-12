@@ -33,6 +33,17 @@ class FailingConnectorResources(TrackingConnectorResources):
         raise RuntimeError("connector close failed")
 
 
+@dataclass
+class FailingAIService:
+    """A server-owned AI adapter whose close failure must not skip cleanup."""
+
+    closed: bool = False
+
+    async def aclose(self) -> None:
+        self.closed = True
+        raise RuntimeError("AI close failed")
+
+
 @pytest.mark.asyncio
 async def test_lifespan_composes_once_for_concurrent_requests_and_closes_resource(
     monkeypatch: pytest.MonkeyPatch, tmp_path
@@ -100,6 +111,73 @@ async def test_lifespan_disposes_and_clears_database_state_when_connector_close_
 
     assert resources.closed is True
     assert disposed == [database_resources]
+    assert not hasattr(app.state, "connector_resources")
+    assert not hasattr(app.state, "connector_router")
+    assert not hasattr(app.state, "database_resources")
+    assert not hasattr(app.state, "session_factory")
+
+
+@pytest.mark.asyncio
+async def test_lifespan_closes_all_resources_and_cleans_state_when_ai_close_fails(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    app = create_app(Settings(database_url=f"sqlite+pysqlite:///{tmp_path / 'api.db'}"))
+    connector_resources = FailingConnectorResources(router=FakeConnectorRouter())
+    failing_ai = FailingAIService()
+    disposed: list[DatabaseResources] = []
+    app.state.ai_service = failing_ai
+
+    monkeypatch.setattr(
+        "app.main.compose_connector_resources", lambda _: connector_resources
+    )
+    monkeypatch.setattr(
+        DatabaseResources,
+        "dispose",
+        lambda database_resources: disposed.append(database_resources),
+    )
+    database_resources = app.state.database_resources
+
+    with pytest.raises(RuntimeError, match="AI close failed"):
+        async with app.router.lifespan_context(app):
+            pass
+
+    assert failing_ai.closed is True
+    assert connector_resources.closed is True
+    assert disposed == [database_resources]
+    assert not hasattr(app.state, "ai_service")
+    assert not hasattr(app.state, "connector_resources")
+    assert not hasattr(app.state, "connector_router")
+    assert not hasattr(app.state, "database_resources")
+    assert not hasattr(app.state, "session_factory")
+
+
+@pytest.mark.asyncio
+async def test_lifespan_preserves_body_error_when_resource_close_also_fails(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """A shutdown failure must not mask the actual application execution failure."""
+    app = create_app(Settings(database_url=f"sqlite+pysqlite:///{tmp_path / 'api.db'}"))
+    connector_resources = FailingConnectorResources(router=FakeConnectorRouter())
+    app.state.ai_service = FailingAIService()
+    disposed: list[DatabaseResources] = []
+    database_resources = app.state.database_resources
+
+    monkeypatch.setattr(
+        "app.main.compose_connector_resources", lambda _: connector_resources
+    )
+    monkeypatch.setattr(
+        DatabaseResources,
+        "dispose",
+        lambda resources: disposed.append(resources),
+    )
+
+    with pytest.raises(RuntimeError, match="body failed"):
+        async with app.router.lifespan_context(app):
+            raise RuntimeError("body failed")
+
+    assert connector_resources.closed is True
+    assert disposed == [database_resources]
+    assert not hasattr(app.state, "ai_service")
     assert not hasattr(app.state, "connector_resources")
     assert not hasattr(app.state, "connector_router")
     assert not hasattr(app.state, "database_resources")

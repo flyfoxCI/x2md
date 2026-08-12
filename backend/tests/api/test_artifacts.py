@@ -100,3 +100,22 @@ async def test_artifact_edit_uses_a_structured_not_found_error(
 
     assert response.status_code == 404
     assert response.json()["detail"]["code"] == "artifact_not_found"
+
+
+@pytest.mark.asyncio
+async def test_artifact_edit_rejects_markdown_beyond_the_persistence_budget(
+    api_harness: ApiHarness,
+) -> None:
+    """User edits stay within the bounded document contract before database work."""
+    with api_harness.session_factory() as session:
+        _, artifact = add_source_and_artifact(session)
+
+    response = await request(
+        api_harness,
+        "PATCH",
+        f"/api/artifacts/{artifact.id}",
+        json={"markdown": "x" * 100_001},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "invalid_request"

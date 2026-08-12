@@ -15,7 +15,9 @@ async def get_health_response() -> httpx.Response:
 
 @pytest.mark.asyncio
 async def test_health_hides_provider_secret(monkeypatch):
+    monkeypatch.setenv("AI_BASE_URL", "https://provider.example/v1")
     monkeypatch.setenv("AI_API_KEY", "test-secret")
+    monkeypatch.setenv("AI_MODEL", "test-model")
 
     response = await get_health_response()
 
@@ -26,6 +28,22 @@ async def test_health_hides_provider_secret(monkeypatch):
         "aiConfigured": True,
     }
     assert "test-secret" not in response.text
+
+
+@pytest.mark.asyncio
+async def test_health_does_not_report_key_only_provider_as_configured(monkeypatch):
+    """A secret alone cannot make the OpenAI-compatible adapter usable."""
+    monkeypatch.delenv("AI_BASE_URL", raising=False)
+    monkeypatch.delenv("APP_AI_BASE_URL", raising=False)
+    monkeypatch.setenv("AI_API_KEY", "key-only-secret")
+    monkeypatch.delenv("AI_MODEL", raising=False)
+    monkeypatch.delenv("APP_AI_MODEL", raising=False)
+
+    response = await get_health_response()
+
+    assert response.status_code == 200
+    assert response.json()["aiConfigured"] is False
+    assert "key-only-secret" not in response.text
 
 
 @pytest.mark.asyncio

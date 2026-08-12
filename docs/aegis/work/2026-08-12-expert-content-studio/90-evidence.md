@@ -65,3 +65,11 @@ No evidence has been recorded yet.
 - Source: Controller verification + two independent reviews
 - Summary: Task 7 import and knowledge-library API: 21 API tests, 192 total tests, Ruff and diff checks pass; repair reviews found no issues.
 - Verifier: uv lock --check; pytest -W error; ruff check; spec review; quality review
+
+## EvidenceBundleDraft
+
+- Artifact key: task8-green
+- Type: verification
+- Source: Controller verification + staged independent reviews
+- Summary: Task 8 AI adapter and source-scoped API: 214 strict backend tests, Ruff, lock and diff checks pass; reviews closed no remaining findings.
+- Verifier: uv lock --check; pytest -W error; ruff check; spec and quality reviews

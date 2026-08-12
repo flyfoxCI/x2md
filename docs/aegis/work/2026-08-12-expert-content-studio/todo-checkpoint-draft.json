@@ -1,15 +1,15 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
-  "currentTodo": "Implement Task 8: AI adapter, source derivations, grounded chat, and settings APIs",
+  "currentTodo": "Implement Task 9: typed React client and API contract",
   "completedTodos": [
-    "Tasks 1-7 complete: foundation, persistence/migrations, URL safety, all connectors, persisted import and knowledge APIs"
+    "Tasks 1-8 complete: foundation, persistence, SSRF safety, all source connectors, library APIs, and AI derivation/chat/settings APIs"
   ],
-  "activeSlice": "Task 8",
+  "activeSlice": "Task 9",
   "evidenceRefs": [
-    "task7-green"
+    "task8-green"
   ],
   "blockedOn": null,
-  "nextStep": "Dispatch Task 8 implementer, then specification and quality reviews.",
+  "nextStep": "Read frontend builder guidance; dispatch Task 9 client scaffold implementer, then reviews.",
   "updatedAt": "2026-08-12"
 }

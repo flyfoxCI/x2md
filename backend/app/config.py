@@ -38,5 +38,12 @@ class Settings(BaseSettings):
 
     @property
     def ai_configured(self) -> bool:
-        """Return whether an AI provider key is available without exposing it."""
-        return bool(self.ai_api_key and self.ai_api_key.get_secret_value())
+        """Return whether the complete server-only provider contract is usable."""
+        return bool(
+            self.ai_base_url
+            and self.ai_base_url.strip()
+            and self.ai_api_key
+            and self.ai_api_key.get_secret_value().strip()
+            and self.ai_model
+            and self.ai_model.strip()
+        )

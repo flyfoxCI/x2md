@@ -27,7 +27,7 @@ class ArtifactEditRequest(BaseModel):
     """User-provided content for a new artifact version."""
 
     title: str | None = Field(default=None, min_length=1, max_length=512)
-    markdown: str = Field(min_length=1)
+    markdown: str = Field(min_length=1, max_length=100_000)
     language: str | None = Field(default=None, max_length=32)
 
 

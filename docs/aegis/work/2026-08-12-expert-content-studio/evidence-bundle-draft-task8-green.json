@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "task8-green",
+  "type": "verification",
+  "source": "Controller verification + staged independent reviews",
+  "summary": "Task 8 AI adapter and source-scoped API: 214 strict backend tests, Ruff, lock and diff checks pass; reviews closed no remaining findings.",
+  "verifier": "uv lock --check; pytest -W error; ruff check; spec and quality reviews"
+}

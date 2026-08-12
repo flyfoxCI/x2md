@@ -211,3 +211,23 @@
 - task7-green
 - Blocked on: none
 - Next step: Dispatch Task 8 implementer, then specification and quality reviews.
+
+## DriftCheckDraft
+
+- Scope status: Task 8 complete within approved AI derivation and source-grounded chat scope; reviews added safety budgets and cleanup semantics.
+- Compatibility status: OpenAI-compatible contract retained; provider credentials remain server-only and optional.
+- Retirement status: Proceed to Task 9 client scaffold after Task 8 commit.
+- New risk signals:
+- No unretired Task 8 finding; production provider requires user-configured credentials.
+- Advisory decision: continue
+
+## Checkpoint Update
+
+- Current todo: Implement Task 9: typed React client and API contract
+- Active slice: Task 9
+- Completed todos:
+- Tasks 1-8 complete: foundation, persistence, SSRF safety, all source connectors, library APIs, and AI derivation/chat/settings APIs
+- Evidence refs:
+- task8-green
+- Blocked on: none
+- Next step: Read frontend builder guidance; dispatch Task 9 client scaffold implementer, then reviews.

@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.orm.session import sessionmaker
 
-from app.models import Artifact, KnowledgeNote, Source
+from app.models import Artifact, ChatTurn, KnowledgeNote, Source
 from app.services.connectors.base import NormalizedSource
 from app.services.url_safety import UnsafeUrlError, validate_public_url
 
@@ -32,6 +32,27 @@ class SourcePage:
 
     items: list[Source]
     total: int
+
+
+@dataclass(frozen=True, slots=True)
+class SourceMaterial:
+    """Detached, source-scoped context permitted to reach the AI provider."""
+
+    id: int
+    canonical_url: str
+    title: str
+    raw_text: str
+    source_markdown: str
+    artifacts: tuple[Artifact, ...]
+
+    @property
+    def has_content(self) -> bool:
+        """Return whether any imported section can honestly ground a response."""
+        return bool(
+            self.raw_text.strip()
+            or self.source_markdown.strip()
+            or any(artifact.markdown.strip() for artifact in self.artifacts)
+        )
 
 
 class ConnectorFetcher(Protocol):
@@ -251,6 +272,75 @@ class KnowledgeService:
         if artifact is None:
             raise self._error("artifact_not_found", 404)
         return artifact
+
+    def load_source_material(self, source_id: int) -> SourceMaterial:
+        """Read a short-lived detached AI context without retaining a DB connection."""
+        with self._import_session_factory() as session:
+            source = session.scalar(
+                select(Source)
+                .where(Source.id == source_id)
+                .options(selectinload(Source.artifacts))
+            )
+            if source is None:
+                raise self._error("source_not_found", 404)
+            return SourceMaterial(
+                id=source.id,
+                canonical_url=source.canonical_url,
+                title=source.title,
+                raw_text=source.raw_text,
+                source_markdown=source.source_markdown,
+                artifacts=tuple(source.artifacts),
+            )
+
+    def create_generated_artifact(
+        self,
+        source_id: int,
+        *,
+        kind: str,
+        title: str,
+        markdown: str,
+        language: str,
+        model_metadata_json: dict[str, str],
+    ) -> Artifact:
+        """Append AI output while keeping the source itself immutable."""
+        with self._import_session_factory() as session:
+            if session.get(Source, source_id) is None:
+                raise self._error("source_not_found", 404)
+            artifact = Artifact(
+                source_id=source_id,
+                kind=kind,
+                title=title,
+                markdown=markdown,
+                language=language,
+                model_metadata_json=model_metadata_json,
+            )
+            session.add(artifact)
+            session.commit()
+            session.refresh(artifact)
+            return artifact
+
+    def create_chat_turn(
+        self,
+        source_id: int,
+        *,
+        question: str,
+        answer_markdown: str,
+        citations_json: list[dict[str, object]],
+    ) -> ChatTurn:
+        """Persist the answer and server-derived source-local citation metadata."""
+        with self._import_session_factory() as session:
+            if session.get(Source, source_id) is None:
+                raise self._error("source_not_found", 404)
+            turn = ChatTurn(
+                source_id=source_id,
+                question=question,
+                answer_markdown=answer_markdown,
+                citations_json=citations_json,
+            )
+            session.add(turn)
+            session.commit()
+            session.refresh(turn)
+            return turn
 
     @staticmethod
     def _error(code: str, status_code: int) -> KnowledgeError:

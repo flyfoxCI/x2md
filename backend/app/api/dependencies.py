@@ -6,6 +6,7 @@ from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.services.ai import AIService
 from app.services.knowledge import ConnectorFetcher, KnowledgeService
 
 
@@ -49,3 +50,27 @@ def get_import_knowledge_service(
 ImportKnowledgeServiceDependency = Annotated[
     KnowledgeService, Depends(get_import_knowledge_service)
 ]
+
+
+def get_ai_knowledge_service(
+    request: Request, router: ConnectorRouterDependency
+) -> KnowledgeService:
+    """Construct an isolated service so provider waits never retain a DB session."""
+    return KnowledgeService(
+        None,
+        router,
+        import_session_factory=request.app.state.session_factory,
+    )
+
+
+AIKnowledgeServiceDependency = Annotated[
+    KnowledgeService, Depends(get_ai_knowledge_service)
+]
+
+
+def get_ai_service(request: Request) -> AIService:
+    """Return the application-owned server-only provider adapter."""
+    return request.app.state.ai_service
+
+
+AIServiceDependency = Annotated[AIService, Depends(get_ai_service)]

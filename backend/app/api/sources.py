@@ -3,8 +3,20 @@
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
 
-from app.api.dependencies import KnowledgeServiceDependency
-from app.schemas import ApiErrorResponse, ArtifactRead, SourceRead
+from app.api.dependencies import (
+    AIKnowledgeServiceDependency,
+    AIServiceDependency,
+    KnowledgeServiceDependency,
+)
+from app.schemas import (
+    ApiErrorResponse,
+    ArtifactRead,
+    ChatRequest,
+    ChatTurnRead,
+    DerivationRequest,
+    SourceRead,
+)
+from app.services.ai import ProviderError
 from app.services.knowledge import KnowledgeError
 
 router = APIRouter(
@@ -83,4 +95,74 @@ def get_source(
             ArtifactRead.model_validate(artifact)
             for artifact in sorted(source.artifacts, key=lambda item: (item.created_at, item.id))
         ],
+    )
+
+
+@router.post(
+    "/{source_id}/derive",
+    response_model=ArtifactRead,
+    responses={
+        404: {"model": ApiErrorResponse, "description": "The source does not exist."},
+        422: {"model": ApiErrorResponse, "description": "The action is unavailable."},
+        502: {"model": ApiErrorResponse, "description": "The provider failed safely."},
+    },
+)
+async def derive_source(
+    source_id: int,
+    payload: DerivationRequest,
+    knowledge: AIKnowledgeServiceDependency,
+    ai: AIServiceDependency,
+) -> ArtifactRead:
+    """Append one provider-backed, source-provenance AI derivation."""
+    try:
+        material = knowledge.load_source_material(source_id)
+        generated = await ai.derive(material, payload.kind)
+        artifact = knowledge.create_generated_artifact(
+            source_id,
+            kind=payload.kind,
+            title=generated.title,
+            markdown=generated.markdown,
+            language=generated.language,
+            model_metadata_json=generated.model_metadata,
+        )
+    except (KnowledgeError, ProviderError) as error:
+        raise _http_error(error) from error
+    return ArtifactRead.model_validate(artifact)
+
+
+@router.post(
+    "/{source_id}/chat",
+    response_model=ChatTurnRead,
+    responses={
+        404: {"model": ApiErrorResponse, "description": "The source does not exist."},
+        422: {"model": ApiErrorResponse, "description": "The action is unavailable."},
+        502: {"model": ApiErrorResponse, "description": "The provider failed safely."},
+    },
+)
+async def chat_with_source(
+    source_id: int,
+    payload: ChatRequest,
+    knowledge: AIKnowledgeServiceDependency,
+    ai: AIServiceDependency,
+) -> ChatTurnRead:
+    """Persist a response grounded in the selected source and its own artifacts only."""
+    try:
+        material = knowledge.load_source_material(source_id)
+        generated = await ai.answer(material, payload.question)
+        turn = knowledge.create_chat_turn(
+            source_id,
+            question=payload.question,
+            answer_markdown=generated.markdown,
+            citations_json=list(generated.citations),
+        )
+    except (KnowledgeError, ProviderError) as error:
+        raise _http_error(error) from error
+    return ChatTurnRead.model_validate(turn)
+
+
+def _http_error(error: KnowledgeError | ProviderError) -> HTTPException:
+    """Translate stable domain/provider errors into the public envelope."""
+    return HTTPException(
+        status_code=error.status_code,
+        detail={"code": error.code, "message": error.message},
     )

@@ -3,11 +3,11 @@
   "taskId": "2026-08-12-expert-content-studio",
   "taskIntentRef": "docs/aegis/work/2026-08-12-expert-content-studio/task-intent-draft.json",
   "baselineRefs": [],
-  "scopeStatus": "Task 7 complete within approved scope; review added production pool/lifecycle regressions only.",
-  "compatStatus": "API contracts and prior connector behavior preserved.",
-  "retirementStatus": "Proceed to Task 8 after committing Task 7.",
+  "scopeStatus": "Task 8 complete within approved AI derivation and source-grounded chat scope; reviews added safety budgets and cleanup semantics.",
+  "compatStatus": "OpenAI-compatible contract retained; provider credentials remain server-only and optional.",
+  "retirementStatus": "Proceed to Task 9 client scaffold after Task 8 commit.",
   "newRiskSignals": [
-    "No unretired Task 7 risk."
+    "No unretired Task 8 finding; production provider requires user-configured credentials."
   ],
   "decision": "continue"
 }

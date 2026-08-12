@@ -119,3 +119,15 @@ class AppSettingRead(AppSettingWrite):
 
     key: str
     updated_at: datetime
+
+
+class DerivationRequest(BaseModel):
+    """One supported immutable artifact transformation."""
+
+    kind: Literal["translation", "summary", "skill"]
+
+
+class ChatRequest(BaseModel):
+    """A non-empty question scoped to one imported source."""
+
+    question: str = Field(min_length=1, max_length=1_000)

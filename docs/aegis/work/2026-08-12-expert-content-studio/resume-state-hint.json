@@ -2,9 +2,9 @@
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
   "lastCheckpointRef": "docs/aegis/work/2026-08-12-expert-content-studio/todo-checkpoint-draft.json",
-  "resumeInstruction": "Start Task 8 from the approved plan; retain server-only provider credentials and graceful no-provider behavior.",
+  "resumeInstruction": "Build a typed browser client without exposing credentials or direct source/provider calls.",
   "knownPartialWork": [
-    "Tasks 1-7 complete: foundation, persistence/migrations, URL safety, all connectors, persisted import and knowledge APIs"
+    "Tasks 1-8 complete: foundation, persistence, SSRF safety, all source connectors, library APIs, and AI derivation/chat/settings APIs"
   ],
   "mustReadBeforeContinuing": [
     "docs/aegis/work/2026-08-12-expert-content-studio/10-intent.md",
@@ -12,6 +12,6 @@
     "docs/aegis/work/2026-08-12-expert-content-studio/todo-checkpoint-draft.json"
   ],
   "unsafeToAssume": [
-    "Do not use live provider keys or claim a derivation succeeded without an append-only artifact."
+    "Do not implement client-side third-party fetching or API-key handling."
   ]
 }
