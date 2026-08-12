@@ -2,14 +2,16 @@
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
   "lastCheckpointRef": "docs/aegis/work/2026-08-12-expert-content-studio/todo-checkpoint-draft.json",
-  "resumeInstruction": "Review the task 1 evidence, then run spec and quality reviews before Task 2.",
-  "knownPartialWork": [],
+  "resumeInstruction": "Start Task 2 only after confirming Task 1 commit. Review Task 2 spec then run TDD red/green and two-stage review.",
+  "knownPartialWork": [
+    "Task 1: service scaffold and safe health configuration"
+  ],
   "mustReadBeforeContinuing": [
     "docs/aegis/work/2026-08-12-expert-content-studio/10-intent.md",
     "docs/aegis/work/2026-08-12-expert-content-studio/20-checkpoint.md",
     "docs/aegis/work/2026-08-12-expert-content-studio/todo-checkpoint-draft.json"
   ],
   "unsafeToAssume": [
-    "No AI provider or X credentials are configured; their absence must be represented safely."
+    "No database schema exists yet; artifacts must not mutate Source raw text."
   ]
 }

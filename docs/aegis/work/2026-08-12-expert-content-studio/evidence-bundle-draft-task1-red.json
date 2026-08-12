@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "task1-red",
+  "type": "test",
+  "source": "Task 1 implementer report",
+  "summary": "Before app.main existed, cd backend && uv run pytest tests/test_health.py -q failed with ModuleNotFoundError: No module named 'app'. This was the required RED phase.",
+  "verifier": "Task 1 implementation agent; independent spec review requested red evidence capture"
+}

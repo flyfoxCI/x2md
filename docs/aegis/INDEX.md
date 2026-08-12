@@ -16,3 +16,6 @@ Entries are workspace records, not authoritative runtime decisions.
 | 2026-08-12 | artifact | docs/aegis/work/2026-08-12-expert-content-studio/impact-statement-draft.json | Expert Content Studio implementation impact statement draft |
 | 2026-08-12 | artifact | docs/aegis/work/2026-08-12-expert-content-studio/todo-checkpoint-draft.json | Expert Content Studio implementation todo checkpoint draft |
 | 2026-08-12 | artifact | docs/aegis/work/2026-08-12-expert-content-studio/drift-check-draft.json | Expert Content Studio implementation drift check draft |
+| 2026-08-12 | artifact | docs/aegis/work/2026-08-12-expert-content-studio/evidence-bundle-draft-task1-red.json | 2026-08-12-expert-content-studio evidence task1-red |
+| 2026-08-12 | artifact | docs/aegis/work/2026-08-12-expert-content-studio/resume-state-hint.json | 2026-08-12-expert-content-studio resume state hint |
+| 2026-08-12 | artifact | docs/aegis/work/2026-08-12-expert-content-studio/evidence-bundle-draft-task1-green.json | 2026-08-12-expert-content-studio evidence task1-green |

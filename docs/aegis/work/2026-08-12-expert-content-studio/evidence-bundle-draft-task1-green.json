@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "task1-green",
+  "type": "verification",
+  "source": "Controller verification: cd backend",
+  "summary": "uv lock --check; uv run pytest -q -W error; uv run ruff check .; isolated Uvicorn import all succeeded. Pytest: 3 passed; Uvicorn 0.52.1.",
+  "verifier": "Primary controller after spec and quality re-reviews"
+}

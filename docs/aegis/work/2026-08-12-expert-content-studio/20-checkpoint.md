@@ -25,3 +25,34 @@
 - New risk signals:
 - none
 - Advisory decision: continue
+
+## Checkpoint Update
+
+- Current todo: Resolve Task 1 spec review gaps
+- Active slice: Task 1 review repair
+- Completed todos:
+- none
+- Evidence refs:
+- Spec review: Uvicorn undeclared and TDD red evidence not persisted
+- Blocked on: none
+- Next step: Add project-declared Uvicorn, regenerate lock and rerun Task 1 verification
+
+## DriftCheckDraft
+
+- Scope status: Task 1 only: backend service configuration and health contract; no unplanned product feature
+- Compatibility status: Secrets remain server-only; response contract typed and stable; AI absence is explicit
+- Retirement status: Deprecated TestClient test path retired; no legacy production path exists
+- New risk signals:
+- No AI/X credentials expected; later tasks must retain configuration-missing behavior
+- Advisory decision: continue
+
+## Checkpoint Update
+
+- Current todo: Implement Task 2: canonical persistence and migration ownership
+- Active slice: Task 2 persistence
+- Completed todos:
+- Task 1: service scaffold and safe health configuration
+- Evidence refs:
+- Task 1 verified: uv lock --check, pytest -q -W error (3 passed), ruff check, isolated uvicorn import
+- Blocked on: none
+- Next step: Commit verified Task 1 changes, then dispatch Task 2 persistence implementer

@@ -1,13 +1,15 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
-  "currentTodo": "Implement Task 1: scaffold service and safe health configuration",
-  "completedTodos": [],
-  "activeSlice": "Task 1 service scaffold",
+  "currentTodo": "Implement Task 2: canonical persistence and migration ownership",
+  "completedTodos": [
+    "Task 1: service scaffold and safe health configuration"
+  ],
+  "activeSlice": "Task 2 persistence",
   "evidenceRefs": [
-    "Git worktree feature/expert-content-studio created from main 1c08c9d"
+    "Task 1 verified: uv lock --check, pytest -q -W error (3 passed), ruff check, isolated uvicorn import"
   ],
   "blockedOn": null,
-  "nextStep": "Dispatch Task 1 implementation subagent",
+  "nextStep": "Commit verified Task 1 changes, then dispatch Task 2 persistence implementer",
   "updatedAt": "2026-08-12"
 }
