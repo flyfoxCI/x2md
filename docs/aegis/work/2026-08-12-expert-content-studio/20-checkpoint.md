@@ -251,3 +251,23 @@
 - task9-green
 - Blocked on: none
 - Next step: Implement three-pane workspace using generated desktop/mobile design baselines, then visual and code reviews.
+
+## DriftCheckDraft
+
+- Scope status: Task 10 complete within planned three-pane studio scope; extra repairs cover async selection and full modal/mobile focus behavior.
+- Compatibility status: Typed same-origin API client, append-only edit route and raw source immutability preserved.
+- Retirement status: Proceed to Task 11 source chat and export UX after commit.
+- New risk signals:
+- No unretired Task 10 finding; local real import correctly surfaces platform partial content state.
+- Advisory decision: continue
+
+## Checkpoint Update
+
+- Current todo: Implement Task 11: source-scoped chat, Markdown preview/export, and mobile quality
+- Active slice: Task 11
+- Completed todos:
+- Tasks 1-10 complete: full backend import/AI pipeline, hardened client, and functional accessible three-pane studio
+- Evidence refs:
+- task10-green
+- Blocked on: none
+- Next step: Implement chat/preview/export client components, then complete desktop and 390px visual QA.

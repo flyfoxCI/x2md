@@ -81,3 +81,11 @@ No evidence has been recorded yet.
 - Source: Controller frontend verification + independent reviews
 - Summary: Task 9 typed React client: 23 tests, ESLint, production build and diff checks pass; response and abort boundary reviews closed.
 - Verifier: npm run lint; npm run test -- --run; npm run build; contract/quality reviews
+
+## EvidenceBundleDraft
+
+- Artifact key: task10-green
+- Type: verification
+- Source: Controller frontend checks, browser workflow QA, and independent reviews
+- Summary: Task 10 three-pane studio: 33 tests, ESLint, production build and diff checks pass. Local browser confirmed empty state plus public GitHub import/partial status. Desktop concept/render inspected with view_image; mobile focus review closed.
+- Verifier: npm run lint; npm run test -- --run; npm run build; local FastAPI/Vite browser QA; visual concept/render view_image; reviews

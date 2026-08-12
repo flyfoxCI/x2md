@@ -2,9 +2,9 @@
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
   "lastCheckpointRef": "docs/aegis/work/2026-08-12-expert-content-studio/todo-checkpoint-draft.json",
-  "resumeInstruction": "Connect controls only through typed API client; maintain append-only artifact flow and accessible responsive interaction.",
+  "resumeInstruction": "Keep chat source-scoped with rendered citations and download only current persisted artifact.",
   "knownPartialWork": [
-    "Tasks 1-9 complete: backend service/import/AI pipeline and hardened typed React client"
+    "Tasks 1-10 complete: full backend import/AI pipeline, hardened client, and functional accessible three-pane studio"
   ],
   "mustReadBeforeContinuing": [
     "docs/aegis/work/2026-08-12-expert-content-studio/10-intent.md",
@@ -12,6 +12,6 @@
     "docs/aegis/work/2026-08-12-expert-content-studio/todo-checkpoint-draft.json"
   ],
   "unsafeToAssume": [
-    "Do not create fake AI results or bypass current backend error states."
+    "Do not present AI output without server confirmation or citations without source context."
   ]
 }

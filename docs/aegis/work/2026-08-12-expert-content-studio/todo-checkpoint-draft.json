@@ -1,15 +1,15 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-12-expert-content-studio",
-  "currentTodo": "Implement Task 10: functional three-pane knowledge studio",
+  "currentTodo": "Implement Task 11: source-scoped chat, Markdown preview/export, and mobile quality",
   "completedTodos": [
-    "Tasks 1-9 complete: backend service/import/AI pipeline and hardened typed React client"
+    "Tasks 1-10 complete: full backend import/AI pipeline, hardened client, and functional accessible three-pane studio"
   ],
-  "activeSlice": "Task 10",
+  "activeSlice": "Task 11",
   "evidenceRefs": [
-    "task9-green"
+    "task10-green"
   ],
   "blockedOn": null,
-  "nextStep": "Implement three-pane workspace using generated desktop/mobile design baselines, then visual and code reviews.",
-  "updatedAt": "2026-08-12"
+  "nextStep": "Implement chat/preview/export client components, then complete desktop and 390px visual QA.",
+  "updatedAt": "2026-08-13"
 }

@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "task10-green",
+  "type": "verification",
+  "source": "Controller frontend checks, browser workflow QA, and independent reviews",
+  "summary": "Task 10 three-pane studio: 33 tests, ESLint, production build and diff checks pass. Local browser confirmed empty state plus public GitHub import/partial status. Desktop concept/render inspected with view_image; mobile focus review closed.",
+  "verifier": "npm run lint; npm run test -- --run; npm run build; local FastAPI/Vite browser QA; visual concept/render view_image; reviews"
+}

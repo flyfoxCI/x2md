@@ -3,11 +3,11 @@
   "taskId": "2026-08-12-expert-content-studio",
   "taskIntentRef": "docs/aegis/work/2026-08-12-expert-content-studio/task-intent-draft.json",
   "baselineRefs": [],
-  "scopeStatus": "Task 9 client scaffold complete within approved API boundary; extra guards harden malformed response handling.",
-  "compatStatus": "Browser uses only public VITE API base URL and same-origin FastAPI contract; no credentials exposed.",
-  "retirementStatus": "Proceed to Task 10 three-pane workspace after committing Task 9.",
+  "scopeStatus": "Task 10 complete within planned three-pane studio scope; extra repairs cover async selection and full modal/mobile focus behavior.",
+  "compatStatus": "Typed same-origin API client, append-only edit route and raw source immutability preserved.",
+  "retirementStatus": "Proceed to Task 11 source chat and export UX after commit.",
   "newRiskSignals": [
-    "No unretired Task 9 finding."
+    "No unretired Task 10 finding; local real import correctly surfaces platform partial content state."
   ],
   "decision": "continue"
 }

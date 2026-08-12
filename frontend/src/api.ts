@@ -304,8 +304,11 @@ export function importSource(url: string): Promise<Source> {
   });
 }
 
-export function getSource(sourceId: number): Promise<SourceDetail> {
-  return request(`/sources/${sourceId}`, isSourceDetail);
+export function getSource(
+  sourceId: number,
+  signal?: AbortSignal,
+): Promise<SourceDetail> {
+  return request(`/sources/${sourceId}`, isSourceDetail, { signal });
 }
 
 export function deriveSource(
