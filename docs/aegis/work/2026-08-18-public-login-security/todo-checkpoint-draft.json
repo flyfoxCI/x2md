@@ -1,15 +1,15 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-18-public-login-security",
-  "currentTodo": "Task 5: document bootstrap secret and public HTTPS deployment",
+  "currentTodo": "Task 6: final integration evidence and independent handoff review",
   "completedTodos": [
-    "Task 1 core persistence/concurrency hardening; Task 2 public auth HTTP routes, bootstrap lifecycle and protected legacy API policy; Task 3 typed browser session/CSRF transport and stale-response hardening; Task 4 login-gated studio and accessible administrator account flows"
+    "Task 1 core persistence/concurrency hardening; Task 2 public auth HTTP routes, bootstrap lifecycle and protected legacy API policy; Task 3 typed browser session/CSRF transport and stale-response hardening; Task 4 login-gated studio and accessible administrator account flows; Task 5 bootstrap, HTTPS and API deployment documentation"
   ],
-  "activeSlice": "Bounded operator configuration and API documentation",
+  "activeSlice": "Fresh whole-branch security verification and browser smoke",
   "evidenceRefs": [
-    "task4-green"
+    "task5-green"
   ],
   "blockedOn": null,
-  "nextStep": "Dispatch Task 5 deployment documentation agent.",
+  "nextStep": "Run full backend/frontend verification, static Compose check, and local authenticated browser smoke; then dispatch final independent reviews.",
   "updatedAt": "2026-08-18"
 }

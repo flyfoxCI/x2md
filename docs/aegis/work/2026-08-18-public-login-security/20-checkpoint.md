@@ -105,3 +105,23 @@
 - New risk signals:
 - App.tsx reached 681 lines; no refactor is authorized in the docs slice, but future auth UI work should extract the studio container.
 - Advisory decision: continue
+
+## Checkpoint Update
+
+- Current todo: Task 6: final integration evidence and independent handoff review
+- Active slice: Fresh whole-branch security verification and browser smoke
+- Completed todos:
+- Task 1 core persistence/concurrency hardening; Task 2 public auth HTTP routes, bootstrap lifecycle and protected legacy API policy; Task 3 typed browser session/CSRF transport and stale-response hardening; Task 4 login-gated studio and accessible administrator account flows; Task 5 bootstrap, HTTPS and API deployment documentation
+- Evidence refs:
+- task5-green
+- Blocked on: none
+- Next step: Run full backend/frontend verification, static Compose check, and local authenticated browser smoke; then dispatch final independent reviews.
+
+## DriftCheckDraft
+
+- Scope status: Implementation and operations slices are complete; only final whole-branch verification and handoff review remain.
+- Compatibility status: All protected browser/API entry points are authenticated; final verification must prove this against the integrated branch.
+- Retirement status: Unauthenticated knowledge access and unauthenticated studio rendering remain retired; health is the only public probe.
+- New risk signals:
+- Docker CLI is unavailable; record static Compose validation only unless the environment changes.
+- Advisory decision: needs-verification

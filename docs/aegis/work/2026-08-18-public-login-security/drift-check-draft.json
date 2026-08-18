@@ -5,11 +5,11 @@
   "baselineRefs": [
     "docs/aegis/specs/2026-08-18-public-login-security-design.md"
   ],
-  "scopeStatus": "Tasks 1-4 are complete; Task 5 is only environment, Compose, README and API documentation.",
-  "compatStatus": "The UI now blocks protected loading until authentication; deployment docs must align with the typed secure defaults and same-origin proxy.",
-  "retirementStatus": "Unauthenticated browser rendering and API knowledge access are retired; health remains the public operational probe.",
+  "scopeStatus": "Implementation and operations slices are complete; only final whole-branch verification and handoff review remain.",
+  "compatStatus": "All protected browser/API entry points are authenticated; final verification must prove this against the integrated branch.",
+  "retirementStatus": "Unauthenticated knowledge access and unauthenticated studio rendering remain retired; health is the only public probe.",
   "newRiskSignals": [
-    "App.tsx reached 681 lines; no refactor is authorized in the docs slice, but future auth UI work should extract the studio container."
+    "Docker CLI is unavailable; record static Compose validation only unless the environment changes."
   ],
-  "decision": "continue"
+  "decision": "needs-verification"
 }

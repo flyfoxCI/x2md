@@ -41,3 +41,11 @@ No evidence has been recorded yet.
 - Source: Task 4 commits 418a5a1,06e21ea,dc3eaa0,f92e788
 - Summary: Strict TDD reproduced gate, stale-current-session, queued logout and focus-trap regressions. Final focused UI 35 plus AccountDialog 6; full frontend 108; lint, build and diff check passed. Desktop/390px login browser check passed without console errors; two independent review stages approved after repairs.
 - Verifier: controller plus independent reviewers
+
+## EvidenceBundleDraft
+
+- Artifact key: task5-green
+- Type: static verification and independent review
+- Source: Task 5 commits 4acdd20,27abcff,0f38076
+- Summary: Docs TDD proved absent auth config/docs, then verified empty bootstrap password, no hard-coded secret, safe dotenv loading and quiet-only Compose validation. YAML/static checks, auth lifecycle/API tests and independent reviews passed. Docker CLI is unavailable, so Compose parsing was not executed.
+- Verifier: controller plus independent reviewers
