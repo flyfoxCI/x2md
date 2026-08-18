@@ -7,6 +7,7 @@ import { isSafeHttpsUrl } from "./safeUrl";
 
 interface KnowledgeChatProps {
   source: Source | null;
+  onAuthenticationRequired?: () => void;
 }
 
 const chatErrorCopy: Record<string, string> = {
@@ -24,7 +25,7 @@ function asApiError(reason: unknown): ApiError {
   return { code: "network_error", message: chatErrorCopy.network_error };
 }
 
-export function KnowledgeChat({ source }: KnowledgeChatProps) {
+export function KnowledgeChat({ source, onAuthenticationRequired }: KnowledgeChatProps) {
   const [question, setQuestion] = useState("");
   const [turn, setTurn] = useState<ChatTurn | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
@@ -69,6 +70,10 @@ export function KnowledgeChat({ source }: KnowledgeChatProps) {
       setQuestion("");
     } catch (reason) {
       if (controller.signal.aborted || requestId !== requestIdRef.current || isAbortError(reason)) {
+        return;
+      }
+      if (isApiError(reason) && reason.code === "authentication_required") {
+        onAuthenticationRequired?.();
         return;
       }
       setTurn(null);

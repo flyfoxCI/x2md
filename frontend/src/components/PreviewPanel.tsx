@@ -13,6 +13,7 @@ interface PreviewPanelProps {
   source: Source | null;
   presentation: PresentationSettings;
   onPresentationChange: (presentation: PresentationSettings) => void;
+  onAuthenticationRequired?: () => void;
 }
 
 type MobileSurface = "editor" | "preview" | "chat";
@@ -24,6 +25,7 @@ export function PreviewPanel({
   source,
   presentation,
   onPresentationChange,
+  onAuthenticationRequired,
 }: PreviewPanelProps) {
   const [mobileSurface, setMobileSurface] = useState<MobileSurface>("editor");
   const isPreviewSurfaceVisible = !isOverlayViewport || mobileSurface === "preview";
@@ -116,7 +118,11 @@ export function PreviewPanel({
         id="knowledge-chat-surface"
         inert={!isChatSurfaceVisible || undefined}
       >
-        <KnowledgeChat key={source?.id ?? "no-source"} source={source} />
+        <KnowledgeChat
+          key={source?.id ?? "no-source"}
+          onAuthenticationRequired={onAuthenticationRequired}
+          source={source}
+        />
       </div>
     </aside>
   );
