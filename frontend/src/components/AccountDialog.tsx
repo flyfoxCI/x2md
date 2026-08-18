@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 
 import type { AuthenticatedUser } from "../types";
 
@@ -16,11 +16,19 @@ export function AccountDialog({ user, trigger, onChangePassword, onClose, onLogo
   const [confirmation, setConfirmation] = useState("");
   const [pendingAction, setPendingAction] = useState<"password" | "logout" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const currentPasswordRef = useRef<HTMLInputElement>(null);
+  const pending = pendingAction !== null;
 
   useEffect(() => {
     currentPasswordRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    if (pending) {
+      dialogRef.current?.focus();
+    }
+  }, [pending]);
 
   function close() {
     trigger?.focus();
@@ -67,10 +75,51 @@ export function AccountDialog({ user, trigger, onChangePassword, onClose, onLogo
     }
   }
 
-  const pending = pendingAction !== null;
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Escape") {
+      if (!pending) {
+        event.preventDefault();
+        close();
+      }
+      return;
+    }
+
+    if (event.key !== "Tab") {
+      return;
+    }
+
+    const focusable = Array.from(
+      dialogRef.current?.querySelectorAll<HTMLElement>(
+        "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex='-1'])",
+      ) ?? [],
+    );
+    if (focusable.length === 0) {
+      event.preventDefault();
+      dialogRef.current?.focus();
+      return;
+    }
+
+    const first = focusable[0];
+    const last = focusable.at(-1)!;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
 
   return (
-    <div aria-labelledby="account-dialog-title" aria-modal="true" className="dialog-scrim" role="dialog">
+    <div
+      aria-labelledby="account-dialog-title"
+      aria-modal="true"
+      className="dialog-scrim"
+      onKeyDown={handleKeyDown}
+      ref={dialogRef}
+      role="dialog"
+      tabIndex={-1}
+    >
       <form aria-label="账户设置" className="account-dialog" onSubmit={(event) => void updatePassword(event)}>
         <div className="dialog-heading">
           <div>

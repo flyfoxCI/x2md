@@ -271,11 +271,11 @@ function AuthenticatedStudio({
       setDetail(loaded);
       return true;
     } catch (reason) {
-      if (controller.signal.aborted || requestId !== detailRequestIdRef.current || isAbortError(reason)) {
-        return false;
-      }
       if (isAuthenticationRequired(reason)) {
         handleAuthenticationRequired();
+        return false;
+      }
+      if (controller.signal.aborted || requestId !== detailRequestIdRef.current || isAbortError(reason)) {
         return false;
       }
       setDetail(null);
@@ -337,11 +337,11 @@ function AuthenticatedStudio({
         }
       })
       .catch((reason) => {
-        if (controller.signal.aborted || isAbortError(reason)) {
-          return;
-        }
         if (isAuthenticationRequired(reason)) {
           handleAuthenticationRequired();
+          return;
+        }
+        if (controller.signal.aborted || isAbortError(reason)) {
           return;
         }
         if (!controller.signal.aborted) {
@@ -455,12 +455,10 @@ function AuthenticatedStudio({
         setSuccess("已生成新的知识版本");
       }
     } catch (reason) {
-      if (selectedSourceRef.current?.id === actionSource.id) {
-        if (isAuthenticationRequired(reason)) {
-          handleAuthenticationRequired();
-        } else {
-          setError(asApiError(reason));
-        }
+      if (isAuthenticationRequired(reason)) {
+        handleAuthenticationRequired();
+      } else if (selectedSourceRef.current?.id === actionSource.id) {
+        setError(asApiError(reason));
       }
     } finally {
       setDerivingBySourceId((current) => {
@@ -491,12 +489,10 @@ function AuthenticatedStudio({
         setSuccess("已保存为新版本");
       }
     } catch (reason) {
-      if (selectedSourceRef.current?.id === actionSource.id) {
-        if (isAuthenticationRequired(reason)) {
-          handleAuthenticationRequired();
-        } else {
-          setError(asApiError(reason));
-        }
+      if (isAuthenticationRequired(reason)) {
+        handleAuthenticationRequired();
+      } else if (selectedSourceRef.current?.id === actionSource.id) {
+        setError(asApiError(reason));
       }
     } finally {
       setSavingBySourceId((current) => {
@@ -596,6 +592,7 @@ function App() {
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
   const [recoveryAttempt, setRecoveryAttempt] = useState(0);
   const sessionGenerationRef = useRef(0);
+  const authenticationIntentRef = useRef(0);
 
   const advanceSessionGeneration = useCallback(() => {
     const nextSessionGeneration = sessionGenerationRef.current + 1;
@@ -603,17 +600,33 @@ function App() {
     setSessionGeneration(nextSessionGeneration);
   }, []);
 
-  const transitionToAnonymous = useCallback((expectedSessionGeneration: number) => {
-    if (sessionGenerationRef.current !== expectedSessionGeneration) {
-      return false;
-    }
+  const reserveAuthenticationIntent = useCallback(() => {
+    authenticationIntentRef.current += 1;
+  }, []);
+
+  const enterAnonymous = useCallback(() => {
     clearAuthentication();
     advanceSessionGeneration();
     setSession(null);
     setRecoveryError(null);
     setStatus("anonymous");
-    return true;
   }, [advanceSessionGeneration]);
+
+  const transitionToAnonymous = useCallback((expectedSessionGeneration: number) => {
+    if (sessionGenerationRef.current !== expectedSessionGeneration) {
+      return false;
+    }
+    enterAnonymous();
+    return true;
+  }, [enterAnonymous]);
+
+  const transitionToAnonymousAfterLogout = useCallback((logoutAuthenticationIntent: number) => {
+    if (authenticationIntentRef.current !== logoutAuthenticationIntent) {
+      return false;
+    }
+    enterAnonymous();
+    return true;
+  }, [enterAnonymous]);
 
   const installSession = useCallback((
     nextSession: AuthenticatedSession,
@@ -640,11 +653,11 @@ function App() {
         }
       })
       .catch((reason) => {
-        if (controller.signal.aborted || !active || isAbortError(reason)) {
-          return;
-        }
         if (isAuthenticationRequired(reason)) {
           transitionToAnonymous(expectedSessionGeneration);
+          return;
+        }
+        if (controller.signal.aborted || !active || isAbortError(reason)) {
           return;
         }
         if (sessionGenerationRef.current !== expectedSessionGeneration) {
@@ -662,18 +675,19 @@ function App() {
 
   const handleLogin = useCallback(async (username: string, password: string) => {
     const expectedSessionGeneration = sessionGenerationRef.current;
+    reserveAuthenticationIntent();
     const nextSession = await login(username, password);
     installSession(nextSession, expectedSessionGeneration);
-  }, [installSession]);
+  }, [installSession, reserveAuthenticationIntent]);
 
   const handleLogout = useCallback(async () => {
-    const expectedSessionGeneration = sessionGenerationRef.current;
+    const logoutAuthenticationIntent = authenticationIntentRef.current;
     try {
       await logout();
     } finally {
-      transitionToAnonymous(expectedSessionGeneration);
+      transitionToAnonymousAfterLogout(logoutAuthenticationIntent);
     }
-  }, [transitionToAnonymous]);
+  }, [transitionToAnonymousAfterLogout]);
 
   const handleChangePassword = useCallback(async (currentPassword: string, newPassword: string) => {
     const expectedSessionGeneration = sessionGenerationRef.current;

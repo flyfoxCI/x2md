@@ -69,11 +69,11 @@ export function KnowledgeChat({ source, onAuthenticationRequired }: KnowledgeCha
       setTurn(answer);
       setQuestion("");
     } catch (reason) {
-      if (controller.signal.aborted || requestId !== requestIdRef.current || isAbortError(reason)) {
-        return;
-      }
       if (isApiError(reason) && reason.code === "authentication_required") {
         onAuthenticationRequired?.();
+        return;
+      }
+      if (controller.signal.aborted || requestId !== requestIdRef.current || isAbortError(reason)) {
         return;
       }
       setTurn(null);

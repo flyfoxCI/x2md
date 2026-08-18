@@ -4,6 +4,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AccountDialog } from "./AccountDialog";
 
+function deferred<T>() {
+  let resolve: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve: resolve! };
+}
+
 function renderDialog(overrides: Partial<ComponentProps<typeof AccountDialog>> = {}) {
   const trigger = document.createElement("button");
   trigger.textContent = "账户：alice";
@@ -67,6 +75,53 @@ describe("AccountDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "更新密码" }));
 
     await waitFor(() => expect(props.onChangePassword).toHaveBeenLastCalledWith("current-secret", "new-secret-123"));
+    expect(props.onClose).toHaveBeenCalledTimes(1);
+    expect(trigger).toHaveFocus();
+  });
+
+  it("traps Tab and Shift+Tab inside the dialog while a password update is pending", async () => {
+    const passwordChange = deferred<void>();
+    const { props, trigger } = renderDialog({
+      onChangePassword: vi.fn().mockReturnValue(passwordChange.promise),
+    });
+    const dialog = screen.getByRole("dialog");
+    const close = screen.getByRole("button", { name: "关闭账户对话框" });
+    const submit = screen.getByRole("button", { name: "更新密码" });
+
+    submit.focus();
+    fireEvent.keyDown(submit, { key: "Tab" });
+    expect(close).toHaveFocus();
+
+    close.focus();
+    fireEvent.keyDown(close, { key: "Tab", shiftKey: true });
+    expect(submit).toHaveFocus();
+
+    fireEvent.change(screen.getByLabelText("当前密码"), { target: { value: "current-secret" } });
+    fireEvent.change(screen.getByLabelText("新密码"), { target: { value: "new-secret-123" } });
+    fireEvent.change(screen.getByLabelText("确认新密码"), { target: { value: "new-secret-123" } });
+    fireEvent.click(submit);
+    await waitFor(() => expect(props.onChangePassword).toHaveBeenCalledTimes(1));
+
+    expect(dialog).toHaveFocus();
+    fireEvent.keyDown(dialog, { key: "Tab" });
+    expect(dialog).toHaveFocus();
+    fireEvent.keyDown(dialog, { key: "Tab", shiftKey: true });
+    expect(dialog).toHaveFocus();
+
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(props.onClose).not.toHaveBeenCalled();
+
+    passwordChange.resolve(undefined);
+    await waitFor(() => expect(props.onClose).toHaveBeenCalledTimes(1));
+    expect(trigger).toHaveFocus();
+  });
+
+  it("closes with Escape and restores the trigger when no action is pending", () => {
+    const { props, trigger } = renderDialog();
+    const currentPassword = screen.getByLabelText("当前密码");
+
+    fireEvent.keyDown(currentPassword, { key: "Escape" });
+
     expect(props.onClose).toHaveBeenCalledTimes(1);
     expect(trigger).toHaveFocus();
   });

@@ -572,6 +572,50 @@ describe("App", () => {
     expect(screen.queryByRole("button", { name: "打开知识库" })).not.toBeInTheDocument();
   });
 
+  it("ends the current session when an aborted source-detail request reports authentication_required", async () => {
+    const firstDetail = deferred<{ source: typeof importedSource; artifacts: [] }>();
+    const newerSource = {
+      ...importedSource,
+      id: 8,
+      canonical_url: "https://github.com/example/newer-source",
+      title: "Newer Source",
+    };
+    mockedListSources.mockResolvedValue({
+      items: [importedSource, newerSource],
+      total: 2,
+      page: 1,
+      page_size: 20,
+    });
+    mockedGetSource.mockImplementation((sourceId) => (
+      sourceId === importedSource.id
+        ? firstDetail.promise
+        : Promise.resolve({ source: newerSource, artifacts: [] })
+    ));
+    await renderAuthenticatedApp();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Reasoning at Scale/ }));
+    await waitFor(() => expect(mockedGetSource).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: /Newer Source/ }));
+    expect(await screen.findByRole("heading", { name: "Newer Source" })).toBeVisible();
+    expect(mockedGetSource.mock.calls[0]?.[1]?.aborted).toBe(true);
+
+    await act(async () => {
+      firstDetail.reject({
+        code: "authentication_required",
+        message: "Authentication is required.",
+        status: 401,
+      });
+      try {
+        await firstDetail.promise;
+      } catch {
+        // The canceled detail request still reports a global authentication failure.
+      }
+    });
+
+    expect(await screen.findByLabelText("用户名")).toBeVisible();
+    expect(mockedClearAuthentication).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps a newer login when an older protected request later reports authentication_required", async () => {
     const oldSessionRequest = deferred<typeof emptySourcePage>();
     const newerSession: AuthenticatedSession = {
@@ -606,6 +650,84 @@ describe("App", () => {
 
     expect(screen.getByRole("button", { name: "账户：bob" })).toBeVisible();
     expect(mockedClearAuthentication).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not let an older logout revoke a newer login intent", async () => {
+    const oldSessionRequest = deferred<typeof emptySourcePage>();
+    const pendingLogout = deferred<void>();
+    const newerSession: AuthenticatedSession = {
+      user: { id: 2, username: "bob" },
+      csrfToken: "csrf-bob-token",
+    };
+    mockedListSources.mockReturnValueOnce(oldSessionRequest.promise);
+    mockedLogout.mockReturnValueOnce(pendingLogout.promise);
+    mockedLogin.mockResolvedValue(newerSession);
+    await renderAuthenticatedApp();
+    await waitFor(() => expect(mockedListSources).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByLabelText("退出登录"));
+    await waitFor(() => expect(mockedLogout).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      oldSessionRequest.reject({
+        code: "authentication_required",
+        message: "Authentication is required.",
+        status: 401,
+      });
+      try {
+        await oldSessionRequest.promise;
+      } catch {
+        // The current session expires while the older logout is still queued.
+      }
+    });
+    expect(await screen.findByLabelText("用户名")).toBeVisible();
+
+    fireEvent.change(screen.getByLabelText("用户名"), { target: { value: "bob" } });
+    fireEvent.change(screen.getByLabelText("密码"), { target: { value: "new-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "登录" }));
+    expect(await screen.findByRole("button", { name: "账户：bob" })).toBeVisible();
+
+    await act(async () => {
+      pendingLogout.resolve(undefined);
+      await pendingLogout.promise;
+    });
+
+    expect(screen.getByRole("button", { name: "账户：bob" })).toBeVisible();
+  });
+
+  it("converges to login when logout completes after a password rotation", async () => {
+    const passwordChange = deferred<AuthenticatedSession>();
+    const pendingLogout = deferred<void>();
+    mockedChangePassword.mockReturnValueOnce(passwordChange.promise);
+    mockedLogout.mockReturnValueOnce(pendingLogout.promise);
+    await renderAuthenticatedApp();
+
+    fireEvent.click(screen.getByRole("button", { name: "账户：alice" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(screen.getByLabelText("当前密码"), { target: { value: "current-secret" } });
+    fireEvent.change(screen.getByLabelText("新密码"), { target: { value: "new-secret-123" } });
+    fireEvent.change(screen.getByLabelText("确认新密码"), { target: { value: "new-secret-123" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "更新密码" }));
+    await waitFor(() => expect(mockedChangePassword).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByLabelText("退出登录"));
+    await waitFor(() => expect(mockedLogout).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      passwordChange.resolve({
+        user: defaultSession.user,
+        csrfToken: "csrf-after-password-change",
+      });
+      await passwordChange.promise;
+    });
+    expect(screen.getByRole("button", { name: "打开知识库" })).toBeVisible();
+
+    await act(async () => {
+      pendingLogout.resolve(undefined);
+      await pendingLogout.promise;
+    });
+
+    expect(await screen.findByLabelText("用户名")).toBeVisible();
   });
 
   it("stops an import follow-up when the refreshed library reports authentication_required", async () => {
