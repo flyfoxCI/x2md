@@ -23,10 +23,19 @@ services:
         required: false
     environment:
       DATABASE_URL: postgresql://expert@db:5432/expert_content_studio
+      # Compose is an HTTP-only, loopback-local development example. Do not use
+      # this setting for an HTTPS deployment.
+      AUTH_COOKIE_SECURE: "false"
+      # Pass the bootstrap secret from the host or untracked .env file; never
+      # hardcode it here. An absent value remains empty so the backend refuses
+      # to start an auth-enabled empty database.
+      AUTH_INITIAL_ADMIN_PASSWORD: ${AUTH_INITIAL_ADMIN_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy
     ports:
+      # Local development only; place a production deployment behind its own
+      # same-origin HTTPS reverse proxy.
       - "127.0.0.1:8000:8000"
     healthcheck:
       test:
@@ -46,6 +55,7 @@ services:
       backend:
         condition: service_healthy
     ports:
+      # Local development only; this Compose file does not configure TLS.
       - "127.0.0.1:5173:5173"
     healthcheck:
       test:
