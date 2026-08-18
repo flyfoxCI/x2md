@@ -200,7 +200,7 @@ npm run build
 **Verification:**
 
 ~~~
-docker compose config
+docker compose config --quiet
 rg -n --hidden --glob '!backend/uv.lock' --glob '!frontend/package-lock.json' 'AUTH_INITIAL_ADMIN_PASSWORD=.*[^=[:space:]]' .env.example docker-compose.yml README.md docs backend frontend
 rg -n 'password_hash|token_hash|csrfToken|authentication_required|csrf_invalid' docs/api.md README.md backend frontend
 ~~~
@@ -208,7 +208,7 @@ rg -n 'password_hash|token_hash|csrfToken|authentication_required|csrf_invalid' 
 - [ ] Capture the current missing-auth configuration/API-documentation evidence with the two rg checks.
 - [ ] Treat that evidence as RED; do not add an example password to make it pass.
 - [ ] Apply the bounded docs/Compose changes above.
-- [ ] Run docker compose config and both checks; read back doc snippets against typed runtime settings.
+- [ ] Run docker compose config --quiet and both checks; read back doc snippets against typed runtime settings without printing rendered secret-bearing configuration.
 - [ ] Commit docs: document secure public login deployment.
 
 ### 6. Independent review, integration evidence and branch handoff
@@ -222,7 +222,7 @@ rg -n 'password_hash|token_hash|csrfToken|authentication_required|csrf_invalid' 
 ~~~
 cd backend && uv lock --check && uv run pytest -q -W error && uv run ruff check .
 cd ../frontend && npm run lint && npm run test -- --run && npm run build
-cd .. && docker compose config
+cd .. && docker compose config --quiet
 python /Users/jerry/.codex/aegis/scripts/aegis-workspace.py bundle --root /Users/jerry/code/x2md --work 2026-08-18-public-login-security
 python /Users/jerry/.codex/aegis/scripts/aegis-workspace.py check --root /Users/jerry/code/x2md
 ~~~
