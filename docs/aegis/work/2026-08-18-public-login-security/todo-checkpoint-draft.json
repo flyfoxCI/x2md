@@ -1,11 +1,15 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-18-public-login-security",
-  "currentTodo": "Write approved implementation plan and establish strict-TDD red tests.",
-  "completedTodos": [],
-  "activeSlice": "Authentication design and planning",
-  "evidenceRefs": [],
+  "currentTodo": "Task 2: auth HTTP routes, bootstrap lifecycle and API enforcement",
+  "completedTodos": [
+    "Task 1: Argon2 password/session persistence core, 0002 migration and concurrency hardening"
+  ],
+  "activeSlice": "Strict-TDD FastAPI auth endpoints and protected knowledge routes",
+  "evidenceRefs": [
+    "task1-green"
+  ],
   "blockedOn": null,
-  "nextStep": "Read writing-plans and subagent-driven-development guidance, then create an executable plan.",
+  "nextStep": "Dispatch a fresh Task 2 implementation agent using the verified AuthService contract.",
   "updatedAt": "2026-08-18"
 }

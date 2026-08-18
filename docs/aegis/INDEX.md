@@ -43,3 +43,6 @@ Entries are workspace records, not authoritative runtime decisions.
 | 2026-08-18 | artifact | docs/aegis/work/2026-08-18-public-login-security/todo-checkpoint-draft.json | Public deployment login and session security todo checkpoint draft |
 | 2026-08-18 | artifact | docs/aegis/work/2026-08-18-public-login-security/drift-check-draft.json | Public deployment login and session security drift check draft |
 | 2026-08-18 | plan | docs/aegis/plans/2026-08-18-public-login-security.md | Public deployment login and session security implementation |
+| 2026-08-18 | artifact | docs/aegis/work/2026-08-18-public-login-security/evidence-bundle-draft-baseline-green.json | 2026-08-18-public-login-security evidence baseline-green |
+| 2026-08-18 | artifact | docs/aegis/work/2026-08-18-public-login-security/resume-state-hint.json | 2026-08-18-public-login-security resume state hint |
+| 2026-08-18 | artifact | docs/aegis/work/2026-08-18-public-login-security/evidence-bundle-draft-task1-green.json | 2026-08-18-public-login-security evidence task1-green |

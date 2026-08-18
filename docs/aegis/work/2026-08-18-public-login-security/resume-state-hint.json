@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "taskId": "2026-08-18-public-login-security",
+  "lastCheckpointRef": "docs/aegis/work/2026-08-18-public-login-security/todo-checkpoint-draft.json",
+  "resumeInstruction": "Before Task 2 review, read Task 1 commits and current router dependency wiring; rerun the protected-route/API tests rather than trusting route declarations.",
+  "knownPartialWork": [
+    "Task 1: Argon2 password/session persistence core, 0002 migration and concurrency hardening"
+  ],
+  "mustReadBeforeContinuing": [
+    "docs/aegis/work/2026-08-18-public-login-security/10-intent.md",
+    "docs/aegis/work/2026-08-18-public-login-security/20-checkpoint.md",
+    "docs/aegis/work/2026-08-18-public-login-security/todo-checkpoint-draft.json"
+  ],
+  "unsafeToAssume": [
+    "A route-level auth dependency automatically protects CSRF writes; enumerate each POST/PATCH and test it."
+  ]
+}

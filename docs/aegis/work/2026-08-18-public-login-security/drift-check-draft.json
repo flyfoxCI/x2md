@@ -3,13 +3,13 @@
   "taskId": "2026-08-18-public-login-security",
   "taskIntentRef": "docs/aegis/work/2026-08-18-public-login-security/task-intent-draft.json",
   "baselineRefs": [
-    "docs/aegis/specs/2026-08-11-expert-content-studio-design.md"
+    "docs/aegis/specs/2026-08-18-public-login-security-design.md"
   ],
-  "scopeStatus": "not-yet-verified",
-  "compatStatus": "not-yet-verified",
-  "retirementStatus": "not-yet-verified",
+  "scopeStatus": "Task 1 completed within password/session persistence and migration scope; Task 2 is the approved HTTP policy slice.",
+  "compatStatus": "Health remains public; legacy API payloads are unchanged until authenticated; test fixture isolation will be explicit.",
+  "retirementStatus": "Unauthenticated knowledge access remains present only until Task 2 replaces it with route-level dependencies.",
   "newRiskSignals": [
-    "Passwords, bearer-session handling, public API access and migration contracts are security-sensitive."
+    "AuthService use in dependencies must not retain request DB sessions during slow connector or provider I/O."
   ],
-  "decision": "needs-baseline-readback"
+  "decision": "continue"
 }

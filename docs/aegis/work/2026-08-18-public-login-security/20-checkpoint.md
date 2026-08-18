@@ -5,3 +5,43 @@
 - Active slice: Authentication design and planning
 - Blocked on: none
 - Next step: Read writing-plans and subagent-driven-development guidance, then create an executable plan.
+
+## Checkpoint Update
+
+- Current todo: Task 1: password/session persistence core
+- Active slice: Strict-TDD auth core and migration
+- Completed todos:
+- none
+- Evidence refs:
+- baseline-green
+- Blocked on: none
+- Next step: Dispatch Task 1 implementation agent with isolated context packet.
+
+## DriftCheckDraft
+
+- Scope status: Baseline is clean; active scope is only Task 1 auth core/configuration/schema.
+- Compatibility status: Existing API payloads and unauthenticated health route are unchanged at this slice.
+- Retirement status: No runtime route changed yet; unauthenticated knowledge access retires in Task 2.
+- New risk signals:
+- Auth enabled by default means existing non-auth API fixtures must be explicitly isolated in the later HTTP slice.
+- Advisory decision: continue
+
+## Checkpoint Update
+
+- Current todo: Task 2: auth HTTP routes, bootstrap lifecycle and API enforcement
+- Active slice: Strict-TDD FastAPI auth endpoints and protected knowledge routes
+- Completed todos:
+- Task 1: Argon2 password/session persistence core, 0002 migration and concurrency hardening
+- Evidence refs:
+- task1-green
+- Blocked on: none
+- Next step: Dispatch a fresh Task 2 implementation agent using the verified AuthService contract.
+
+## DriftCheckDraft
+
+- Scope status: Task 1 completed within password/session persistence and migration scope; Task 2 is the approved HTTP policy slice.
+- Compatibility status: Health remains public; legacy API payloads are unchanged until authenticated; test fixture isolation will be explicit.
+- Retirement status: Unauthenticated knowledge access remains present only until Task 2 replaces it with route-level dependencies.
+- New risk signals:
+- AuthService use in dependencies must not retain request DB sessions during slow connector or provider I/O.
+- Advisory decision: continue
