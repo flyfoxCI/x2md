@@ -1,6 +1,6 @@
 """Server-side runtime configuration."""
 
-from pydantic import AliasChoices, Field, SecretStr
+from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -67,6 +67,16 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("AUTH_COOKIE_SECURE", "APP_AUTH_COOKIE_SECURE"),
     )
 
+    @field_validator("auth_initial_admin_username")
+    @classmethod
+    def validate_auth_initial_admin_username(cls, value: str) -> str:
+        """Reject ambiguous bootstrap usernames without restricting printable Unicode."""
+        if not _is_valid_auth_username(value):
+            raise ValueError(
+                "AUTH_INITIAL_ADMIN_USERNAME must be printable without leading or trailing whitespace"
+            )
+        return value
+
     @property
     def ai_configured(self) -> bool:
         """Return whether the complete server-only provider contract is usable."""
@@ -78,3 +88,8 @@ class Settings(BaseSettings):
             and self.ai_model
             and self.ai_model.strip()
         )
+
+
+def _is_valid_auth_username(value: str) -> bool:
+    """Return whether an environment-provided administrator name is unambiguous."""
+    return bool(value.strip()) and value == value.strip() and value.isprintable()

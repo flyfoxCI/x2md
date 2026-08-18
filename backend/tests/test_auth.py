@@ -126,6 +126,62 @@ def test_auth_settings_reject_session_ttl_outside_safe_bounds(
         Settings()
 
 
+@pytest.mark.parametrize("username", [" ", " admin", "admin ", "admin\nname"])
+def test_auth_settings_reject_unsafe_initial_administrator_usernames(
+    username: str,
+) -> None:
+    """Bootstrap identity values cannot contain boundary whitespace or controls."""
+    with pytest.raises(ValidationError):
+        Settings(auth_initial_admin_username=username)
+
+    assert Settings(auth_initial_admin_username="管理员").auth_initial_admin_username == "管理员"
+
+
+def test_auth_services_share_process_password_material_without_rehashing(
+    session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Request-scoped services reuse the one dummy hash prepared for timing safety."""
+    module = importlib.import_module("app.services.auth")
+    password_material = getattr(module, "_password_material", None)
+
+    assert password_material is not None
+    recommended_calls: list[None] = []
+    hash_inputs: list[str] = []
+
+    class RecordingHasher:
+        def hash(self, value: str) -> str:
+            hash_inputs.append(value)
+            return "recorded-hash"
+
+        def verify(self, _: str, __: str) -> bool:
+            return False
+
+    hasher = RecordingHasher()
+
+    class RecordingPasswordHash:
+        @staticmethod
+        def recommended() -> RecordingHasher:
+            recommended_calls.append(None)
+            return hasher
+
+    password_material.cache_clear()
+    try:
+        monkeypatch.setattr(module, "PasswordHash", RecordingPasswordHash)
+        first = module.AuthService(
+            session, session_ttl_seconds=900, now=Clock(datetime(2026, 8, 18, tzinfo=UTC)).now
+        )
+        second = module.AuthService(
+            session, session_ttl_seconds=900, now=Clock(datetime(2026, 8, 18, tzinfo=UTC)).now
+        )
+
+        assert first._password_hash is second._password_hash
+        assert first._unknown_password_hash == second._unknown_password_hash
+        assert recommended_calls == [None]
+        assert len(hash_inputs) == 1
+    finally:
+        password_material.cache_clear()
+
+
 def test_bootstrap_creates_one_argon2_administrator_without_plaintext(
     session: Session,
 ) -> None:
@@ -165,6 +221,90 @@ def test_bootstrap_rejects_an_empty_seed_only_for_an_enabled_empty_database(
         service.bootstrap_admin(username="admin", initial_password=None, auth_enabled=False)
         is None
     )
+
+
+def test_bootstrap_rejects_invalid_username_but_accepts_printable_unicode(
+    session: Session,
+) -> None:
+    """Service callers cannot bypass the bootstrap username configuration policy."""
+    service = auth_service(session, Clock(datetime(2026, 8, 18, tzinfo=UTC)))
+    seed = SecretStr(secrets.token_urlsafe(24))
+
+    with pytest.raises(ValueError, match="username"):
+        service.bootstrap_admin(
+            username=" admin", initial_password=seed, auth_enabled=True
+        )
+
+    administrator = service.bootstrap_admin(
+        username="管理员", initial_password=seed, auth_enabled=True
+    )
+
+    assert administrator is not None
+    assert administrator.username == "管理员"
+
+
+def test_authenticate_rejects_an_invalid_username_even_if_a_legacy_row_exists(
+    session: Session,
+) -> None:
+    """Malformed historical names never become a valid authenticated identity."""
+    service = auth_service(session, Clock(datetime(2026, 8, 18, tzinfo=UTC)))
+    seed = secrets.token_urlsafe(24)
+    session.add(
+        User(
+            username=" admin",
+            password_hash=service._password_hash.hash(seed),
+            is_active=True,
+        )
+    )
+    session.commit()
+
+    assert service.authenticate(username=" admin", password=seed) is None
+
+
+def test_bootstrap_returns_the_winning_administrator_after_a_unique_key_race(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A concurrent first deployment returns the committed winner with a usable session."""
+    engine = create_database_engine(f"sqlite+pysqlite:///{tmp_path / 'bootstrap-race.db'}")
+    Base.metadata.create_all(engine)
+    seed = SecretStr(secrets.token_urlsafe(24))
+    clock = Clock(datetime(2026, 8, 18, tzinfo=UTC))
+
+    with Session(engine) as losing_session:
+        service = auth_service(losing_session, clock)
+        original_commit = losing_session.commit
+        commit_attempts = 0
+
+        def commit_after_winner() -> None:
+            nonlocal commit_attempts
+
+            commit_attempts += 1
+            if commit_attempts == 1:
+                with Session(engine) as winning_session:
+                    winning_session.add(
+                        User(
+                            username="admin",
+                            password_hash=service._password_hash.hash(
+                                seed.get_secret_value()
+                            ),
+                            is_active=True,
+                        )
+                    )
+                    winning_session.commit()
+            original_commit()
+
+        monkeypatch.setattr(losing_session, "commit", commit_after_winner)
+        winner = service.bootstrap_admin(
+            username="admin", initial_password=seed, auth_enabled=True
+        )
+        monkeypatch.setattr(losing_session, "commit", original_commit)
+
+        assert winner is not None
+        assert winner.username == "admin"
+        issued = service.create_session(winner)
+        assert service.get_current_session(issued.token) is not None
+
+    engine.dispose()
 
 
 def test_authenticate_rejects_unknown_and_wrong_credentials_identically(
@@ -296,3 +436,53 @@ def test_change_password_requires_current_password_and_replaces_all_sessions(
     assert session.scalars(select(AuthSession).where(AuthSession.user_id == user.id)).all() == [
         session.get(AuthSession, replacement.session_id)
     ]
+
+
+def test_change_password_reloads_a_stale_user_before_rotation(tmp_path) -> None:
+    """A caller with an old in-memory hash cannot issue a second replacement session."""
+    engine = create_database_engine(f"sqlite+pysqlite:///{tmp_path / 'rotation-race.db'}")
+    Base.metadata.create_all(engine)
+    initial_secret = SecretStr(secrets.token_urlsafe(24))
+    winning_secret = secrets.token_urlsafe(24)
+    stale_secret = secrets.token_urlsafe(24)
+    clock = Clock(datetime(2026, 8, 18, tzinfo=UTC))
+
+    with Session(engine) as stale_session:
+        stale_service = auth_service(stale_session, clock)
+        user = stale_service.bootstrap_admin(
+            username="admin", initial_password=initial_secret, auth_enabled=True
+        )
+
+        assert user is not None
+        original_hash = user.password_hash
+
+        with Session(engine) as winning_session:
+            winning_service = auth_service(winning_session, clock)
+            winning_user = winning_service.authenticate(
+                username="admin", password=initial_secret.get_secret_value()
+            )
+
+            assert winning_user is not None
+            winning_rotation = winning_service.change_password(
+                winning_user,
+                current_password=initial_secret.get_secret_value(),
+                new_password=winning_secret,
+            )
+
+            assert winning_rotation is not None
+
+        stale_rotation = stale_service.change_password(
+            user,
+            current_password=initial_secret.get_secret_value(),
+            new_password=stale_secret,
+        )
+
+        assert stale_rotation is None
+        assert user.password_hash != original_hash
+
+    with Session(engine) as verification_session:
+        sessions = verification_session.scalars(select(AuthSession)).all()
+
+        assert len(sessions) == 1
+
+    engine.dispose()

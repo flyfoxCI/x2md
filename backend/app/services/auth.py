@@ -7,11 +7,13 @@ import secrets
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from functools import lru_cache
 from hashlib import sha256
 
 from pwdlib import PasswordHash
 from pydantic import SecretStr
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from app.models import AuthSession, User, utc_now
@@ -44,8 +46,7 @@ class AuthService:
         self._session = session
         self._session_ttl = timedelta(seconds=session_ttl_seconds)
         self._now = now
-        self._password_hash = PasswordHash.recommended()
-        self._unknown_password_hash = self._password_hash.hash(secrets.token_urlsafe(32))
+        self._password_hash, self._unknown_password_hash = _password_material()
 
     def bootstrap_admin(
         self,
@@ -55,6 +56,8 @@ class AuthService:
         auth_enabled: bool,
     ) -> User | None:
         """Create the first administrator once, failing closed when its seed is absent."""
+        if not _is_valid_username(username):
+            raise ValueError("username must be printable without leading or trailing whitespace")
         existing_user = self._session.scalar(select(User).order_by(User.id).limit(1))
         if existing_user is not None:
             return existing_user
@@ -71,11 +74,23 @@ class AuthService:
             is_active=True,
         )
         self._session.add(administrator)
-        self._session.commit()
+        try:
+            self._session.commit()
+        except IntegrityError:
+            self._session.rollback()
+            winning_user = self._session.scalar(
+                select(User).where(User.username == username)
+            )
+            if winning_user is None:
+                raise
+            return winning_user
         return administrator
 
     def authenticate(self, *, username: str, password: str) -> User | None:
         """Return the active matching administrator, or one safe invalid result."""
+        if not _is_valid_username(username):
+            self._password_hash.verify(password, self._unknown_password_hash)
+            return None
         user = self._session.scalar(select(User).where(User.username == username))
         if user is None or not user.is_active:
             self._password_hash.verify(password, self._unknown_password_hash)
@@ -130,12 +145,20 @@ class AuthService:
         new_password: str,
     ) -> IssuedSession | None:
         """Verify the current password, revoke every session, and issue one replacement."""
-        if not self._password_hash.verify(current_password, user.password_hash):
+        locked_user = self._session.scalar(
+            select(User)
+            .where(User.id == user.id)
+            .execution_options(populate_existing=True)
+            .with_for_update()
+        )
+        if locked_user is None or not self._password_hash.verify(
+            current_password, locked_user.password_hash
+        ):
             return None
 
-        user.password_hash = self._password_hash.hash(new_password)
-        self._session.execute(delete(AuthSession).where(AuthSession.user_id == user.id))
-        return self._persist_session(user)
+        locked_user.password_hash = self._password_hash.hash(new_password)
+        self._session.execute(delete(AuthSession).where(AuthSession.user_id == locked_user.id))
+        return self._persist_session(locked_user)
 
     def _persist_session(self, user: User) -> IssuedSession:
         raw_token = secrets.token_urlsafe(32)
@@ -162,6 +185,18 @@ class AuthService:
 def _token_hash(raw_token: str) -> str:
     """Return the fixed-size server-side digest for a high-entropy bearer value."""
     return sha256(raw_token.encode("utf-8")).hexdigest()
+
+
+@lru_cache(maxsize=1)
+def _password_material() -> tuple[PasswordHash, str]:
+    """Build one process-wide Argon2 hasher and dummy hash for timing-safe failures."""
+    password_hash = PasswordHash.recommended()
+    return password_hash, password_hash.hash(secrets.token_urlsafe(32))
+
+
+def _is_valid_username(username: str) -> bool:
+    """Return whether an authentication username has an unambiguous printable form."""
+    return bool(username.strip()) and username == username.strip() and username.isprintable()
 
 
 def _is_expired(expires_at: datetime, now: datetime) -> bool:
