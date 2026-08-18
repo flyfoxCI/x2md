@@ -76,6 +76,11 @@ const rotatedSession = {
   csrfToken: "csrf-token-two",
 };
 
+const latestSession = {
+  user: { id: 7, username: "admin" },
+  csrfToken: "csrf-token-three",
+};
+
 function response(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
     status,
@@ -572,16 +577,99 @@ describe("authentication transport", () => {
 
     await login("admin", "password");
     const pendingLogout = logout();
-    await login("admin", "password");
+    const pendingLogin = login("admin", "password");
     delayedResponse.resolve(new Response(null, { status: 204 }));
 
     await expect(pendingLogout).resolves.toBeUndefined();
+    await expect(pendingLogin).resolves.toEqual(rotatedSession);
     await importSource("https://example.com/new-request");
 
     const laterWriteOptions = fetchMock.mock.calls[3]?.[1] as RequestInit;
     expect(new Headers(laterWriteOptions.headers).get("X-CSRF-Token")).toBe(
       "csrf-token-two",
     );
+  });
+
+  it("waits for logout to settle before dispatching a newer login", async () => {
+    const delayedLogout = deferred<Response>();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(response(authenticatedSession))
+      .mockReturnValueOnce(delayedLogout.promise)
+      .mockResolvedValueOnce(response(rotatedSession))
+      .mockResolvedValueOnce(response(source));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await login("admin", "password");
+    const pendingLogout = logout();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const pendingLogin = login("admin", "password");
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    delayedLogout.resolve(new Response(null, { status: 204 }));
+    await expect(pendingLogout).resolves.toBeUndefined();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    await expect(pendingLogin).resolves.toEqual(rotatedSession);
+    await importSource("https://example.com/new-request");
+
+    const laterWriteOptions = fetchMock.mock.calls[3]?.[1] as RequestInit;
+    expect(new Headers(laterWriteOptions.headers).get("X-CSRF-Token")).toBe(
+      "csrf-token-two",
+    );
+  });
+
+  it("does not let a stale session read overwrite a newer login token", async () => {
+    const delayedSessionRead = deferred<Response>();
+    const fetchMock = vi
+      .fn()
+      .mockReturnValueOnce(delayedSessionRead.promise)
+      .mockResolvedValueOnce(response(rotatedSession))
+      .mockResolvedValueOnce(response(source));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const staleSessionRead = getCurrentSession();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await expect(login("admin", "password")).resolves.toEqual(rotatedSession);
+    delayedSessionRead.resolve(response(authenticatedSession));
+
+    await expect(staleSessionRead).resolves.toEqual(authenticatedSession);
+    await importSource("https://example.com/new-request");
+
+    const laterWriteOptions = fetchMock.mock.calls[2]?.[1] as RequestInit;
+    expect(new Headers(laterWriteOptions.headers).get("X-CSRF-Token")).toBe(
+      "csrf-token-two",
+    );
+  });
+
+  it("serializes concurrent cookie-mutating authentication requests in invocation order", async () => {
+    const firstResponse = deferred<Response>();
+    const secondResponse = deferred<Response>();
+    const thirdResponse = deferred<Response>();
+    const fetchMock = vi
+      .fn()
+      .mockReturnValueOnce(firstResponse.promise)
+      .mockReturnValueOnce(secondResponse.promise)
+      .mockReturnValueOnce(thirdResponse.promise);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const firstLogin = login("admin", "first password");
+    const passwordChange = changePassword("first password", "second secure password");
+    const secondLogin = login("admin", "second password");
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/auth/login");
+    firstResponse.resolve(response(authenticatedSession));
+    await expect(firstLogin).resolves.toEqual(authenticatedSession);
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock.mock.calls[1]?.[0]).toBe("/api/auth/change-password");
+    secondResponse.resolve(response(rotatedSession));
+    await expect(passwordChange).resolves.toEqual(rotatedSession);
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(fetchMock.mock.calls[2]?.[0]).toBe("/api/auth/login");
+    thirdResponse.resolve(response(latestSession));
+    await expect(secondLogin).resolves.toEqual(latestSession);
   });
 
   it("uses same-origin credentials for every browser API request", async () => {
