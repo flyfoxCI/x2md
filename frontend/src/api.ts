@@ -1,4 +1,6 @@
 import type {
+  AuthenticatedSession,
+  AuthenticatedUser,
   ApiError,
   Artifact,
   ArtifactEdit,
@@ -26,6 +28,8 @@ interface RequestOptions extends RequestInit {
 }
 
 type ResponseGuard<T> = (value: unknown) => value is T;
+
+let currentCsrfToken: string | undefined;
 
 export function normalizeApiError(
   error: unknown,
@@ -99,22 +103,7 @@ async function request<T>(
   guard: ResponseGuard<T>,
   init?: RequestOptions,
 ): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(path(pathname), {
-      ...init,
-      headers: {
-        Accept: "application/json",
-        ...(init?.body ? { "Content-Type": "application/json" } : {}),
-        ...init?.headers,
-      },
-    });
-  } catch (error) {
-    if (isAbortError(error)) {
-      throw error;
-    }
-    throw normalizeApiError(error);
-  }
+  const response = await fetchResponse(pathname, init);
 
   let text: string;
   try {
@@ -135,6 +124,76 @@ async function request<T>(
     throw invalidResponse(response.status);
   }
   return payload;
+}
+
+async function requestNoContent(pathname: string, init?: RequestOptions): Promise<void> {
+  const response = await fetchResponse(pathname, init);
+
+  let text: string;
+  try {
+    text = await response.text();
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw error;
+    }
+    throw response.ok ? invalidResponse(response.status) : requestFailed(response.status);
+  }
+  const payload: unknown = text ? safelyParseJson(text) : undefined;
+  if (!response.ok) {
+    throw isBackendErrorEnvelope(payload)
+      ? normalizeApiError(payload, response.status)
+      : requestFailed(response.status);
+  }
+  if (response.status !== 204 || text !== "") {
+    throw invalidResponse(response.status);
+  }
+}
+
+async function fetchResponse(pathname: string, init?: RequestOptions): Promise<Response> {
+  let response: Response;
+  try {
+    response = await fetch(path(pathname), {
+      ...init,
+      credentials: "same-origin",
+      headers: requestHeaders(init),
+    });
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw error;
+    }
+    throw normalizeApiError(error);
+  }
+
+  if (response.status === 401) {
+    clearAuthentication();
+  }
+  return response;
+}
+
+function requestHeaders(init?: RequestOptions): Headers {
+  const headers = new Headers(init?.headers);
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json");
+  }
+  if (init?.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  headers.delete("X-CSRF-Token");
+  if (currentCsrfToken && isUnsafeMethod(init?.method)) {
+    headers.set("X-CSRF-Token", currentCsrfToken);
+  }
+  return headers;
+}
+
+function isUnsafeMethod(method?: string): boolean {
+  const normalizedMethod = method?.toUpperCase() || "GET";
+  return (
+    normalizedMethod === "POST" ||
+    normalizedMethod === "PATCH" ||
+    normalizedMethod === "PUT" ||
+    normalizedMethod === "DELETE"
+  );
 }
 
 function safelyParseJson(value: string): unknown {
@@ -288,6 +347,73 @@ function isArtifactKind(value: unknown): value is Artifact["kind"] {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isAuthenticatedUser(value: unknown): value is AuthenticatedUser {
+  return (
+    isRecord(value) &&
+    typeof value.id === "number" &&
+    Number.isInteger(value.id) &&
+    value.id > 0 &&
+    typeof value.username === "string" &&
+    value.username.length > 0
+  );
+}
+
+function isAuthenticatedSession(value: unknown): value is AuthenticatedSession {
+  return (
+    isRecord(value) &&
+    isAuthenticatedUser(value.user) &&
+    typeof value.csrfToken === "string" &&
+    value.csrfToken.length > 0
+  );
+}
+
+function installAuthentication(session: AuthenticatedSession): AuthenticatedSession {
+  currentCsrfToken = session.csrfToken;
+  return session;
+}
+
+export function clearAuthentication(): void {
+  currentCsrfToken = undefined;
+}
+
+export async function getCurrentSession(
+  signal?: AbortSignal,
+): Promise<AuthenticatedSession> {
+  return installAuthentication(await request("/auth/me", isAuthenticatedSession, { signal }));
+}
+
+export async function login(
+  username: string,
+  password: string,
+): Promise<AuthenticatedSession> {
+  return installAuthentication(
+    await request("/auth/login", isAuthenticatedSession, {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    }),
+  );
+}
+
+export async function logout(): Promise<void> {
+  try {
+    await requestNoContent("/auth/logout", { method: "POST" });
+  } finally {
+    clearAuthentication();
+  }
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<AuthenticatedSession> {
+  return installAuthentication(
+    await request("/auth/change-password", isAuthenticatedSession, {
+      method: "POST",
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
+  );
 }
 
 export async function listSources(
