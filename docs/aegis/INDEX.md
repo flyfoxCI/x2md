@@ -42,3 +42,4 @@ Entries are workspace records, not authoritative runtime decisions.
 | 2026-08-18 | artifact | docs/aegis/work/2026-08-18-public-login-security/impact-statement-draft.json | Public deployment login and session security impact statement draft |
 | 2026-08-18 | artifact | docs/aegis/work/2026-08-18-public-login-security/todo-checkpoint-draft.json | Public deployment login and session security todo checkpoint draft |
 | 2026-08-18 | artifact | docs/aegis/work/2026-08-18-public-login-security/drift-check-draft.json | Public deployment login and session security drift check draft |
+| 2026-08-18 | plan | docs/aegis/plans/2026-08-18-public-login-security.md | Public deployment login and session security implementation |
