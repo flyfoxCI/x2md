@@ -14,10 +14,9 @@ cp .env.example .env
 # in this untracked file (or inject it from your deployment secret manager).
 # For this local HTTP server only, set AUTH_COOKIE_SECURE=false in .env.
 cd backend
-set -a; . ../.env; set +a
 uv sync
-uv run alembic upgrade head
-uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+uv run --env-file ../.env alembic upgrade head
+uv run --env-file ../.env uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 In a second terminal:
@@ -34,11 +33,17 @@ Open <http://127.0.0.1:5173>. Vite proxies `/api` to `http://127.0.0.1:8000` by 
 curl -fsS http://127.0.0.1:8000/api/health
 ```
 
-The default development database is `backend/expert-content-studio.db`. It is intentionally ignored by Git. Use `DATABASE_URL` for another SQLite file or PostgreSQL. Migrations must be run from `backend`:
+The default development database is `backend/expert-content-studio.db`. It is intentionally ignored by Git. Use `DATABASE_URL` in `.env` for another SQLite file or PostgreSQL. Migrations must be run from `backend` with the same dotenv parser:
 
 ```sh
-DATABASE_URL='postgresql://USER:PASSWORD@HOST:5432/DB' uv run alembic upgrade head
+uv run --env-file ../.env alembic upgrade head
 ```
+
+Do not `source` or dot-execute `.env`: it is configuration data, not shell
+code. `uv run --env-file ../.env` parses it without executing it. For a secret
+containing shell metacharacters such as `$`, backticks, `;`, or `$()`, use valid
+single-quoted dotenv syntax so those characters stay literal rather than being
+expanded by a shell.
 
 ## Authentication and deployment security
 
@@ -115,10 +120,13 @@ docker compose up --build
 
 Before `docker compose up`, place the unique bootstrap secret in the untracked
 `.env` file or provide `AUTH_INITIAL_ADMIN_PASSWORD` through the host environment;
-the host value is passed through without being baked into the image or Compose
-configuration. If the named database volume is new, authentication is enabled,
-and that secret is absent or blank, the backend fails closed rather than serving
-an uninitialized administrator account.
+the host value is passed through without being baked into the image. It is still
+an ordinary container environment variable, not a Docker secret: anyone with
+access to the Docker host/daemon may be able to inspect it. Use a deployment
+secret mechanism appropriate to that host for production. If the named database
+volume is new, authentication is enabled, and that secret is absent or blank,
+the backend fails closed rather than serving an uninitialized administrator
+account.
 
 The app is available at <http://127.0.0.1:5173>; the backend health endpoint is available only locally at <http://127.0.0.1:8000/api/health>. Compose deliberately sets `AUTH_COOKIE_SECURE=false` because these local endpoints use HTTP. Compose runs Alembic before serving the API and stores PostgreSQL data in the named `expert-content-studio-data` volume. The database has no host port. `POSTGRES_HOST_AUTH_METHOD=trust` is used only for this isolated local Compose network; use real credentials and a managed database for a production deployment. Stop services with `docker compose down`; include `--volumes` only if you intentionally want to delete all local knowledge data.
 
@@ -142,5 +150,7 @@ npm run test -- --run
 npm run build
 
 cd ..
-docker compose config
+# Structure check only. Do not run `docker compose config` without `--quiet`:
+# Compose interpolation can print the bootstrap secret into terminal or CI logs.
+docker compose config --quiet
 ```

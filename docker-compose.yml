@@ -28,7 +28,9 @@ services:
       AUTH_COOKIE_SECURE: "false"
       # Pass the bootstrap secret from the host or untracked .env file; never
       # hardcode it here. An absent value remains empty so the backend refuses
-      # to start an auth-enabled empty database.
+      # to start an auth-enabled empty database. This is a normal container
+      # environment variable, not a Docker secret, and Docker host access can
+      # expose it.
       AUTH_INITIAL_ADMIN_PASSWORD: ${AUTH_INITIAL_ADMIN_PASSWORD:-}
     depends_on:
       db:
