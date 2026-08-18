@@ -1,15 +1,15 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-18-public-login-security",
-  "currentTodo": "Task 3: typed browser session and CSRF transport",
+  "currentTodo": "Task 4: gate the React studio and add administrator account flows",
   "completedTodos": [
-    "Task 1 core persistence/concurrency hardening; Task 2 public auth HTTP routes, bootstrap lifecycle and protected legacy API policy"
+    "Task 1 core persistence/concurrency hardening; Task 2 public auth HTTP routes, bootstrap lifecycle and protected legacy API policy; Task 3 typed browser session/CSRF transport and stale-response hardening"
   ],
-  "activeSlice": "Strict-TDD React API authentication transport",
+  "activeSlice": "Strict-TDD React authentication experience",
   "evidenceRefs": [
-    "task2-green"
+    "task3-green"
   ],
   "blockedOn": null,
-  "nextStep": "Dispatch a fresh Task 3 frontend transport agent.",
+  "nextStep": "Dispatch a fresh Task 4 frontend UI implementation agent.",
   "updatedAt": "2026-08-18"
 }

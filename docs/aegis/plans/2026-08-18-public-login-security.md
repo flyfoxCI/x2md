@@ -144,7 +144,7 @@ export function changePassword(currentPassword: string, newPassword: string): Pr
 export function clearAuthentication(): void;
 ~~~
 
-All fetches set credentials: "same-origin". A module-local CSRF value is installed only from guarded login/me/change-password payloads, cleared by logout or a 401, and sent as X-CSRF-Token only for non-GET/HEAD/OPTIONS requests.
+All fetches set credentials: "same-origin". A module-local CSRF value is installed only from guarded login/me/change-password payloads, cleared by logout or a current-generation `401 authentication_required`, and sent as X-CSRF-Token only for non-GET/HEAD/OPTIONS requests. `401 invalid_credentials` retains an otherwise active session; delayed reads and errors may not override or clear a newer credential generation.
 
 **Verification:**
 
@@ -166,7 +166,7 @@ npm run lint
 
 **Why / boundary:** a real UI must not fetch or flash knowledge data before session restoration, and must let the owner immediately replace the bootstrap password.
 
-- App calls /auth/me first. It renders a non-data checking state, then LoginScreen on 401, and starts the existing source/settings effects only when authenticated. Later 401 clears auth UI state and returns to login.
+- App calls /auth/me first. It renders a non-data checking state, then LoginScreen on authentication-required, and starts the existing source/settings effects only when authenticated. A current-generation `401 authentication_required` clears auth UI state and returns to login; invalid credentials from a login/password form do not discard an active session.
 - LoginScreen accepts onLogin(username, password), uses labelled autocomplete username/current-password inputs, focuses username and renders only generic errors.
 - AccountDialog owns current/new/confirm input state, validates confirmation and 12-character minimum locally, restores trigger focus, invokes logout/change-password callbacks and never echoes credentials.
 - AppHeader receives safe user metadata and account/logout actions; mobile retains a reachable account action.
@@ -253,4 +253,3 @@ python /Users/jerry/.codex/aegis/scripts/aegis-workspace.py check --root /Users/
 ## Plan self-review
 
 Every approved requirement maps to Tasks 1–6: secure bootstrap, hashing/session data, cookie/CSRF, all API enforcement, client/UI state, operations, review and final evidence. The tasks name concrete files, red/green commands, no fallback path and the public compatibility boundary. No implementation placeholder or second identity abstraction remains.
-

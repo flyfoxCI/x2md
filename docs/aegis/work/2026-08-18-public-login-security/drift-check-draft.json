@@ -5,11 +5,11 @@
   "baselineRefs": [
     "docs/aegis/specs/2026-08-18-public-login-security-design.md"
   ],
-  "scopeStatus": "Tasks 1 and 2 completed within approved authentication design; Task 3 is the typed browser transport slice only.",
-  "compatStatus": "Existing authenticated payloads remain stable; health stays public; browser will continue same-origin API use.",
-  "retirementStatus": "Unauthenticated backend knowledge access retired; frontend still lacks login gate until Task 4.",
+  "scopeStatus": "Tasks 1-3 completed within the approved design; Task 4 is only the login gate, account dialog, header actions and responsive styles.",
+  "compatStatus": "Authenticated data payloads and health remain stable; the UI will defer protected loading until session restoration succeeds.",
+  "retirementStatus": "Unauthenticated browser access to studio content is retired by the API and will now be removed from the root render path.",
   "newRiskSignals": [
-    "Frontend must avoid local/session storage and clear stale in-memory CSRF after 401."
+    "invalid_credentials retains an active session; only current-generation authentication_required may clear UI state."
   ],
   "decision": "continue"
 }

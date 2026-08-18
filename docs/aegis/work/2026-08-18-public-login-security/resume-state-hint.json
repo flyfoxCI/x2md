@@ -2,9 +2,9 @@
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-18-public-login-security",
   "lastCheckpointRef": "docs/aegis/work/2026-08-18-public-login-security/todo-checkpoint-draft.json",
-  "resumeInstruction": "Read final backend auth response/error/cookie contract and API client tests before implementation; verify token remains memory-only.",
+  "resumeInstruction": "Read the approved design, auth transport contract and root App tests before changing UI; preserve the no-protected-fetch-before-restoration invariant.",
   "knownPartialWork": [
-    "Task 1 core persistence/concurrency hardening; Task 2 public auth HTTP routes, bootstrap lifecycle and protected legacy API policy"
+    "Task 1 core persistence/concurrency hardening; Task 2 public auth HTTP routes, bootstrap lifecycle and protected legacy API policy; Task 3 typed browser session/CSRF transport and stale-response hardening"
   ],
   "mustReadBeforeContinuing": [
     "docs/aegis/work/2026-08-18-public-login-security/10-intent.md",
@@ -12,6 +12,6 @@
     "docs/aegis/work/2026-08-18-public-login-security/todo-checkpoint-draft.json"
   ],
   "unsafeToAssume": [
-    "A successful login response alone implies subsequent unsafe client calls carry the current CSRF value; test header dispatch explicitly."
+    "A generic 401 clears a session: only current-generation authentication_required does."
   ]
 }

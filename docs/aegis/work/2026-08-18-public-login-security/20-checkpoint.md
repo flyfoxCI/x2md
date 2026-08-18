@@ -65,3 +65,23 @@
 - New risk signals:
 - Frontend must avoid local/session storage and clear stale in-memory CSRF after 401.
 - Advisory decision: continue
+
+## Checkpoint Update
+
+- Current todo: Task 4: gate the React studio and add administrator account flows
+- Active slice: Strict-TDD React authentication experience
+- Completed todos:
+- Task 1 core persistence/concurrency hardening; Task 2 public auth HTTP routes, bootstrap lifecycle and protected legacy API policy; Task 3 typed browser session/CSRF transport and stale-response hardening
+- Evidence refs:
+- task3-green
+- Blocked on: none
+- Next step: Dispatch a fresh Task 4 frontend UI implementation agent.
+
+## DriftCheckDraft
+
+- Scope status: Tasks 1-3 completed within the approved design; Task 4 is only the login gate, account dialog, header actions and responsive styles.
+- Compatibility status: Authenticated data payloads and health remain stable; the UI will defer protected loading until session restoration succeeds.
+- Retirement status: Unauthenticated browser access to studio content is retired by the API and will now be removed from the root render path.
+- New risk signals:
+- invalid_credentials retains an active session; only current-generation authentication_required may clear UI state.
+- Advisory decision: continue

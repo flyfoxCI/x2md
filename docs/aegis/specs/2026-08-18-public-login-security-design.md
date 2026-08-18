@@ -115,7 +115,7 @@ The server intentionally does not enable permissive CORS. Public production uses
 1. On initial application load, call `GET /api/auth/me` before any library/settings request.
 2. If it returns `401`, render an accessible focused login view; do not mount the studio or issue protected loading calls.
 3. Successful login saves only user metadata and the transient CSRF token in memory, then loads the existing studio.
-4. Any later `401` clears in-memory authentication state and returns to login. Logout sends CSRF, clears local state and relies on the response to clear the HttpOnly cookie.
+4. Only a current-generation `401 authentication_required` clears in-memory authentication state and returns to login. `401 invalid_credentials` leaves an active session intact; delayed results cannot clear or overwrite a newer credential generation. Logout sends CSRF, clears local state and relies on the response to clear the HttpOnly cookie.
 5. The header exposes the active administrator and an account dialog with current/new/confirm password fields. It shows generic safe errors and never echoes a password.
 
 ## Testing and acceptance

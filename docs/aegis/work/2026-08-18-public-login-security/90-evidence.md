@@ -25,3 +25,11 @@ No evidence has been recorded yet.
 - Source: Task 2 commits bc934fe and 2a713ad
 - Summary: Focused auth/core/API/lifecycle suite 38 passed; full backend suite 251 passed; Ruff, uv lock, SQLite Alembic upgrade/downgrade/upgrade and independent spec/quality reviews passed. API race regressions cover old-password delayed login and revoked-session CSRF recheck.
 - Verifier: controller plus independent reviewers
+
+## EvidenceBundleDraft
+
+- Artifact key: task3-green
+- Type: command and independent review
+- Source: Task 3 commits 01d68b1,b62b82a,02aad8e,9e53ed1,173b07f
+- Summary: RED reproduced stale /auth/me overwriting new login CSRF; GREEN guards installs by intent and credential generation. Focused API 43, full frontend 86, lint, build and diff check passed; two independent reviews approved.
+- Verifier: controller plus independent reviewers
