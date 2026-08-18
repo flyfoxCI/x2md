@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -6,10 +6,12 @@ import { AccountDialog } from "./AccountDialog";
 
 function deferred<T>() {
   let resolve: (value: T) => void;
-  const promise = new Promise<T>((resolvePromise) => {
+  let reject: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
+    reject = rejectPromise;
   });
-  return { promise, resolve: resolve! };
+  return { promise, resolve: resolve!, reject: reject! };
 }
 
 function renderDialog(overrides: Partial<ComponentProps<typeof AccountDialog>> = {}) {
@@ -114,6 +116,60 @@ describe("AccountDialog", () => {
     passwordChange.resolve(undefined);
     await waitFor(() => expect(props.onClose).toHaveBeenCalledTimes(1));
     expect(trigger).toHaveFocus();
+  });
+
+  it("restores focus to an enabled password field when a pending password update fails", async () => {
+    const passwordChange = deferred<void>();
+    const { props } = renderDialog({
+      onChangePassword: vi.fn().mockReturnValue(passwordChange.promise),
+    });
+
+    fireEvent.change(screen.getByLabelText("当前密码"), { target: { value: "current-secret" } });
+    fireEvent.change(screen.getByLabelText("新密码"), { target: { value: "new-secret-123" } });
+    fireEvent.change(screen.getByLabelText("确认新密码"), { target: { value: "new-secret-123" } });
+    fireEvent.click(screen.getByRole("button", { name: "更新密码" }));
+    await waitFor(() => expect(props.onChangePassword).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("dialog")).toHaveFocus();
+
+    await act(async () => {
+      passwordChange.reject(new Error("internal password detail"));
+      try {
+        await passwordChange.promise;
+      } catch {
+        // The dialog owns this expected failure.
+      }
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("密码更新失败，请稍后重试。");
+    expect(screen.getByLabelText("当前密码")).toHaveFocus();
+  });
+
+  it("wraps Shift+Tab from the dialog root after a failed pending update", async () => {
+    const passwordChange = deferred<void>();
+    const { props } = renderDialog({
+      onChangePassword: vi.fn().mockReturnValue(passwordChange.promise),
+    });
+
+    fireEvent.change(screen.getByLabelText("当前密码"), { target: { value: "current-secret" } });
+    fireEvent.change(screen.getByLabelText("新密码"), { target: { value: "new-secret-123" } });
+    fireEvent.change(screen.getByLabelText("确认新密码"), { target: { value: "new-secret-123" } });
+    fireEvent.click(screen.getByRole("button", { name: "更新密码" }));
+    await waitFor(() => expect(props.onChangePassword).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      passwordChange.reject(new Error("internal password detail"));
+      try {
+        await passwordChange.promise;
+      } catch {
+        // The dialog owns this expected failure.
+      }
+    });
+
+    const dialog = screen.getByRole("dialog");
+    dialog.focus();
+    fireEvent.keyDown(dialog, { key: "Tab", shiftKey: true });
+
+    expect(screen.getByRole("button", { name: "更新密码" })).toHaveFocus();
   });
 
   it("closes with Escape and restores the trigger when no action is pending", () => {

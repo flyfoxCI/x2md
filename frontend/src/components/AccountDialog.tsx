@@ -18,6 +18,8 @@ export function AccountDialog({ user, trigger, onChangePassword, onClose, onLogo
   const [error, setError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const currentPasswordRef = useRef<HTMLInputElement>(null);
+  const wasPendingRef = useRef(false);
+  const restorePasswordFocusRef = useRef(false);
   const pending = pendingAction !== null;
 
   useEffect(() => {
@@ -27,7 +29,11 @@ export function AccountDialog({ user, trigger, onChangePassword, onClose, onLogo
   useEffect(() => {
     if (pending) {
       dialogRef.current?.focus();
+    } else if (wasPendingRef.current && restorePasswordFocusRef.current) {
+      currentPasswordRef.current?.focus();
+      restorePasswordFocusRef.current = false;
     }
+    wasPendingRef.current = pending;
   }, [pending]);
 
   function close() {
@@ -55,6 +61,7 @@ export function AccountDialog({ user, trigger, onChangePassword, onClose, onLogo
       await onChangePassword(currentPassword, newPassword);
       close();
     } catch {
+      restorePasswordFocusRef.current = true;
       setError("密码更新失败，请稍后重试。");
     } finally {
       setPendingAction(null);
@@ -101,7 +108,10 @@ export function AccountDialog({ user, trigger, onChangePassword, onClose, onLogo
 
     const first = focusable[0];
     const last = focusable.at(-1)!;
-    if (event.shiftKey && document.activeElement === first) {
+    if (document.activeElement === dialogRef.current) {
+      event.preventDefault();
+      (event.shiftKey ? last : first).focus();
+    } else if (event.shiftKey && document.activeElement === first) {
       event.preventDefault();
       last.focus();
     } else if (!event.shiftKey && document.activeElement === last) {
