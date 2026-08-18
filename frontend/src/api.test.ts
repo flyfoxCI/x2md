@@ -89,8 +89,17 @@ function without(object: Record<string, unknown>, field: string): Record<string,
   return copy;
 }
 
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolvePromise!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((resolve) => {
+    resolvePromise = resolve;
+  });
+  return { promise, resolve: (value) => resolvePromise(value) };
+}
+
 describe("listSources", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -143,6 +152,7 @@ describe("listSources", () => {
 
 describe("public API response guards", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -229,6 +239,7 @@ describe("public API response guards", () => {
 describe("authentication transport", () => {
   afterEach(() => {
     clearAuthentication();
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -358,6 +369,39 @@ describe("authentication transport", () => {
     );
   });
 
+  it("keeps the current CSRF token after an invalid current password", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(response(authenticatedSession))
+      .mockResolvedValueOnce(
+        response(
+          {
+            detail: {
+              code: "invalid_credentials",
+              message: "Invalid username or password.",
+            },
+          },
+          401,
+        ),
+      )
+      .mockResolvedValueOnce(response(source));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await login("admin", "password");
+    await expect(changePassword("incorrect password", "new secure password")).rejects.toMatchObject(
+      {
+        code: "invalid_credentials",
+        status: 401,
+      },
+    );
+    await importSource("https://example.com/article");
+
+    const laterWriteOptions = fetchMock.mock.calls[2]?.[1] as RequestInit;
+    expect(new Headers(laterWriteOptions.headers).get("X-CSRF-Token")).toBe(
+      "csrf-token-one",
+    );
+  });
+
   it("clears a stale CSRF token after a 401 before the next unsafe request", async () => {
     const fetchMock = vi
       .fn()
@@ -391,6 +435,94 @@ describe("authentication transport", () => {
     expect(new Headers(laterWriteOptions.headers).get("X-CSRF-Token")).toBeNull();
   });
 
+  it("clears only a current safe authentication-required response", async () => {
+    const cases = [
+      {
+        name: "safe authentication-required envelope",
+        rejectedResponse: response(
+          {
+            detail: {
+              code: "authentication_required",
+              message: "Authentication is required.",
+            },
+          },
+          401,
+        ),
+        expectedToken: null,
+      },
+      {
+        name: "non-JSON 401 response",
+        rejectedResponse: new Response("server outage", { status: 401 }),
+        expectedToken: "csrf-token-one",
+      },
+      {
+        name: "unreadable 401 response",
+        rejectedResponse: {
+          ok: false,
+          status: 401,
+          text: vi.fn().mockRejectedValue(new Error("stream failure")),
+        },
+        expectedToken: "csrf-token-one",
+      },
+    ];
+
+    for (const { rejectedResponse, expectedToken } of cases) {
+      clearAuthentication();
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(response(authenticatedSession))
+        .mockResolvedValueOnce(rejectedResponse)
+        .mockResolvedValueOnce(response(source));
+      vi.stubGlobal("fetch", fetchMock);
+
+      await login("admin", "password");
+      await expect(importSource("https://example.com/article")).rejects.toMatchObject({
+        status: 401,
+      });
+      await importSource("https://example.com/article");
+
+      const laterWriteOptions = fetchMock.mock.calls[2]?.[1] as RequestInit;
+      expect(new Headers(laterWriteOptions.headers).get("X-CSRF-Token")).toBe(expectedToken);
+    }
+  });
+
+  it("does not let an old authentication-required response clear a newer session", async () => {
+    const delayedResponse = deferred<Response>();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(response(authenticatedSession))
+      .mockReturnValueOnce(delayedResponse.promise)
+      .mockResolvedValueOnce(response(rotatedSession))
+      .mockResolvedValueOnce(response(source));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await login("admin", "password");
+    const staleRequest = importSource("https://example.com/old-request");
+    await login("admin", "password");
+    delayedResponse.resolve(
+      response(
+        {
+          detail: {
+            code: "authentication_required",
+            message: "Authentication is required.",
+          },
+        },
+        401,
+      ),
+    );
+
+    await expect(staleRequest).rejects.toMatchObject({
+      code: "authentication_required",
+      status: 401,
+    });
+    await importSource("https://example.com/new-request");
+
+    const laterWriteOptions = fetchMock.mock.calls[3]?.[1] as RequestInit;
+    expect(new Headers(laterWriteOptions.headers).get("X-CSRF-Token")).toBe(
+      "csrf-token-two",
+    );
+  });
+
   it("uses the CSRF token for logout, accepts its empty 204, and clears it", async () => {
     const fetchMock = vi
       .fn()
@@ -407,6 +539,49 @@ describe("authentication transport", () => {
     const laterWriteOptions = fetchMock.mock.calls[2]?.[1] as RequestInit;
     expect(new Headers(logoutOptions.headers).get("X-CSRF-Token")).toBe("csrf-token-one");
     expect(new Headers(laterWriteOptions.headers).get("X-CSRF-Token")).toBeNull();
+  });
+
+  it.each([
+    ["network error", new Error("offline"), { code: "network_error" }],
+    ["AbortError", Object.assign(new Error("cancelled"), { name: "AbortError" }), { name: "AbortError" }],
+  ])("clears after logout %s when no newer session exists", async (_name, failure, expected) => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(response(authenticatedSession))
+      .mockRejectedValueOnce(failure)
+      .mockResolvedValueOnce(response(source));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await login("admin", "password");
+    await expect(logout()).rejects.toMatchObject(expected);
+    await importSource("https://example.com/article");
+
+    const laterWriteOptions = fetchMock.mock.calls[2]?.[1] as RequestInit;
+    expect(new Headers(laterWriteOptions.headers).get("X-CSRF-Token")).toBeNull();
+  });
+
+  it("does not let a delayed logout clear a newer authentication generation", async () => {
+    const delayedResponse = deferred<Response>();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(response(authenticatedSession))
+      .mockReturnValueOnce(delayedResponse.promise)
+      .mockResolvedValueOnce(response(rotatedSession))
+      .mockResolvedValueOnce(response(source));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await login("admin", "password");
+    const pendingLogout = logout();
+    await login("admin", "password");
+    delayedResponse.resolve(new Response(null, { status: 204 }));
+
+    await expect(pendingLogout).resolves.toBeUndefined();
+    await importSource("https://example.com/new-request");
+
+    const laterWriteOptions = fetchMock.mock.calls[3]?.[1] as RequestInit;
+    expect(new Headers(laterWriteOptions.headers).get("X-CSRF-Token")).toBe(
+      "csrf-token-two",
+    );
   });
 
   it("uses same-origin credentials for every browser API request", async () => {

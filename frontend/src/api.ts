@@ -30,6 +30,13 @@ interface RequestOptions extends RequestInit {
 type ResponseGuard<T> = (value: unknown) => value is T;
 
 let currentCsrfToken: string | undefined;
+let credentialGeneration = 0;
+
+interface ParsedResponse {
+  response: Response;
+  text: string;
+  payload: unknown;
+}
 
 export function normalizeApiError(
   error: unknown,
@@ -78,6 +85,14 @@ function isBackendErrorEnvelope(value: unknown): value is BackendErrorEnvelope {
   );
 }
 
+function isAuthenticationRequiredEnvelope(value: unknown): value is BackendErrorEnvelope {
+  return (
+    isBackendErrorEnvelope(value) &&
+    value.detail.code === "authentication_required" &&
+    typeof value.detail.message === "string"
+  );
+}
+
 function path(pathname: string): string {
   return `${apiBaseUrl}${pathname}`;
 }
@@ -103,32 +118,29 @@ async function request<T>(
   guard: ResponseGuard<T>,
   init?: RequestOptions,
 ): Promise<T> {
-  const response = await fetchResponse(pathname, init);
-
-  let text: string;
-  try {
-    text = await response.text();
-  } catch (error) {
-    if (isAbortError(error)) {
-      throw error;
-    }
-    throw response.ok ? invalidResponse(response.status) : requestFailed(response.status);
+  const requestGeneration = captureCredentialGeneration();
+  const parsed = await receiveResponse(pathname, init);
+  throwForFailedResponse(parsed, requestGeneration);
+  if (parsed.payload === undefined || !guard(parsed.payload)) {
+    throw invalidResponse(parsed.response.status);
   }
-  const payload: unknown = text ? safelyParseJson(text) : undefined;
-  if (!response.ok) {
-    throw isBackendErrorEnvelope(payload)
-      ? normalizeApiError(payload, response.status)
-      : requestFailed(response.status);
-  }
-  if (payload === undefined || !guard(payload)) {
-    throw invalidResponse(response.status);
-  }
-  return payload;
+  return parsed.payload;
 }
 
-async function requestNoContent(pathname: string, init?: RequestOptions): Promise<void> {
-  const response = await fetchResponse(pathname, init);
+async function requestNoContent(
+  pathname: string,
+  init: RequestOptions,
+  requestGeneration: number,
+): Promise<void> {
+  const parsed = await receiveResponse(pathname, init);
+  throwForFailedResponse(parsed, requestGeneration);
+  if (parsed.response.status !== 204 || parsed.text !== "") {
+    throw invalidResponse(parsed.response.status);
+  }
+}
 
+async function receiveResponse(pathname: string, init?: RequestOptions): Promise<ParsedResponse> {
+  const response = await fetchResponse(pathname, init);
   let text: string;
   try {
     text = await response.text();
@@ -138,15 +150,26 @@ async function requestNoContent(pathname: string, init?: RequestOptions): Promis
     }
     throw response.ok ? invalidResponse(response.status) : requestFailed(response.status);
   }
-  const payload: unknown = text ? safelyParseJson(text) : undefined;
-  if (!response.ok) {
-    throw isBackendErrorEnvelope(payload)
-      ? normalizeApiError(payload, response.status)
-      : requestFailed(response.status);
+  return {
+    response,
+    text,
+    payload: text ? safelyParseJson(text) : undefined,
+  };
+}
+
+function throwForFailedResponse(parsed: ParsedResponse, requestGeneration: number): void {
+  if (parsed.response.ok) {
+    return;
   }
-  if (response.status !== 204 || text !== "") {
-    throw invalidResponse(response.status);
+  if (
+    parsed.response.status === 401 &&
+    isAuthenticationRequiredEnvelope(parsed.payload)
+  ) {
+    clearAuthenticationIfCurrent(requestGeneration);
   }
+  throw isBackendErrorEnvelope(parsed.payload)
+    ? normalizeApiError(parsed.payload, parsed.response.status)
+    : requestFailed(parsed.response.status);
 }
 
 async function fetchResponse(pathname: string, init?: RequestOptions): Promise<Response> {
@@ -164,9 +187,6 @@ async function fetchResponse(pathname: string, init?: RequestOptions): Promise<R
     throw normalizeApiError(error);
   }
 
-  if (response.status === 401) {
-    clearAuthentication();
-  }
   return response;
 }
 
@@ -371,11 +391,23 @@ function isAuthenticatedSession(value: unknown): value is AuthenticatedSession {
 
 function installAuthentication(session: AuthenticatedSession): AuthenticatedSession {
   currentCsrfToken = session.csrfToken;
+  credentialGeneration += 1;
   return session;
 }
 
 export function clearAuthentication(): void {
   currentCsrfToken = undefined;
+  credentialGeneration += 1;
+}
+
+function captureCredentialGeneration(): number {
+  return credentialGeneration;
+}
+
+function clearAuthenticationIfCurrent(requestGeneration: number): void {
+  if (credentialGeneration === requestGeneration) {
+    clearAuthentication();
+  }
 }
 
 export async function getCurrentSession(
@@ -397,10 +429,11 @@ export async function login(
 }
 
 export async function logout(): Promise<void> {
+  const requestGeneration = captureCredentialGeneration();
   try {
-    await requestNoContent("/auth/logout", { method: "POST" });
+    await requestNoContent("/auth/logout", { method: "POST" }, requestGeneration);
   } finally {
-    clearAuthentication();
+    clearAuthenticationIfCurrent(requestGeneration);
   }
 }
 
