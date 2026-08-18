@@ -3,6 +3,7 @@
 import importlib
 import importlib.util
 import secrets
+import threading
 from collections.abc import Generator
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -484,5 +485,95 @@ def test_change_password_reloads_a_stale_user_before_rotation(tmp_path) -> None:
         sessions = verification_session.scalars(select(AuthSession)).all()
 
         assert len(sessions) == 1
+
+    engine.dispose()
+
+
+def test_change_password_allows_only_one_concurrent_old_password_rotation(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A portable compare-and-set prevents two verified callers from both succeeding."""
+    engine = create_database_engine(f"sqlite+pysqlite:///{tmp_path / 'cas-race.db'}")
+    Base.metadata.create_all(engine)
+    clock = Clock(datetime(2026, 8, 18, tzinfo=UTC))
+    original_secret = SecretStr(secrets.token_urlsafe(24))
+    first_replacement = secrets.token_urlsafe(24)
+    second_replacement = secrets.token_urlsafe(24)
+
+    with Session(engine) as bootstrap_session:
+        bootstrap_service = auth_service(bootstrap_session, clock)
+        user = bootstrap_service.bootstrap_admin(
+            username="admin", initial_password=original_secret, auth_enabled=True
+        )
+
+        assert user is not None
+
+    password_hasher = bootstrap_service._password_hash
+    original_verify = password_hasher.verify
+    original_hash = password_hasher.hash
+    verification_barrier = threading.Barrier(2)
+    first_rotation_finished = threading.Event()
+    results: dict[str, object] = {}
+
+    def controlled_verify(password: str, password_hash: str) -> bool:
+        if password == original_secret.get_secret_value():
+            verification_barrier.wait(timeout=10)
+        return original_verify(password, password_hash)
+
+    def controlled_hash(password: str) -> str:
+        if password == second_replacement:
+            assert first_rotation_finished.wait(timeout=10)
+        return original_hash(password)
+
+    monkeypatch.setattr(password_hasher, "verify", controlled_verify)
+    monkeypatch.setattr(password_hasher, "hash", controlled_hash)
+
+    def rotate(label: str, replacement_secret: str) -> None:
+        try:
+            with Session(engine) as rotation_session:
+                rotation_service = auth_service(rotation_session, clock)
+                rotating_user = rotation_session.scalar(
+                    select(User).where(User.username == "admin")
+                )
+
+                assert rotating_user is not None
+                results[label] = rotation_service.change_password(
+                    rotating_user,
+                    current_password=original_secret.get_secret_value(),
+                    new_password=replacement_secret,
+                )
+        finally:
+            if label == "first":
+                first_rotation_finished.set()
+
+    first_thread = threading.Thread(target=rotate, args=("first", first_replacement))
+    second_thread = threading.Thread(target=rotate, args=("second", second_replacement))
+    first_thread.start()
+    second_thread.start()
+    first_thread.join(timeout=20)
+    second_thread.join(timeout=20)
+
+    assert first_thread.is_alive() is False
+    assert second_thread.is_alive() is False
+    assert results["first"] is not None
+    assert results["second"] is None
+
+    with Session(engine) as verification_session:
+        sessions = verification_session.scalars(select(AuthSession)).all()
+        verification_service = auth_service(verification_session, clock)
+
+        assert len(sessions) == 1
+        assert (
+            verification_service.authenticate(
+                username="admin", password=first_replacement
+            )
+            is not None
+        )
+        assert (
+            verification_service.authenticate(
+                username="admin", password=second_replacement
+            )
+            is None
+        )
 
     engine.dispose()

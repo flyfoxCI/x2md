@@ -12,7 +12,7 @@ from hashlib import sha256
 
 from pwdlib import PasswordHash
 from pydantic import SecretStr
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
@@ -156,7 +156,18 @@ class AuthService:
         ):
             return None
 
-        locked_user.password_hash = self._password_hash.hash(new_password)
+        verified_hash = locked_user.password_hash
+        new_password_hash = self._password_hash.hash(new_password)
+        password_update = self._session.execute(
+            update(User)
+            .where(User.id == locked_user.id, User.password_hash == verified_hash)
+            .values(password_hash=new_password_hash)
+            .execution_options(synchronize_session="fetch")
+        )
+        if password_update.rowcount != 1:
+            self._session.rollback()
+            return None
+
         self._session.execute(delete(AuthSession).where(AuthSession.user_id == locked_user.id))
         return self._persist_session(locked_user)
 
