@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import threading
 from collections.abc import AsyncIterator, Generator
 from contextlib import asynccontextmanager
 from http.cookies import SimpleCookie
@@ -9,12 +11,14 @@ from pathlib import Path
 
 import httpx
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from sqlalchemy import select
 
+from app.api.dependencies import require_authenticated_user
 from app.config import Settings
 from app.main import create_app
-from app.models import Base, User
+from app.models import AuthSession, Base, Source, User
+from app.services.auth import AuthService
 from tests.api.conftest import FakeConnectorRouter
 
 _COOKIE_NAME = "expert_content_studio_session"
@@ -288,3 +292,150 @@ async def test_wrong_current_password_uses_the_generic_credential_error(
 
     assert response.status_code == 401
     assert response.json() == _INVALID_CREDENTIALS
+
+
+@pytest.mark.asyncio
+async def test_login_does_not_issue_an_old_password_session_after_rotation_wins(
+    enabled_auth_app: FastAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A verified old password cannot survive a concurrent password rotation."""
+    verification_barrier = threading.Barrier(2)
+    allow_login_to_continue = threading.Event()
+    with enabled_auth_app.state.session_factory() as session:
+        password_hasher = AuthService(
+            session,
+            session_ttl_seconds=enabled_auth_app.state.settings.auth_session_ttl_seconds,
+        )._password_hash
+    original_verify = password_hasher.verify
+
+    def pause_the_http_login(password: str, password_hash: str) -> bool:
+        verified = original_verify(password, password_hash)
+        if (
+            threading.current_thread().name != "MainThread"
+            and password == _BOOTSTRAP_PASSWORD
+        ):
+            verification_barrier.wait(timeout=10)
+            assert allow_login_to_continue.wait(timeout=10)
+        return verified
+
+    async with application_client(enabled_auth_app) as client:
+        await login(client)
+        monkeypatch.setattr(password_hasher, "verify", pause_the_http_login)
+        racing_login = asyncio.create_task(
+            client.post(
+                "/api/auth/login",
+                json={"username": _BOOTSTRAP_USERNAME, "password": _BOOTSTRAP_PASSWORD},
+            )
+        )
+        await asyncio.to_thread(verification_barrier.wait, 10)
+        with enabled_auth_app.state.session_factory() as session:
+            service = AuthService(
+                session,
+                session_ttl_seconds=enabled_auth_app.state.settings.auth_session_ttl_seconds,
+            )
+            user = service.authenticate(
+                username=_BOOTSTRAP_USERNAME,
+                password=_BOOTSTRAP_PASSWORD,
+            )
+            assert user is not None
+            replacement = service.change_password(
+                user,
+                current_password=_BOOTSTRAP_PASSWORD,
+                new_password=_REPLACEMENT_PASSWORD,
+            )
+            assert replacement is not None
+        allow_login_to_continue.set()
+        response = await asyncio.wait_for(racing_login, timeout=10)
+
+        assert response.status_code == 401
+        assert response.json() == _INVALID_CREDENTIALS
+        with enabled_auth_app.state.session_factory() as session:
+            sessions = session.scalars(select(AuthSession)).all()
+            assert [item.id for item in sessions] == [replacement.session_id]
+
+
+@pytest.mark.asyncio
+async def test_csrf_rechecks_the_live_session_after_authentication(
+    enabled_auth_app: FastAPI,
+) -> None:
+    """A revoked session cannot mutate state using an earlier auth dependency snapshot."""
+    original_authentication = require_authenticated_user
+
+    def authenticate_then_revoke(request: Request):
+        auth_session = original_authentication(request)
+        assert auth_session is not None
+        raw_token = request.cookies[_COOKIE_NAME]
+        with request.app.state.session_factory() as session:
+            service = AuthService(
+                session,
+                session_ttl_seconds=request.app.state.settings.auth_session_ttl_seconds,
+            )
+            assert service.revoke_session(raw_token)
+        return auth_session
+
+    enabled_auth_app.dependency_overrides[require_authenticated_user] = authenticate_then_revoke
+    try:
+        async with application_client(enabled_auth_app) as client:
+            session = await login(client)
+            response = await client.post(
+                "/api/imports",
+                json={"url": "https://example.com/revoked-before-csrf"},
+                headers={"X-CSRF-Token": csrf_token(session.json())},
+            )
+            with enabled_auth_app.state.session_factory() as database_session:
+                persisted_sources = database_session.scalars(select(Source)).all()
+    finally:
+        enabled_auth_app.dependency_overrides.clear()
+
+    assert response.status_code == 401
+    assert response.json() == _AUTHENTICATION_REQUIRED
+    assert persisted_sources == []
+
+
+@pytest.mark.asyncio
+async def test_logout_and_change_password_reject_missing_or_mismatched_csrf(
+    enabled_auth_app: FastAPI,
+) -> None:
+    """Auth-state mutations reject CSRF failures without revoking or rotating anything."""
+    async with application_client(enabled_auth_app) as client:
+        logged_in = await login(client)
+        rejected_requests = [
+            ("/api/auth/logout", None),
+            ("/api/auth/logout", "wrong-csrf-token"),
+            (
+                "/api/auth/change-password",
+                None,
+            ),
+            (
+                "/api/auth/change-password",
+                "wrong-csrf-token",
+            ),
+        ]
+        for path, token in rejected_requests:
+            headers = {} if token is None else {"X-CSRF-Token": token}
+            if path == "/api/auth/logout":
+                response = await client.post(path, headers=headers)
+            else:
+                response = await client.post(
+                    path,
+                    headers=headers,
+                    json={
+                        "currentPassword": _BOOTSTRAP_PASSWORD,
+                        "newPassword": _REPLACEMENT_PASSWORD,
+                    },
+                )
+            assert response.status_code == 403
+            assert response.json() == _CSRF_INVALID
+            current = await client.get("/api/auth/me")
+            assert current.status_code == 200
+            assert current.json()["user"] == logged_in.json()["user"]
+
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=enabled_auth_app), base_url="https://testserver"
+        ) as verification_client:
+            verified = await verification_client.post(
+                "/api/auth/login",
+                json={"username": _BOOTSTRAP_USERNAME, "password": _BOOTSTRAP_PASSWORD},
+            )
+
+    assert verified.status_code == 200

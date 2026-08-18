@@ -79,10 +79,12 @@ def login(
     request: Request,
 ) -> AuthSessionRead:
     """Authenticate an administrator and issue a new opaque browser session."""
-    user = service.authenticate(username=payload.username, password=payload.password)
-    if user is None:
+    issued = service.authenticate_and_create_session(
+        username=payload.username,
+        password=payload.password,
+    )
+    if issued is None:
         raise _invalid_credentials()
-    issued = service.create_session(user)
     _set_session_cookie(response, issued, request.app.state.settings)
     return _session_body(issued)
 

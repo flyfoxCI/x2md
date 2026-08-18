@@ -73,18 +73,25 @@ AuthenticatedSessionDependency = Annotated[
 def require_csrf(
     request: Request, auth_session: AuthenticatedSessionDependency
 ) -> None:
-    """Require the server-bound browser-intent token for every unsafe API operation."""
+    """Require live session state and a matching intent token for unsafe operations."""
     settings: Settings = request.app.state.settings
     if not settings.auth_enabled:
         return
 
-    csrf_token = request.headers.get("X-CSRF-Token")
-    if not csrf_token or auth_session is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=_CSRF_INVALID)
+    raw_token = request.cookies.get(SESSION_COOKIE_NAME)
+    if auth_session is None or not raw_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=_AUTHENTICATION_REQUIRED)
 
     with request.app.state.session_factory() as session:
         service = AuthService(session, session_ttl_seconds=settings.auth_session_ttl_seconds)
-        if not service.is_csrf_valid(auth_session, csrf_token):
+        current_session = service.get_current_session(raw_token)
+        if current_session is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=_AUTHENTICATION_REQUIRED,
+            )
+        csrf_token = request.headers.get("X-CSRF-Token")
+        if not csrf_token or not service.is_csrf_valid(current_session, csrf_token):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=_CSRF_INVALID)
 
 

@@ -93,6 +93,35 @@ class AuthService:
 
     def authenticate(self, *, username: str, password: str) -> User | None:
         """Return the active matching administrator, or one safe invalid result."""
+        authenticated = self._authenticate_user(username=username, password=password)
+        return None if authenticated is None else authenticated[0]
+
+    def authenticate_and_create_session(
+        self, *, username: str, password: str
+    ) -> IssuedSession | None:
+        """Atomically verify one password version and issue its browser session."""
+        authenticated = self._authenticate_user(username=username, password=password)
+        if authenticated is None:
+            return None
+
+        user, verified_hash = authenticated
+        password_version = self._session.execute(
+            update(User)
+            .where(
+                User.id == user.id,
+                User.is_active.is_(True),
+                User.password_hash == verified_hash,
+            )
+            .values(password_hash=verified_hash)
+            .execution_options(synchronize_session=False)
+        )
+        if password_version.rowcount != 1:
+            self._session.rollback()
+            return None
+        return self._persist_session(user)
+
+    def _authenticate_user(self, *, username: str, password: str) -> tuple[User, str] | None:
+        """Verify credentials and retain the exact password version that was checked."""
         if not _is_valid_username(username):
             self._password_hash.verify(password, self._unknown_password_hash)
             return None
@@ -102,7 +131,7 @@ class AuthService:
             return None
         if not self._password_hash.verify(password, user.password_hash):
             return None
-        return user
+        return user, user.password_hash
 
     def create_session(self, user: User) -> IssuedSession:
         """Persist a digest-only opaque session and return its browser-bound values."""
