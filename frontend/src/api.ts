@@ -420,13 +420,18 @@ function reserveAuthenticationMutation(): number {
   return authenticationIntent;
 }
 
-function installAuthenticationIfCurrent(
+function installSerializedMutationSession(session: AuthenticatedSession): AuthenticatedSession {
+  currentCsrfToken = session.csrfToken;
+  credentialGeneration += 1;
+  return session;
+}
+
+function installSessionReadIfCurrent(
   session: AuthenticatedSession,
   authenticationIntentAtStart: number,
 ): AuthenticatedSession {
   if (authenticationIntent === authenticationIntentAtStart) {
-    currentCsrfToken = session.csrfToken;
-    credentialGeneration += 1;
+    return installSerializedMutationSession(session);
   }
   return session;
 }
@@ -444,7 +449,7 @@ export async function getCurrentSession(
   signal?: AbortSignal,
 ): Promise<AuthenticatedSession> {
   const authenticationIntentAtStart = captureAuthenticationIntent();
-  return installAuthenticationIfCurrent(
+  return installSessionReadIfCurrent(
     await request("/auth/me", isAuthenticatedSession, { signal }),
     authenticationIntentAtStart,
   );
@@ -454,22 +459,21 @@ export function login(
   username: string,
   password: string,
 ): Promise<AuthenticatedSession> {
-  const authenticationIntentAtStart = reserveAuthenticationMutation();
+  reserveAuthenticationMutation();
   return enqueueAuthMutation(async () =>
-    installAuthenticationIfCurrent(
+    installSerializedMutationSession(
       await request("/auth/login", isAuthenticatedSession, {
         method: "POST",
         body: JSON.stringify({ username, password }),
       }),
-      authenticationIntentAtStart,
     ),
   );
 }
 
 export function logout(): Promise<void> {
-  const requestGeneration = captureCredentialGeneration();
   reserveAuthenticationMutation();
   return enqueueAuthMutation(async () => {
+    const requestGeneration = captureCredentialGeneration();
     try {
       await requestNoContent("/auth/logout", { method: "POST" }, requestGeneration);
     } finally {
@@ -482,14 +486,13 @@ export function changePassword(
   currentPassword: string,
   newPassword: string,
 ): Promise<AuthenticatedSession> {
-  const authenticationIntentAtStart = reserveAuthenticationMutation();
+  reserveAuthenticationMutation();
   return enqueueAuthMutation(async () =>
-    installAuthenticationIfCurrent(
+    installSerializedMutationSession(
       await request("/auth/change-password", isAuthenticatedSession, {
         method: "POST",
         body: JSON.stringify({ currentPassword, newPassword }),
       }),
-      authenticationIntentAtStart,
     ),
   );
 }

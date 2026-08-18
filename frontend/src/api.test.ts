@@ -672,6 +672,129 @@ describe("authentication transport", () => {
     await expect(secondLogin).resolves.toEqual(latestSession);
   });
 
+  it("installs a queued login session before dispatching password change", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(response(authenticatedSession))
+      .mockResolvedValueOnce(response(rotatedSession))
+      .mockResolvedValueOnce(response(source));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const pendingLogin = login("admin", "password");
+    const pendingPasswordChange = changePassword("password", "new secure password");
+
+    await expect(pendingLogin).resolves.toEqual(authenticatedSession);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const passwordChangeOptions = fetchMock.mock.calls[1]?.[1] as RequestInit;
+    expect(passwordChangeOptions.body).toBe(
+      JSON.stringify({ currentPassword: "password", newPassword: "new secure password" }),
+    );
+    expect(new Headers(passwordChangeOptions.headers).get("X-CSRF-Token")).toBe(
+      "csrf-token-one",
+    );
+    await expect(pendingPasswordChange).resolves.toEqual(rotatedSession);
+    await importSource("https://example.com/new-request");
+
+    const laterWriteOptions = fetchMock.mock.calls[2]?.[1] as RequestInit;
+    expect(new Headers(laterWriteOptions.headers).get("X-CSRF-Token")).toBe(
+      "csrf-token-two",
+    );
+  });
+
+  it("installs a queued login session before dispatching logout", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(response(authenticatedSession))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(response(source));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const pendingLogin = login("admin", "password");
+    const pendingLogout = logout();
+
+    await expect(pendingLogin).resolves.toEqual(authenticatedSession);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const logoutOptions = fetchMock.mock.calls[1]?.[1] as RequestInit;
+    expect(new Headers(logoutOptions.headers).get("X-CSRF-Token")).toBe("csrf-token-one");
+    await expect(pendingLogout).resolves.toBeUndefined();
+    await importSource("https://example.com/new-request");
+
+    const laterWriteOptions = fetchMock.mock.calls[2]?.[1] as RequestInit;
+    expect(new Headers(laterWriteOptions.headers).get("X-CSRF-Token")).toBeNull();
+  });
+
+  it("uses a replacement CSRF token for a queued second password change", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(response(authenticatedSession))
+      .mockResolvedValueOnce(response(rotatedSession))
+      .mockResolvedValueOnce(response(latestSession))
+      .mockResolvedValueOnce(response(source));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await login("admin", "password");
+    const firstPasswordChange = changePassword("password", "second secure password");
+    const secondPasswordChange = changePassword(
+      "second secure password",
+      "third secure password",
+    );
+
+    await expect(firstPasswordChange).resolves.toEqual(rotatedSession);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    const secondChangeOptions = fetchMock.mock.calls[2]?.[1] as RequestInit;
+    expect(secondChangeOptions.body).toBe(
+      JSON.stringify({
+        currentPassword: "second secure password",
+        newPassword: "third secure password",
+      }),
+    );
+    expect(new Headers(secondChangeOptions.headers).get("X-CSRF-Token")).toBe(
+      "csrf-token-two",
+    );
+    await expect(secondPasswordChange).resolves.toEqual(latestSession);
+    await importSource("https://example.com/new-request");
+
+    const laterWriteOptions = fetchMock.mock.calls[3]?.[1] as RequestInit;
+    expect(new Headers(laterWriteOptions.headers).get("X-CSRF-Token")).toBe(
+      "csrf-token-three",
+    );
+  });
+
+  it("clears the CSRF token before dispatching a mutation queued after authentication loss", async () => {
+    const authenticationRequiredResponse = () =>
+      response(
+        {
+          detail: {
+            code: "authentication_required",
+            message: "Authentication is required.",
+          },
+        },
+        401,
+      );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(response(authenticatedSession))
+      .mockResolvedValueOnce(authenticationRequiredResponse())
+      .mockResolvedValueOnce(authenticationRequiredResponse());
+    vi.stubGlobal("fetch", fetchMock);
+
+    await login("admin", "password");
+    const failedPasswordChange = changePassword("password", "new secure password");
+    const queuedLogout = logout();
+
+    await expect(failedPasswordChange).rejects.toMatchObject({
+      code: "authentication_required",
+      status: 401,
+    });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    const logoutOptions = fetchMock.mock.calls[2]?.[1] as RequestInit;
+    expect(new Headers(logoutOptions.headers).get("X-CSRF-Token")).toBeNull();
+    await expect(queuedLogout).rejects.toMatchObject({
+      code: "authentication_required",
+      status: 401,
+    });
+  });
+
   it("uses same-origin credentials for every browser API request", async () => {
     const fetchMock = vi
       .fn()
