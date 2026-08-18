@@ -429,8 +429,12 @@ function installSerializedMutationSession(session: AuthenticatedSession): Authen
 function installSessionReadIfCurrent(
   session: AuthenticatedSession,
   authenticationIntentAtStart: number,
+  credentialGenerationAtStart: number,
 ): AuthenticatedSession {
-  if (authenticationIntent === authenticationIntentAtStart) {
+  if (
+    authenticationIntent === authenticationIntentAtStart &&
+    credentialGeneration === credentialGenerationAtStart
+  ) {
     return installSerializedMutationSession(session);
   }
   return session;
@@ -449,9 +453,11 @@ export async function getCurrentSession(
   signal?: AbortSignal,
 ): Promise<AuthenticatedSession> {
   const authenticationIntentAtStart = captureAuthenticationIntent();
+  const credentialGenerationAtStart = captureCredentialGeneration();
   return installSessionReadIfCurrent(
     await request("/auth/me", isAuthenticatedSession, { signal }),
     authenticationIntentAtStart,
+    credentialGenerationAtStart,
   );
 }
 

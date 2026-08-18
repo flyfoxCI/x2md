@@ -641,6 +641,38 @@ describe("authentication transport", () => {
     );
   });
 
+  it("does not let a session read started after login reservation overwrite its token", async () => {
+    const delayedLogin = deferred<Response>();
+    const delayedSessionRead = deferred<Response>();
+    const fetchMock = vi.fn((input: string, _init?: RequestInit) => {
+      void _init;
+      if (input === "/api/auth/login") {
+        return delayedLogin.promise;
+      }
+      if (input === "/api/auth/me") {
+        return delayedSessionRead.promise;
+      }
+      return response(source);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const pendingLogin = login("admin", "password");
+    const staleSessionRead = getCurrentSession();
+    await vi.waitFor(() =>
+      expect(fetchMock.mock.calls.some(([input]) => input === "/api/auth/login")).toBe(true),
+    );
+    delayedLogin.resolve(response(rotatedSession));
+    await expect(pendingLogin).resolves.toEqual(rotatedSession);
+    delayedSessionRead.resolve(response(authenticatedSession));
+
+    await expect(staleSessionRead).resolves.toEqual(authenticatedSession);
+    await importSource("https://example.com/new-request");
+
+    const writeCall = fetchMock.mock.calls.find(([input]) => input === "/api/imports");
+    const writeOptions = writeCall?.[1];
+    expect(new Headers(writeOptions?.headers).get("X-CSRF-Token")).toBe("csrf-token-two");
+  });
+
   it("serializes concurrent cookie-mutating authentication requests in invocation order", async () => {
     const firstResponse = deferred<Response>();
     const secondResponse = deferred<Response>();
