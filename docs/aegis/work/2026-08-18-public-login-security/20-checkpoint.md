@@ -85,3 +85,23 @@
 - New risk signals:
 - invalid_credentials retains an active session; only current-generation authentication_required may clear UI state.
 - Advisory decision: continue
+
+## Checkpoint Update
+
+- Current todo: Task 5: document bootstrap secret and public HTTPS deployment
+- Active slice: Bounded operator configuration and API documentation
+- Completed todos:
+- Task 1 core persistence/concurrency hardening; Task 2 public auth HTTP routes, bootstrap lifecycle and protected legacy API policy; Task 3 typed browser session/CSRF transport and stale-response hardening; Task 4 login-gated studio and accessible administrator account flows
+- Evidence refs:
+- task4-green
+- Blocked on: none
+- Next step: Dispatch Task 5 deployment documentation agent.
+
+## DriftCheckDraft
+
+- Scope status: Tasks 1-4 are complete; Task 5 is only environment, Compose, README and API documentation.
+- Compatibility status: The UI now blocks protected loading until authentication; deployment docs must align with the typed secure defaults and same-origin proxy.
+- Retirement status: Unauthenticated browser rendering and API knowledge access are retired; health remains the public operational probe.
+- New risk signals:
+- App.tsx reached 681 lines; no refactor is authorized in the docs slice, but future auth UI work should extract the studio container.
+- Advisory decision: continue

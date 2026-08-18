@@ -2,9 +2,9 @@
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-18-public-login-security",
   "lastCheckpointRef": "docs/aegis/work/2026-08-18-public-login-security/todo-checkpoint-draft.json",
-  "resumeInstruction": "Read the approved design, auth transport contract and root App tests before changing UI; preserve the no-protected-fetch-before-restoration invariant.",
+  "resumeInstruction": "Read typed auth settings and route schemas before documenting deployment; never add a default credential or weaken the production Secure cookie.",
   "knownPartialWork": [
-    "Task 1 core persistence/concurrency hardening; Task 2 public auth HTTP routes, bootstrap lifecycle and protected legacy API policy; Task 3 typed browser session/CSRF transport and stale-response hardening"
+    "Task 1 core persistence/concurrency hardening; Task 2 public auth HTTP routes, bootstrap lifecycle and protected legacy API policy; Task 3 typed browser session/CSRF transport and stale-response hardening; Task 4 login-gated studio and accessible administrator account flows"
   ],
   "mustReadBeforeContinuing": [
     "docs/aegis/work/2026-08-18-public-login-security/10-intent.md",
@@ -12,6 +12,6 @@
     "docs/aegis/work/2026-08-18-public-login-security/todo-checkpoint-draft.json"
   ],
   "unsafeToAssume": [
-    "A generic 401 clears a session: only current-generation authentication_required does."
+    "The localhost Compose HTTP example is safe for a public hostname; only HTTPS with AUTH_COOKIE_SECURE=true is public-safe."
   ]
 }

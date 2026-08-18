@@ -33,3 +33,11 @@ No evidence has been recorded yet.
 - Source: Task 3 commits 01d68b1,b62b82a,02aad8e,9e53ed1,173b07f
 - Summary: RED reproduced stale /auth/me overwriting new login CSRF; GREEN guards installs by intent and credential generation. Focused API 43, full frontend 86, lint, build and diff check passed; two independent reviews approved.
 - Verifier: controller plus independent reviewers
+
+## EvidenceBundleDraft
+
+- Artifact key: task4-green
+- Type: command, browser check and independent review
+- Source: Task 4 commits 418a5a1,06e21ea,dc3eaa0,f92e788
+- Summary: Strict TDD reproduced gate, stale-current-session, queued logout and focus-trap regressions. Final focused UI 35 plus AccountDialog 6; full frontend 108; lint, build and diff check passed. Desktop/390px login browser check passed without console errors; two independent review stages approved after repairs.
+- Verifier: controller plus independent reviewers
