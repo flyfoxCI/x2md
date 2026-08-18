@@ -23,11 +23,21 @@ def upgrade() -> None:
         "users",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("username", sa.String(length=128), nullable=False),
+        sa.Column(
+            "singleton_marker",
+            sa.String(length=32),
+            server_default=sa.text("'administrator'"),
+            nullable=False,
+        ),
         sa.Column("password_hash", sa.String(length=1024), nullable=False),
         sa.Column("is_active", sa.Boolean(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.CheckConstraint(
+            "singleton_marker = 'administrator'", name="ck_users_singleton_marker"
+        ),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("singleton_marker", name="uq_users_singleton_marker"),
     )
     op.create_index("ix_users_username", "users", ["username"], unique=True)
 

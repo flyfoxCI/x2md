@@ -8,8 +8,8 @@ import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
-from sqlalchemy import exc
-from sqlalchemy.dialects import postgresql
+from sqlalchemy import CheckConstraint, UniqueConstraint, exc
+from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 from sqlalchemy.schema import CreateTable
@@ -296,6 +296,73 @@ def test_auth_models_enforce_unique_usernames(session: Session) -> None:
 
     with pytest.raises(exc.IntegrityError):
         session.commit()
+
+
+def test_auth_models_enforce_one_administrator_for_different_usernames(session: Session) -> None:
+    """The persistent singleton, rather than username comparison, limits administrators."""
+    from app import models
+
+    user_model = getattr(models, "User", None)
+
+    assert user_model is not None
+    session.add(user_model(username="admin", password_hash="first", is_active=True))
+    session.commit()
+    session.add(user_model(username="operator", password_hash="second", is_active=True))
+
+    with pytest.raises(exc.IntegrityError):
+        session.commit()
+
+
+def test_user_model_rejects_an_alternate_singleton_marker() -> None:
+    """Model callers cannot choose an additional administrator slot."""
+    from app import models
+
+    user_model = getattr(models, "User", None)
+
+    assert user_model is not None
+    with pytest.raises(ValueError, match="singleton_marker"):
+        user_model(
+            username="operator",
+            singleton_marker="operator",
+            password_hash="hash",
+            is_active=True,
+        )
+
+
+def test_user_singleton_marker_has_portable_database_constraints() -> None:
+    """SQLite and PostgreSQL both receive a fixed, unique administrator marker."""
+    from app import models
+
+    user_model = getattr(models, "User", None)
+
+    assert user_model is not None
+    user_table = user_model.__table__
+    marker = user_table.c.get("singleton_marker")
+
+    assert marker is not None
+    assert marker.nullable is False
+    assert marker.server_default is not None
+    assert "administrator" in str(marker.server_default.arg)
+    assert any(
+        isinstance(constraint, CheckConstraint)
+        and constraint.name == "ck_users_singleton_marker"
+        and "singleton_marker" in str(constraint.sqltext)
+        and "administrator" in str(constraint.sqltext)
+        for constraint in user_table.constraints
+    )
+    assert any(
+        isinstance(constraint, UniqueConstraint)
+        and constraint.name == "uq_users_singleton_marker"
+        and list(constraint.columns.keys()) == ["singleton_marker"]
+        for constraint in user_table.constraints
+    )
+
+    for dialect in (sqlite.dialect(), postgresql.dialect()):
+        ddl = str(CreateTable(user_table).compile(dialect=dialect))
+
+        assert "DEFAULT 'administrator'" in ddl
+        assert "CONSTRAINT ck_users_singleton_marker CHECK (singleton_marker = 'administrator')" in ddl
+        assert "CONSTRAINT uq_users_singleton_marker UNIQUE (singleton_marker)" in ddl
 
 
 def test_auth_session_requires_a_user_and_unique_token_digest(session: Session) -> None:

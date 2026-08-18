@@ -339,14 +339,15 @@ def test_authenticate_rejects_an_invalid_username_even_if_a_legacy_row_exists(
     assert service.authenticate(username=" admin", password=seed) is None
 
 
-def test_bootstrap_returns_the_winning_administrator_after_a_unique_key_race(
+def test_bootstrap_returns_the_winning_administrator_after_a_singleton_race(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A concurrent first deployment returns the committed winner with a usable session."""
+    """Different bootstrap names still resolve to one committed administrator."""
     engine = create_database_engine(f"sqlite+pysqlite:///{tmp_path / 'bootstrap-race.db'}")
     Base.metadata.create_all(engine)
     seed = SecretStr(secrets.token_urlsafe(24))
     clock = Clock(datetime(2026, 8, 18, tzinfo=UTC))
+    winning_username = "racing-operator"
 
     with Session(engine) as losing_session:
         service = auth_service(losing_session, clock)
@@ -361,7 +362,7 @@ def test_bootstrap_returns_the_winning_administrator_after_a_unique_key_race(
                 with Session(engine) as winning_session:
                     winning_session.add(
                         User(
-                            username="admin",
+                            username=winning_username,
                             password_hash=service._password_hash.hash(
                                 seed.get_secret_value()
                             ),
@@ -378,9 +379,14 @@ def test_bootstrap_returns_the_winning_administrator_after_a_unique_key_race(
         monkeypatch.setattr(losing_session, "commit", original_commit)
 
         assert winner is not None
-        assert winner.username == "admin"
+        assert winner.username == winning_username
         issued = service.create_session(winner)
         assert service.get_current_session(issued.token) is not None
+
+    with Session(engine) as verification_session:
+        administrators = verification_session.scalars(select(User).order_by(User.id)).all()
+
+        assert [administrator.username for administrator in administrators] == [winning_username]
 
     engine.dispose()
 

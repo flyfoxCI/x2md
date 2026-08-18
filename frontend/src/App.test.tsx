@@ -494,8 +494,8 @@ describe("App", () => {
 
     expect(await screen.findByRole("button", { name: "打开知识库" })).toBeVisible();
     expect(mockedLogin).toHaveBeenLastCalledWith("alice", "correct-password");
-    expect(mockedListSources).toHaveBeenCalledTimes(1);
-    expect(mockedGetSettings).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mockedListSources).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockedGetSettings).toHaveBeenCalledTimes(1));
   });
 
   it("opens account controls from the header and logs out to the login screen", async () => {

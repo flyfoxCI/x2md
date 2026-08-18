@@ -17,7 +17,7 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
-from app.models import AuthSession, User, utc_now
+from app.models import ADMIN_SINGLETON_MARKER, AuthSession, User, utc_now
 
 type Now = Callable[[], datetime]
 
@@ -63,7 +63,9 @@ class AuthService:
         """Create the first administrator once, failing closed when its seed is absent."""
         if not _is_valid_username(username):
             raise ValueError("username must be printable without leading or trailing whitespace")
-        existing_user = self._session.scalar(select(User).order_by(User.id).limit(1))
+        existing_user = self._session.scalar(
+            select(User).where(User.singleton_marker == ADMIN_SINGLETON_MARKER)
+        )
         if existing_user is not None:
             return existing_user
         if not auth_enabled:
@@ -84,7 +86,7 @@ class AuthService:
         except IntegrityError:
             self._session.rollback()
             winning_user = self._session.scalar(
-                select(User).where(User.username == username)
+                select(User).where(User.singleton_marker == ADMIN_SINGLETON_MARKER)
             )
             if winning_user is None:
                 raise
