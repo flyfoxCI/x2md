@@ -55,9 +55,11 @@
 class User(Base):
     __tablename__ = "users"
     id: Mapped[int] = mapped_column(primary_key=True)
+    singleton_marker: Mapped[str] = mapped_column(String(32), unique=True)
     username: Mapped[str] = mapped_column(String(128), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(1024))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    __table_args__ = (CheckConstraint("singleton_marker = 'administrator'"),)
 
 class AuthSession(Base):
     __tablename__ = "auth_sessions"
@@ -68,7 +70,7 @@ class AuthSession(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
 ~~~
 
-AuthService receives a session and deterministic now input. It uses PasswordHash.recommended(), secrets.token_urlsafe(32), sha256(raw_token).hexdigest(), and hmac.compare_digest. It exposes bootstrap, authenticate, current-session, create/revoke and change-password operations. Settings default to enabled authentication, default admin, 12-hour bounded TTL, and secure cookie; blank bootstrap secret only fails startup on an empty enabled database.
+AuthService receives a session and deterministic now input. It uses PasswordHash.recommended(), secrets.token_urlsafe(32), sha256(raw_token).hexdigest(), and hmac.compare_digest. It exposes bootstrap, authenticate, current-session, create/revoke and change-password operations. The fixed singleton marker has database `CHECK` plus `UNIQUE` enforcement, so concurrent empty-database bootstraps with different names can only create one administrator; an insert loser re-reads the marker winner. Settings default to enabled authentication, default admin, 12-hour bounded TTL, and secure cookie; blank bootstrap secret only fails startup on an empty enabled database.
 
 **Verification:**
 
