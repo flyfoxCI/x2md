@@ -36,6 +36,7 @@ def chat_service(observed: dict[str, object]) -> AIService:
             ai_base_url="https://provider.example/v1",
             ai_api_key="chat-provider-secret",
             ai_model="chat-fixture",
+            auth_enabled=False,
         ),
         client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
     )
@@ -144,6 +145,7 @@ async def test_chat_refuses_empty_imported_material_before_provider_dispatch(
             ai_base_url="https://provider.example/v1",
             ai_api_key="configured-secret",
             ai_model="fixture-model",
+            auth_enabled=False,
         ),
         client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
     )
@@ -180,6 +182,7 @@ async def test_chat_rejects_an_overlong_question_before_provider_dispatch(
             ai_base_url="https://provider.example/v1",
             ai_api_key="configured-secret",
             ai_model="fixture-model",
+            auth_enabled=False,
         ),
         client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
     )

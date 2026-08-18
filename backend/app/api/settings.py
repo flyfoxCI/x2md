@@ -2,12 +2,12 @@
 
 from typing import Literal
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import DatabaseSession
+from app.api.dependencies import DatabaseSession, require_csrf
 from app.models import AppSetting
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -74,7 +74,7 @@ def get_settings(request: Request, session: DatabaseSession) -> SettingsRead:
     )
 
 
-@router.patch("", response_model=SettingsRead)
+@router.patch("", response_model=SettingsRead, dependencies=[Depends(require_csrf)])
 def update_settings(
     request: Request, payload: SettingsPatch, session: DatabaseSession
 ) -> SettingsRead:

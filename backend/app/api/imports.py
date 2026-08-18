@@ -1,9 +1,9 @@
 """URL import endpoint for persisted canonical sources."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from app.api.dependencies import ImportKnowledgeServiceDependency
+from app.api.dependencies import ImportKnowledgeServiceDependency, require_csrf
 from app.schemas import ApiErrorResponse, SourceRead
 from app.services.knowledge import KnowledgeError
 
@@ -19,6 +19,7 @@ class ImportRequest(BaseModel):
 @router.post(
     "",
     response_model=SourceRead,
+    dependencies=[Depends(require_csrf)],
     responses={
         422: {
             "model": ApiErrorResponse,
