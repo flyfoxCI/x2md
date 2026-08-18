@@ -49,3 +49,11 @@ No evidence has been recorded yet.
 - Source: Task 5 commits 4acdd20,27abcff,0f38076
 - Summary: Docs TDD proved absent auth config/docs, then verified empty bootstrap password, no hard-coded secret, safe dotenv loading and quiet-only Compose validation. YAML/static checks, auth lifecycle/API tests and independent reviews passed. Docker CLI is unavailable, so Compose parsing was not executed.
 - Verifier: controller plus independent reviewers
+
+## EvidenceBundleDraft
+
+- Artifact key: final-integration-green
+- Type: fresh command, isolated migration, browser smoke and independent review
+- Source: Controller final verification at 33a7ef7; Task6 independent reviews
+- Summary: Fresh controller run passed backend uv lock, 254 pytest and Ruff; frontend lint, 108 Vitest and production build. SQLite migration round trips and static security checks passed. Browser smoke used an isolated migrated DB: anonymous restore->login->studio/account->390px account access->logout, then direct local session rotation confirmed revoked old session 401, old password 401 and new password 200. Final spec and quality reviews approved. Docker compose config --quiet could not run because Docker CLI is absent.
+- Verifier: controller plus independent reviewers

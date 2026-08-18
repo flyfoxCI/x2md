@@ -125,3 +125,23 @@
 - New risk signals:
 - Docker CLI is unavailable; record static Compose validation only unless the environment changes.
 - Advisory decision: needs-verification
+
+## Checkpoint Update
+
+- Current todo: Implementation complete; await branch integration choice
+- Active slice: Verified handoff
+- Completed todos:
+- Task 1 core persistence/concurrency hardening; Task 2 public auth HTTP routes, bootstrap lifecycle and protected legacy API policy; Task 3 typed browser session/CSRF transport and stale-response hardening; Task 4 login-gated studio and accessible administrator account flows; Task 5 bootstrap, HTTPS and API deployment documentation; Task 6 final integration verification and independent reviews
+- Evidence refs:
+- final-integration-green
+- Blocked on: none
+- Next step: Present the verified branch integration options without auto-merging or pushing.
+
+## DriftCheckDraft
+
+- Scope status: All approved implementation tasks and final verification are complete; only user-directed branch integration remains.
+- Compatibility status: Authentication preserves existing authenticated payloads; the public health probe remains; no compatibility bypass, registration or multi-user path was added.
+- Retirement status: Unauthenticated knowledge API/studio access is retired and has no retained production fallback; health remains public and AUTH_ENABLED=false remains test/local-only.
+- New risk signals:
+- Docker Compose runtime parsing and live PostgreSQL were not available; static Compose and compiled PostgreSQL DDL are the current bounded substitutes.
+- Advisory decision: continue

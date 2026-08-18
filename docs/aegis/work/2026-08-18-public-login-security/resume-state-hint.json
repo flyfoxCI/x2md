@@ -2,9 +2,9 @@
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-18-public-login-security",
   "lastCheckpointRef": "docs/aegis/work/2026-08-18-public-login-security/todo-checkpoint-draft.json",
-  "resumeInstruction": "Run fresh verification from the clean worktree; do not claim Docker or browser coverage unless commands/actions complete and are recorded.",
+  "resumeInstruction": "If integration is requested, merge or create a PR only after following the selected branch workflow and verifying the resulting target.",
   "knownPartialWork": [
-    "Task 1 core persistence/concurrency hardening; Task 2 public auth HTTP routes, bootstrap lifecycle and protected legacy API policy; Task 3 typed browser session/CSRF transport and stale-response hardening; Task 4 login-gated studio and accessible administrator account flows; Task 5 bootstrap, HTTPS and API deployment documentation"
+    "Task 1 core persistence/concurrency hardening; Task 2 public auth HTTP routes, bootstrap lifecycle and protected legacy API policy; Task 3 typed browser session/CSRF transport and stale-response hardening; Task 4 login-gated studio and accessible administrator account flows; Task 5 bootstrap, HTTPS and API deployment documentation; Task 6 final integration verification and independent reviews"
   ],
   "mustReadBeforeContinuing": [
     "docs/aegis/work/2026-08-18-public-login-security/10-intent.md",
@@ -12,6 +12,6 @@
     "docs/aegis/work/2026-08-18-public-login-security/todo-checkpoint-draft.json"
   ],
   "unsafeToAssume": [
-    "Documentation says a secret is safe merely because it is not committed; dotenv execution and rendered Compose output can disclose it."
+    "Docker Compose was verified: the Docker CLI was unavailable, so only static Compose validation exists."
   ]
 }

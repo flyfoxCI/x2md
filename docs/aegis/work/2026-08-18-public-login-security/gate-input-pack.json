@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "baselineRefs": [
+    "docs/aegis/specs/2026-08-18-public-login-security-design.md"
+  ],
+  "impactStatement": "docs/aegis/work/2026-08-18-public-login-security/impact-statement-draft.json",
+  "compatPlan": "Health stays public; authenticated route payloads stay stable.",
+  "retirementPlan": "Unauthenticated knowledge API/studio access is retired and has no retained production fallback; health remains public and AUTH_ENABLED=false remains test/local-only.",
+  "evidenceBundle": [
+    "docs/aegis/work/2026-08-18-public-login-security/evidence-bundle-draft-baseline-green.json",
+    "docs/aegis/work/2026-08-18-public-login-security/evidence-bundle-draft-final-integration-green.json",
+    "docs/aegis/work/2026-08-18-public-login-security/evidence-bundle-draft-task1-green.json",
+    "docs/aegis/work/2026-08-18-public-login-security/evidence-bundle-draft-task2-green.json",
+    "docs/aegis/work/2026-08-18-public-login-security/evidence-bundle-draft-task3-green.json",
+    "docs/aegis/work/2026-08-18-public-login-security/evidence-bundle-draft-task4-green.json",
+    "docs/aegis/work/2026-08-18-public-login-security/evidence-bundle-draft-task5-green.json"
+  ]
+}

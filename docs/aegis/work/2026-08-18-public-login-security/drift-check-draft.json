@@ -5,11 +5,11 @@
   "baselineRefs": [
     "docs/aegis/specs/2026-08-18-public-login-security-design.md"
   ],
-  "scopeStatus": "Implementation and operations slices are complete; only final whole-branch verification and handoff review remain.",
-  "compatStatus": "All protected browser/API entry points are authenticated; final verification must prove this against the integrated branch.",
-  "retirementStatus": "Unauthenticated knowledge access and unauthenticated studio rendering remain retired; health is the only public probe.",
+  "scopeStatus": "All approved implementation tasks and final verification are complete; only user-directed branch integration remains.",
+  "compatStatus": "Authentication preserves existing authenticated payloads; the public health probe remains; no compatibility bypass, registration or multi-user path was added.",
+  "retirementStatus": "Unauthenticated knowledge API/studio access is retired and has no retained production fallback; health remains public and AUTH_ENABLED=false remains test/local-only.",
   "newRiskSignals": [
-    "Docker CLI is unavailable; record static Compose validation only unless the environment changes."
+    "Docker Compose runtime parsing and live PostgreSQL were not available; static Compose and compiled PostgreSQL DDL are the current bounded substitutes."
   ],
-  "decision": "needs-verification"
+  "decision": "continue"
 }
