@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "requestedOutcome": "Protect public knowledge APIs with a seeded administrator login and secure browser sessions.",
+  "goal": "Deliver a fail-closed, single-administrator password login that protects every knowledge-library API and supports public HTTPS deployment.",
+  "successEvidence": [
+    "Fresh DB bootstrap, protected-route, CSRF, logout/password-rotation, frontend login, and deployment configuration evidence all pass."
+  ],
+  "stopCondition": "Done only after all authenticated flows and regressions pass; blocked if a required security boundary cannot be verified.",
+  "nonGoals": [
+    "Registration, SSO, MFA, password reset, multi-user tenancy."
+  ],
+  "scope": "Backend auth persistence/API enforcement, frontend login/session UX, migration, environment and deployment documentation.",
+  "changeKinds": [
+    "security"
+  ],
+  "riskHints": [
+    "Passwords, bearer-session handling, public API access and migration contracts are security-sensitive."
+  ]
+}

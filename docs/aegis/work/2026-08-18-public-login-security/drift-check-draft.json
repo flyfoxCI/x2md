@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "taskId": "2026-08-18-public-login-security",
+  "taskIntentRef": "docs/aegis/work/2026-08-18-public-login-security/task-intent-draft.json",
+  "baselineRefs": [
+    "docs/aegis/specs/2026-08-11-expert-content-studio-design.md"
+  ],
+  "scopeStatus": "not-yet-verified",
+  "compatStatus": "not-yet-verified",
+  "retirementStatus": "not-yet-verified",
+  "newRiskSignals": [
+    "Passwords, bearer-session handling, public API access and migration contracts are security-sensitive."
+  ],
+  "decision": "needs-baseline-readback"
+}

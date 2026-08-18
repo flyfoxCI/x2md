@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "taskId": "2026-08-18-public-login-security",
+  "currentTodo": "Write approved implementation plan and establish strict-TDD red tests.",
+  "completedTodos": [],
+  "activeSlice": "Authentication design and planning",
+  "evidenceRefs": [],
+  "blockedOn": null,
+  "nextStep": "Read writing-plans and subagent-driven-development guidance, then create an executable plan.",
+  "updatedAt": "2026-08-18"
+}

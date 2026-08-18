@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "affectedLayers": [
+    "configuration, persistence, API, React client, operations"
+  ],
+  "owners": [
+    "AuthService and auth API dependencies"
+  ],
+  "invariants": [
+    "No knowledge API leaks data without a valid session; no raw password or session token persists server-side."
+  ],
+  "compatBoundary": "Health stays public; authenticated route payloads stay stable.",
+  "nonGoals": [
+    "Registration, SSO, MFA, password reset, multi-user tenancy."
+  ]
+}
