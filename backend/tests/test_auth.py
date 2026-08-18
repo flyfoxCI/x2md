@@ -166,6 +166,7 @@ def test_auth_services_share_process_password_material_without_rehashing(
             return hasher
 
     password_material.cache_clear()
+    module._password_material_initialized = None
     try:
         monkeypatch.setattr(module, "PasswordHash", RecordingPasswordHash)
         first = module.AuthService(
@@ -181,6 +182,82 @@ def test_auth_services_share_process_password_material_without_rehashing(
         assert len(hash_inputs) == 1
     finally:
         password_material.cache_clear()
+        module._password_material_initialized = None
+
+
+def test_auth_service_password_material_initialization_is_single_flight(
+    session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Two first constructors share one Argon2 setup even when both enter together."""
+    module = importlib.import_module("app.services.auth")
+    original_material = module._password_material
+    original_material.cache_clear()
+    module._password_material_initialized = None
+    initializer_entry = threading.Barrier(2)
+    both_attempted = threading.Event()
+    attempt_lock = threading.Lock()
+    attempts = 0
+    recommended_calls: list[None] = []
+    hash_inputs: list[str] = []
+
+    class RecordingHasher:
+        def hash(self, value: str) -> str:
+            hash_inputs.append(value)
+            return "recorded-hash"
+
+        def verify(self, _: str, __: str) -> bool:
+            return False
+
+    hasher = RecordingHasher()
+
+    class RecordingPasswordHash:
+        @staticmethod
+        def recommended() -> RecordingHasher:
+            recommended_calls.append(None)
+            assert both_attempted.wait(timeout=10)
+            return hasher
+
+    def coordinated_material() -> tuple[RecordingHasher, str]:
+        nonlocal attempts
+
+        initializer_entry.wait(timeout=10)
+        with attempt_lock:
+            attempts += 1
+            if attempts == 2:
+                both_attempted.set()
+        return original_material()
+
+    monkeypatch.setattr(module, "PasswordHash", RecordingPasswordHash)
+    monkeypatch.setattr(module, "_password_material", coordinated_material)
+    constructed: list[object] = []
+
+    def construct() -> None:
+        constructed.append(
+            module.AuthService(
+                session,
+                session_ttl_seconds=900,
+                now=Clock(datetime(2026, 8, 18, tzinfo=UTC)).now,
+            )
+        )
+
+    first_thread = threading.Thread(target=construct)
+    second_thread = threading.Thread(target=construct)
+    first_thread.start()
+    second_thread.start()
+    first_thread.join(timeout=20)
+    second_thread.join(timeout=20)
+
+    try:
+        assert first_thread.is_alive() is False
+        assert second_thread.is_alive() is False
+        assert len(constructed) == 2
+        assert constructed[0]._password_hash is constructed[1]._password_hash
+        assert constructed[0]._unknown_password_hash == constructed[1]._unknown_password_hash
+        assert recommended_calls == [None]
+        assert len(hash_inputs) == 1
+    finally:
+        original_material.cache_clear()
+        module._password_material_initialized = None
 
 
 def test_bootstrap_creates_one_argon2_administrator_without_plaintext(

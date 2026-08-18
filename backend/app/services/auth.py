@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from hashlib import sha256
+from threading import Lock
 
 from pwdlib import PasswordHash
 from pydantic import SecretStr
@@ -19,6 +20,10 @@ from sqlalchemy.orm import Session, joinedload
 from app.models import AuthSession, User, utc_now
 
 type Now = Callable[[], datetime]
+
+
+_password_material_lock = Lock()
+_password_material_initialized: tuple[PasswordHash, str] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -201,8 +206,19 @@ def _token_hash(raw_token: str) -> str:
 @lru_cache(maxsize=1)
 def _password_material() -> tuple[PasswordHash, str]:
     """Build one process-wide Argon2 hasher and dummy hash for timing-safe failures."""
-    password_hash = PasswordHash.recommended()
-    return password_hash, password_hash.hash(secrets.token_urlsafe(32))
+    global _password_material_initialized
+
+    material = _password_material_initialized
+    if material is not None:
+        return material
+
+    with _password_material_lock:
+        material = _password_material_initialized
+        if material is None:
+            password_hash = PasswordHash.recommended()
+            material = (password_hash, password_hash.hash(secrets.token_urlsafe(32)))
+            _password_material_initialized = material
+        return material
 
 
 def _is_valid_username(username: str) -> bool:
