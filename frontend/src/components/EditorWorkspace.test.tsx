@@ -6,16 +6,18 @@ import {
   chatWithSource,
   deriveSource,
   editArtifact,
+  getCurrentSession,
   getSettings,
   getSource,
   importSource,
   listSources,
   updateSettings,
 } from "../api";
-import type { Artifact, Settings } from "../types";
+import type { Artifact, AuthenticatedSession, Settings } from "../types";
 
 vi.mock("../api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../api")>()),
+  getCurrentSession: vi.fn(),
   listSources: vi.fn(),
   importSource: vi.fn(),
   getSource: vi.fn(),
@@ -32,12 +34,18 @@ const mockedGetSource = vi.mocked(getSource);
 const mockedDeriveSource = vi.mocked(deriveSource);
 const mockedEditArtifact = vi.mocked(editArtifact);
 const mockedChatWithSource = vi.mocked(chatWithSource);
+const mockedGetCurrentSession = vi.mocked(getCurrentSession);
 const mockedGetSettings = vi.mocked(getSettings);
 const mockedUpdateSettings = vi.mocked(updateSettings);
 
 const defaultSettings: Settings = {
   aiConfigured: false,
   presentation: { theme: "system", preview_device: "desktop" },
+};
+
+const defaultSession: AuthenticatedSession = {
+  user: { id: 1, username: "alice" },
+  csrfToken: "csrf-test-token",
 };
 
 let compactViewport = false;
@@ -160,12 +168,21 @@ function configureSourceDetail(artifacts = [translation, skill]) {
   mockedGetSource.mockResolvedValue({ source, artifacts });
 }
 
+async function renderAuthenticatedApp() {
+  render(<App />);
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
 describe("three-pane studio", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     compactViewport = false;
     mediaQueryListeners.clear();
     installMatchMedia();
+    mockedGetCurrentSession.mockResolvedValue(defaultSession);
     mockedListSources.mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20 });
     mockedGetSettings.mockResolvedValue(defaultSettings);
     mockedUpdateSettings.mockImplementation(async (presentation) => ({
@@ -185,7 +202,7 @@ describe("three-pane studio", () => {
       markdown: "# 中文翻译\n\n已编辑的知识。",
     });
 
-    render(<App />);
+    await renderAuthenticatedApp();
 
     fireEvent.change(screen.getByLabelText("导入来源链接"), {
       target: { value: source.canonical_url },
@@ -237,7 +254,7 @@ describe("three-pane studio", () => {
       message: "The requested provider is not configured.",
     });
 
-    render(<App />);
+    await renderAuthenticatedApp();
     fireEvent.click(await screen.findByRole("button", { name: /Reasoning at Scale/ }));
     expect(await screen.findByText(/部分导入/)).toBeVisible();
     await screen.findByRole("heading", { name: "Reasoning at Scale" });
@@ -252,7 +269,7 @@ describe("three-pane studio", () => {
   it("asks the selected source, then renders its cited answer with source and artifact provenance", async () => {
     mockedListSources.mockResolvedValue({ items: [source], total: 1, page: 1, page_size: 20 });
     mockedChatWithSource.mockResolvedValue(citedAnswer);
-    render(<App />);
+    await renderAuthenticatedApp();
 
     fireEvent.click(await screen.findByRole("button", { name: /Reasoning at Scale/ }));
     await screen.findByRole("heading", { name: "Reasoning at Scale" });
@@ -278,7 +295,7 @@ describe("three-pane studio", () => {
       code: "provider_not_configured",
       message: "The requested provider is not configured.",
     });
-    render(<App />);
+    await renderAuthenticatedApp();
 
     fireEvent.click(await screen.findByRole("button", { name: /Reasoning at Scale/ }));
     await screen.findByRole("heading", { name: "Reasoning at Scale" });
@@ -291,7 +308,7 @@ describe("three-pane studio", () => {
 
   it("exports only the persisted artifact currently selected in the workspace", async () => {
     mockedListSources.mockResolvedValue({ items: [source], total: 1, page: 1, page_size: 20 });
-    render(<App />);
+    await renderAuthenticatedApp();
 
     fireEvent.click(await screen.findByRole("button", { name: /Reasoning at Scale/ }));
     await screen.findByRole("heading", { name: "Reasoning at Scale" });
@@ -307,7 +324,7 @@ describe("three-pane studio", () => {
 
   it("switches the preview to its mobile frame without hiding the current content", async () => {
     mockedListSources.mockResolvedValue({ items: [source], total: 1, page: 1, page_size: 20 });
-    render(<App />);
+    await renderAuthenticatedApp();
 
     fireEvent.click(await screen.findByRole("button", { name: /Reasoning at Scale/ }));
     await screen.findByRole("heading", { name: "Reasoning at Scale" });
@@ -325,7 +342,7 @@ describe("three-pane studio", () => {
   it("labels collapsed preview controls with the panel they operate", async () => {
     await setCompactViewport(true);
     mockedListSources.mockResolvedValue({ items: [source], total: 1, page: 1, page_size: 20 });
-    render(<App />);
+    await renderAuthenticatedApp();
     await screen.findByText("Reasoning at Scale");
 
     const toolbar = screen.getByRole("group", { name: "移动工作区工具" });
@@ -342,7 +359,7 @@ describe("three-pane studio", () => {
   it("keeps only the selected compact workspace surface reachable", async () => {
     await setCompactViewport(true);
     mockedListSources.mockResolvedValue({ items: [source], total: 1, page: 1, page_size: 20 });
-    render(<App />);
+    await renderAuthenticatedApp();
 
     fireEvent.click(screen.getByRole("button", { name: "打开知识库" }));
     fireEvent.click(await screen.findByRole("button", { name: /Reasoning at Scale/ }));
@@ -390,7 +407,7 @@ describe("three-pane studio", () => {
   it("mounts compact preview controls outside the clipped studio shell", async () => {
     await setCompactViewport(true);
     mockedListSources.mockResolvedValue({ items: [source], total: 1, page: 1, page_size: 20 });
-    render(<App />);
+    await renderAuthenticatedApp();
     await screen.findByText("Reasoning at Scale");
 
     const previewPanel = screen.getByLabelText("Markdown 预览");
@@ -399,7 +416,7 @@ describe("three-pane studio", () => {
 
   it("supports arrow-key movement between artifact tabs", async () => {
     mockedListSources.mockResolvedValue({ items: [source], total: 1, page: 1, page_size: 20 });
-    render(<App />);
+    await renderAuthenticatedApp();
 
     fireEvent.click(await screen.findByRole("button", { name: /Reasoning at Scale/ }));
     await screen.findByRole("heading", { name: "Reasoning at Scale" });
@@ -425,7 +442,7 @@ describe("three-pane studio", () => {
       sourceId === source.id ? firstDetail.promise : secondDetail.promise,
     );
 
-    render(<App />);
+    await renderAuthenticatedApp();
     fireEvent.click(await screen.findByRole("button", { name: /Reasoning at Scale/ }));
     fireEvent.click(screen.getByRole("button", { name: /Second Source/ }));
 
@@ -457,7 +474,7 @@ describe("three-pane studio", () => {
       .mockImplementationOnce(() => firstDerivation.promise)
       .mockImplementationOnce(() => secondDerivation.promise);
 
-    render(<App />);
+    await renderAuthenticatedApp();
     const firstSourceButton = await screen.findByRole("button", { name: /Reasoning at Scale/ });
     await act(async () => {
       fireEvent.click(firstSourceButton);
@@ -522,7 +539,7 @@ describe("three-pane studio", () => {
         parent_artifact_id: secondTranslation.id,
       });
 
-    render(<App />);
+    await renderAuthenticatedApp();
     const firstSourceButton = await screen.findByRole("button", { name: /Reasoning at Scale/ });
     await act(async () => {
       fireEvent.click(firstSourceButton);
@@ -569,7 +586,7 @@ describe("three-pane studio", () => {
   });
 
   it("traps dialog focus, closes with Escape or its close control, and restores the trigger", async () => {
-    render(<App />);
+    await renderAuthenticatedApp();
     const trigger = screen.getByRole("button", { name: "导入新来源" });
     fireEvent.click(trigger);
 
@@ -598,7 +615,7 @@ describe("three-pane studio", () => {
 
   it("keeps native dialog form submission available while focus handling is active", async () => {
     mockedImportSource.mockResolvedValue(source);
-    render(<App />);
+    await renderAuthenticatedApp();
     fireEvent.click(screen.getByRole("button", { name: "导入新来源" }));
 
     fireEvent.change(await screen.findByLabelText("来源链接"), {
@@ -613,7 +630,7 @@ describe("three-pane studio", () => {
 
   it("removes a closed compact library from the accessibility tree and restores focus on close", async () => {
     await setCompactViewport(true);
-    render(<App />);
+    await renderAuthenticatedApp();
 
     const menuTrigger = screen.getByRole("button", { name: "打开知识库" });
     const sidebar = document.querySelector(".knowledge-sidebar");
@@ -633,7 +650,7 @@ describe("three-pane studio", () => {
   });
 
   it("moves focus out of the library when a viewport change closes it", async () => {
-    render(<App />);
+    await renderAuthenticatedApp();
 
     const search = screen.getByRole("searchbox");
     const menuTrigger = screen.getByRole("button", { name: "打开知识库" });

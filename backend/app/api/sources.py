@@ -1,12 +1,13 @@
 """Knowledge-library read endpoints."""
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
 
 from app.api.dependencies import (
     AIKnowledgeServiceDependency,
     AIServiceDependency,
     KnowledgeServiceDependency,
+    require_csrf,
 )
 from app.schemas import (
     ApiErrorResponse,
@@ -101,6 +102,7 @@ def get_source(
 @router.post(
     "/{source_id}/derive",
     response_model=ArtifactRead,
+    dependencies=[Depends(require_csrf)],
     responses={
         404: {"model": ApiErrorResponse, "description": "The source does not exist."},
         422: {"model": ApiErrorResponse, "description": "The action is unavailable."},
@@ -133,6 +135,7 @@ async def derive_source(
 @router.post(
     "/{source_id}/chat",
     response_model=ChatTurnRead,
+    dependencies=[Depends(require_csrf)],
     responses={
         404: {"model": ApiErrorResponse, "description": "The source does not exist."},
         422: {"model": ApiErrorResponse, "description": "The action is unavailable."},

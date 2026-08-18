@@ -2,12 +2,25 @@
 
 from typing import Annotated
 
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from app.config import Settings
 from app.db import get_db
+from app.models import AuthSession
 from app.services.ai import AIService
+from app.services.auth import AuthService
 from app.services.knowledge import ConnectorFetcher, KnowledgeService
+
+SESSION_COOKIE_NAME = "expert_content_studio_session"
+_AUTHENTICATION_REQUIRED = {
+    "code": "authentication_required",
+    "message": "Authentication is required.",
+}
+_CSRF_INVALID = {
+    "code": "csrf_invalid",
+    "message": "The CSRF token is invalid.",
+}
 
 
 def get_connector_router(request: Request) -> ConnectorFetcher:
@@ -20,6 +33,69 @@ def get_connector_router(request: Request) -> ConnectorFetcher:
 
 DatabaseSession = Annotated[Session, Depends(get_db)]
 ConnectorRouterDependency = Annotated[ConnectorFetcher, Depends(get_connector_router)]
+
+
+def get_auth_service(request: Request, session: DatabaseSession) -> AuthService:
+    """Build an AuthService around a short-lived route-local database session."""
+    settings: Settings = request.app.state.settings
+    return AuthService(session, session_ttl_seconds=settings.auth_session_ttl_seconds)
+
+
+AuthServiceDependency = Annotated[AuthService, Depends(get_auth_service)]
+
+
+def require_authenticated_user(request: Request) -> AuthSession | None:
+    """Resolve one enabled-auth browser session before any knowledge route can run."""
+    settings: Settings = request.app.state.settings
+    if not settings.auth_enabled:
+        return None
+
+    raw_token = request.cookies.get(SESSION_COOKIE_NAME)
+    if not raw_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=_AUTHENTICATION_REQUIRED)
+
+    with request.app.state.session_factory() as session:
+        service = AuthService(session, session_ttl_seconds=settings.auth_session_ttl_seconds)
+        auth_session = service.get_current_session(raw_token)
+        if auth_session is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=_AUTHENTICATION_REQUIRED,
+            )
+        return auth_session
+
+
+AuthenticatedSessionDependency = Annotated[
+    AuthSession | None, Depends(require_authenticated_user)
+]
+
+
+def require_csrf(
+    request: Request, auth_session: AuthenticatedSessionDependency
+) -> None:
+    """Require live session state and a matching intent token for unsafe operations."""
+    settings: Settings = request.app.state.settings
+    if not settings.auth_enabled:
+        return
+
+    raw_token = request.cookies.get(SESSION_COOKIE_NAME)
+    if auth_session is None or not raw_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=_AUTHENTICATION_REQUIRED)
+
+    with request.app.state.session_factory() as session:
+        service = AuthService(session, session_ttl_seconds=settings.auth_session_ttl_seconds)
+        current_session = service.get_current_session(raw_token)
+        if current_session is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=_AUTHENTICATION_REQUIRED,
+            )
+        csrf_token = request.headers.get("X-CSRF-Token")
+        if not csrf_token or not service.is_csrf_valid(current_session, csrf_token):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=_CSRF_INVALID)
+
+
+CsrfDependency = Annotated[None, Depends(require_csrf)]
 
 
 def get_knowledge_service(

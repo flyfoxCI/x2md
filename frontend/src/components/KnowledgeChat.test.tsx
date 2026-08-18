@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { chatWithSource } from "../api";
@@ -29,10 +29,12 @@ const source = {
 
 function deferred<T>() {
   let resolve: (value: T) => void;
-  const promise = new Promise<T>((resolvePromise) => {
+  let reject: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
+    reject = rejectPromise;
   });
-  return { promise, resolve: resolve! };
+  return { promise, resolve: resolve!, reject: reject! };
 }
 
 describe("KnowledgeChat", () => {
@@ -68,6 +70,41 @@ describe("KnowledgeChat", () => {
 
     expect(mockedChatWithSource.mock.calls[0]?.[2]?.aborted).toBe(true);
     expect(screen.getByLabelText("向来源提问")).toHaveValue("");
+  });
+
+  it("reports authentication_required even after a source-scoped chat request is aborted", async () => {
+    const pending = deferred<never>();
+    const onAuthenticationRequired = vi.fn();
+    mockedChatWithSource.mockReturnValue(pending.promise);
+    const { rerender } = render(
+      <KnowledgeChat onAuthenticationRequired={onAuthenticationRequired} source={source} />,
+    );
+
+    fireEvent.change(screen.getByLabelText("向来源提问"), { target: { value: "问一个问题" } });
+    fireEvent.click(screen.getByRole("button", { name: "发送问题" }));
+    await waitFor(() => expect(mockedChatWithSource).toHaveBeenCalledTimes(1));
+    rerender(
+      <KnowledgeChat
+        onAuthenticationRequired={onAuthenticationRequired}
+        source={{ ...source, id: 8, title: "New source" }}
+      />,
+    );
+    expect(mockedChatWithSource.mock.calls[0]?.[2]?.aborted).toBe(true);
+
+    await act(async () => {
+      pending.reject({
+        code: "authentication_required",
+        message: "Authentication is required.",
+        status: 401,
+      });
+      try {
+        await pending.promise;
+      } catch {
+        // A global authentication failure must be routed despite source cancellation.
+      }
+    });
+
+    expect(onAuthenticationRequired).toHaveBeenCalledTimes(1);
   });
 
   it("uses the shared safe Markdown boundary for an AI answer", async () => {

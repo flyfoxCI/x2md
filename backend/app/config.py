@@ -1,6 +1,6 @@
 """Server-side runtime configuration."""
 
-from pydantic import AliasChoices, Field, SecretStr
+from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -35,6 +35,47 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("GITHUB_TOKEN", "APP_GITHUB_TOKEN"),
     )
+    auth_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("AUTH_ENABLED", "APP_AUTH_ENABLED"),
+    )
+    auth_initial_admin_username: str = Field(
+        default="admin",
+        min_length=1,
+        max_length=128,
+        validation_alias=AliasChoices(
+            "AUTH_INITIAL_ADMIN_USERNAME", "APP_AUTH_INITIAL_ADMIN_USERNAME"
+        ),
+    )
+    auth_initial_admin_password: SecretStr | None = Field(
+        default=None,
+        repr=False,
+        validation_alias=AliasChoices(
+            "AUTH_INITIAL_ADMIN_PASSWORD", "APP_AUTH_INITIAL_ADMIN_PASSWORD"
+        ),
+    )
+    auth_session_ttl_seconds: int = Field(
+        default=43_200,
+        ge=900,
+        le=2_592_000,
+        validation_alias=AliasChoices(
+            "AUTH_SESSION_TTL_SECONDS", "APP_AUTH_SESSION_TTL_SECONDS"
+        ),
+    )
+    auth_cookie_secure: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("AUTH_COOKIE_SECURE", "APP_AUTH_COOKIE_SECURE"),
+    )
+
+    @field_validator("auth_initial_admin_username")
+    @classmethod
+    def validate_auth_initial_admin_username(cls, value: str) -> str:
+        """Reject ambiguous bootstrap usernames without restricting printable Unicode."""
+        if not _is_valid_auth_username(value):
+            raise ValueError(
+                "AUTH_INITIAL_ADMIN_USERNAME must be printable without leading or trailing whitespace"
+            )
+        return value
 
     @property
     def ai_configured(self) -> bool:
@@ -47,3 +88,8 @@ class Settings(BaseSettings):
             and self.ai_model
             and self.ai_model.strip()
         )
+
+
+def _is_valid_auth_username(value: str) -> bool:
+    """Return whether an environment-provided administrator name is unambiguous."""
+    return bool(value.strip()) and value == value.strip() and value.isprintable()

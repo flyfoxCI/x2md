@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "final-integration-green",
+  "type": "fresh command, isolated migration, browser smoke and independent review",
+  "source": "Controller final verification at 33a7ef7; Task6 independent reviews",
+  "summary": "Fresh controller run passed backend uv lock, 254 pytest and Ruff; frontend lint, 108 Vitest and production build. SQLite migration round trips and static security checks passed. Browser smoke used an isolated migrated DB: anonymous restore->login->studio/account->390px account access->logout, then direct local session rotation confirmed revoked old session 401, old password 401 and new password 200. Final spec and quality reviews approved. Docker compose config --quiet could not run because Docker CLI is absent.",
+  "verifier": "controller plus independent reviewers"
+}

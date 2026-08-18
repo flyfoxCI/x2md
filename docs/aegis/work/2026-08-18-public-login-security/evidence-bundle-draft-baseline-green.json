@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "baseline-green",
+  "type": "command",
+  "source": "worktree baseline",
+  "summary": "Backend: uv lock --check, pytest -q -W error (216 passed), Ruff passed. Frontend: lint, Vitest (61 passed), build passed.",
+  "verifier": "controller"
+}

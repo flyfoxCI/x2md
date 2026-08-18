@@ -47,6 +47,7 @@ def configured_service(observed: dict[str, object]) -> AIService:
             ai_base_url="https://provider.example/v1",
             ai_api_key="test-provider-key",
             ai_model="fixture-model",
+            auth_enabled=False,
         ),
         client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
     )
@@ -143,6 +144,7 @@ async def test_derivation_refuses_empty_imported_material_before_provider_dispat
             ai_base_url="https://provider.example/v1",
             ai_api_key="configured-secret",
             ai_model="fixture-model",
+            auth_enabled=False,
         ),
         client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
     )

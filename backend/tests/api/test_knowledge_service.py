@@ -145,7 +145,12 @@ async def test_slow_concurrent_imports_do_not_hold_pool_connections_during_fetch
 
 @pytest.mark.asyncio
 async def test_import_endpoint_holds_no_request_session_during_slow_fetch(tmp_path) -> None:
-    app = create_app(Settings(database_url=f"sqlite+pysqlite:///{tmp_path / 'unused.db'}"))
+    app = create_app(
+        Settings(
+            database_url=f"sqlite+pysqlite:///{tmp_path / 'unused.db'}",
+            auth_enabled=False,
+        )
+    )
     app.state.database_resources.dispose()
     engine = create_engine(
         f"sqlite+pysqlite:///{tmp_path / 'endpoint-pool.db'}",

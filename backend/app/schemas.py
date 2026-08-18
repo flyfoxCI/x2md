@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 ArtifactKind = Literal["translation", "summary", "skill", "user_edit"]
 ImportStatus = Literal["ready", "partial", "blocked"]
@@ -20,6 +20,42 @@ class ApiErrorResponse(BaseModel):
     """Documented envelope used by knowledge-library route failures."""
 
     detail: ApiErrorDetail
+
+
+class AuthUserRead(BaseModel):
+    """The deliberately minimal administrator identity safe for browser responses."""
+
+    id: int
+    username: str
+
+
+class AuthSessionRead(BaseModel):
+    """Browser-safe authentication state; the opaque session stays only in its cookie."""
+
+    user: AuthUserRead
+    csrf_token: str = Field(serialization_alias="csrfToken")
+
+
+class LoginRequest(BaseModel):
+    """Credentials submitted only to establish a fresh administrator session."""
+
+    username: str = Field(min_length=1, max_length=128)
+    password: str = Field(min_length=1, max_length=1_024)
+
+
+class ChangePasswordRequest(BaseModel):
+    """The current administrator secret and its explicit replacement."""
+
+    current_password: str = Field(
+        min_length=1,
+        max_length=1_024,
+        validation_alias=AliasChoices("currentPassword", "current_password"),
+    )
+    new_password: str = Field(
+        min_length=12,
+        max_length=1_024,
+        validation_alias=AliasChoices("newPassword", "new_password"),
+    )
 
 
 class SourceCreate(BaseModel):

@@ -2,11 +2,11 @@
 
 import re
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from app.api.dependencies import KnowledgeServiceDependency
+from app.api.dependencies import KnowledgeServiceDependency, require_csrf
 from app.schemas import ApiErrorResponse, ArtifactRead
 from app.services.knowledge import KnowledgeError
 
@@ -34,6 +34,7 @@ class ArtifactEditRequest(BaseModel):
 @router.patch(
     "/{artifact_id}",
     response_model=ArtifactRead,
+    dependencies=[Depends(require_csrf)],
     responses={
         404: {"model": ApiErrorResponse, "description": "The artifact does not exist."}
     },

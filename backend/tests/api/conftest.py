@@ -53,7 +53,10 @@ def ready_source(url: str, *, title: str = "Reasoning at Scale") -> NormalizedSo
 def api_harness(tmp_path: Path) -> Generator[ApiHarness, None, None]:
     """Supply an app whose request sessions use its own configured SQLite database."""
     app = create_app(
-        Settings(database_url=f"sqlite+pysqlite:///{tmp_path / 'api.db'}")
+        Settings(
+            database_url=f"sqlite+pysqlite:///{tmp_path / 'api.db'}",
+            auth_enabled=False,
+        )
     )
     engine = app.state.database_resources.engine
     Base.metadata.create_all(engine)

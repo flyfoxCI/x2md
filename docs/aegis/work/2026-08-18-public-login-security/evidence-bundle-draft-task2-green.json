@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "task2-green",
+  "type": "command",
+  "source": "Task 2 commits bc934fe and 2a713ad",
+  "summary": "Focused auth/core/API/lifecycle suite 38 passed; full backend suite 251 passed; Ruff, uv lock, SQLite Alembic upgrade/downgrade/upgrade and independent spec/quality reviews passed. API race regressions cover old-password delayed login and revoked-session CSRF recheck.",
+  "verifier": "controller plus independent reviewers"
+}
