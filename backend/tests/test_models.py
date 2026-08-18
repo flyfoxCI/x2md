@@ -1,6 +1,7 @@
 """Persistence invariants for canonical sources and derived artifacts."""
 
 from collections.abc import Generator
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -243,6 +244,104 @@ def test_settings_repr_hides_database_url_password(monkeypatch: pytest.MonkeyPat
     monkeypatch.setenv("DATABASE_URL", "postgresql://user:not-a-real-secret@db.example.test/content")
 
     assert "not-a-real-secret" not in repr(Settings())
+
+
+def test_auth_models_persist_a_user_and_its_session(session: Session) -> None:
+    """Administrator sessions retain only their relation and opaque digest fields."""
+    from app import models
+
+    user_model = getattr(models, "User", None)
+    auth_session_model = getattr(models, "AuthSession", None)
+
+    assert user_model is not None
+    assert auth_session_model is not None
+
+    administrator = user_model(
+        username="admin",
+        password_hash="argon2id-hash",
+        is_active=True,
+    )
+    session.add(administrator)
+    session.flush()
+    auth_session = auth_session_model(
+        user_id=administrator.id,
+        token_hash="a" * 64,
+        csrf_token="csrf-token",
+        expires_at=datetime(2026, 8, 18, 12, tzinfo=UTC),
+    )
+    session.add(auth_session)
+    session.commit()
+    session.expire_all()
+
+    persisted = session.get(auth_session_model, auth_session.id)
+
+    assert persisted is not None
+    assert persisted.user.username == "admin"
+    assert persisted.user.auth_sessions[0].token_hash == "a" * 64
+
+
+def test_auth_models_enforce_unique_usernames(session: Session) -> None:
+    """The one administrator identity cannot be duplicated."""
+    from app import models
+
+    user_model = getattr(models, "User", None)
+
+    assert user_model is not None
+    session.add_all(
+        [
+            user_model(username="admin", password_hash="first", is_active=True),
+            user_model(username="admin", password_hash="second", is_active=True),
+        ]
+    )
+
+    with pytest.raises(exc.IntegrityError):
+        session.commit()
+
+
+def test_auth_session_requires_a_user_and_unique_token_digest(session: Session) -> None:
+    """Session bearer digests are unique and always belong to an administrator."""
+    from app import models
+
+    user_model = getattr(models, "User", None)
+    auth_session_model = getattr(models, "AuthSession", None)
+
+    assert user_model is not None
+    assert auth_session_model is not None
+    administrator = user_model(username="admin", password_hash="hash", is_active=True)
+    session.add(administrator)
+    session.flush()
+    session.add_all(
+        [
+            auth_session_model(
+                user_id=administrator.id,
+                token_hash="a" * 64,
+                csrf_token="first-csrf-token",
+                expires_at=datetime(2026, 8, 18, 12, tzinfo=UTC),
+            ),
+            auth_session_model(
+                user_id=administrator.id,
+                token_hash="a" * 64,
+                csrf_token="second-csrf-token",
+                expires_at=datetime(2026, 8, 18, 12, tzinfo=UTC),
+            ),
+        ]
+    )
+
+    with pytest.raises(exc.IntegrityError):
+        session.commit()
+
+    session.rollback()
+    session.add(
+        auth_session_model(
+            user_id=999,
+            token_hash="b" * 64,
+            csrf_token="csrf-token",
+            expires_at=datetime(2026, 8, 18, 12, tzinfo=UTC),
+        )
+    )
+
+    with pytest.raises(exc.IntegrityError):
+        session.commit()
 
 
 def test_initial_migration_matches_model_metadata(
