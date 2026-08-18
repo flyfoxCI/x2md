@@ -46,3 +46,4 @@ Entries are workspace records, not authoritative runtime decisions.
 | 2026-08-18 | artifact | docs/aegis/work/2026-08-18-public-login-security/evidence-bundle-draft-baseline-green.json | 2026-08-18-public-login-security evidence baseline-green |
 | 2026-08-18 | artifact | docs/aegis/work/2026-08-18-public-login-security/resume-state-hint.json | 2026-08-18-public-login-security resume state hint |
 | 2026-08-18 | artifact | docs/aegis/work/2026-08-18-public-login-security/evidence-bundle-draft-task1-green.json | 2026-08-18-public-login-security evidence task1-green |
+| 2026-08-18 | artifact | docs/aegis/work/2026-08-18-public-login-security/evidence-bundle-draft-task2-green.json | 2026-08-18-public-login-security evidence task2-green |

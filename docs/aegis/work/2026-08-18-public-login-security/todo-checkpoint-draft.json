@@ -1,15 +1,15 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-18-public-login-security",
-  "currentTodo": "Task 2: auth HTTP routes, bootstrap lifecycle and API enforcement",
+  "currentTodo": "Task 3: typed browser session and CSRF transport",
   "completedTodos": [
-    "Task 1: Argon2 password/session persistence core, 0002 migration and concurrency hardening"
+    "Task 1 core persistence/concurrency hardening; Task 2 public auth HTTP routes, bootstrap lifecycle and protected legacy API policy"
   ],
-  "activeSlice": "Strict-TDD FastAPI auth endpoints and protected knowledge routes",
+  "activeSlice": "Strict-TDD React API authentication transport",
   "evidenceRefs": [
-    "task1-green"
+    "task2-green"
   ],
   "blockedOn": null,
-  "nextStep": "Dispatch a fresh Task 2 implementation agent using the verified AuthService contract.",
+  "nextStep": "Dispatch a fresh Task 3 frontend transport agent.",
   "updatedAt": "2026-08-18"
 }

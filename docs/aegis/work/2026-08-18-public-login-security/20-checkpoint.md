@@ -45,3 +45,23 @@
 - New risk signals:
 - AuthService use in dependencies must not retain request DB sessions during slow connector or provider I/O.
 - Advisory decision: continue
+
+## Checkpoint Update
+
+- Current todo: Task 3: typed browser session and CSRF transport
+- Active slice: Strict-TDD React API authentication transport
+- Completed todos:
+- Task 1 core persistence/concurrency hardening; Task 2 public auth HTTP routes, bootstrap lifecycle and protected legacy API policy
+- Evidence refs:
+- task2-green
+- Blocked on: none
+- Next step: Dispatch a fresh Task 3 frontend transport agent.
+
+## DriftCheckDraft
+
+- Scope status: Tasks 1 and 2 completed within approved authentication design; Task 3 is the typed browser transport slice only.
+- Compatibility status: Existing authenticated payloads remain stable; health stays public; browser will continue same-origin API use.
+- Retirement status: Unauthenticated backend knowledge access retired; frontend still lacks login gate until Task 4.
+- New risk signals:
+- Frontend must avoid local/session storage and clear stale in-memory CSRF after 401.
+- Advisory decision: continue

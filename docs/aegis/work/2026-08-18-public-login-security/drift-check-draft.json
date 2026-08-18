@@ -5,11 +5,11 @@
   "baselineRefs": [
     "docs/aegis/specs/2026-08-18-public-login-security-design.md"
   ],
-  "scopeStatus": "Task 1 completed within password/session persistence and migration scope; Task 2 is the approved HTTP policy slice.",
-  "compatStatus": "Health remains public; legacy API payloads are unchanged until authenticated; test fixture isolation will be explicit.",
-  "retirementStatus": "Unauthenticated knowledge access remains present only until Task 2 replaces it with route-level dependencies.",
+  "scopeStatus": "Tasks 1 and 2 completed within approved authentication design; Task 3 is the typed browser transport slice only.",
+  "compatStatus": "Existing authenticated payloads remain stable; health stays public; browser will continue same-origin API use.",
+  "retirementStatus": "Unauthenticated backend knowledge access retired; frontend still lacks login gate until Task 4.",
   "newRiskSignals": [
-    "AuthService use in dependencies must not retain request DB sessions during slow connector or provider I/O."
+    "Frontend must avoid local/session storage and clear stale in-memory CSRF after 401."
   ],
   "decision": "continue"
 }
