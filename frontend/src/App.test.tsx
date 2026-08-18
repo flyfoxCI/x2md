@@ -513,15 +513,15 @@ describe("App", () => {
     expect(screen.queryByRole("button", { name: "打开知识库" })).not.toBeInTheDocument();
   });
 
-  it("keeps the session intact and does not expose details when header logout fails", async () => {
+  it("returns to login without exposing details when header logout fails", async () => {
     mockedLogout.mockRejectedValue(new Error("internal logout transport detail"));
     await renderAuthenticatedApp();
 
     fireEvent.click(screen.getByRole("button", { name: "退出登录" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("退出登录失败，请稍后重试。");
+    expect(await screen.findByLabelText("用户名")).toBeVisible();
     expect(screen.queryByText("internal logout transport detail")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "打开知识库" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "打开知识库" })).not.toBeInTheDocument();
   });
 
   it("keeps the studio available after an invalid password update and closes after a successful update", async () => {
@@ -570,6 +570,42 @@ describe("App", () => {
     expect(await screen.findByLabelText("用户名")).toBeVisible();
     expect(mockedClearAuthentication).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("button", { name: "打开知识库" })).not.toBeInTheDocument();
+  });
+
+  it("keeps a newer login when an older protected request later reports authentication_required", async () => {
+    const oldSessionRequest = deferred<typeof emptySourcePage>();
+    const newerSession: AuthenticatedSession = {
+      user: { id: 2, username: "bob" },
+      csrfToken: "csrf-bob-token",
+    };
+    mockedListSources.mockReturnValueOnce(oldSessionRequest.promise);
+    mockedLogin.mockResolvedValue(newerSession);
+    await renderAuthenticatedApp();
+    await waitFor(() => expect(mockedListSources).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole("button", { name: "退出登录" }));
+    expect(await screen.findByLabelText("用户名")).toBeVisible();
+
+    fireEvent.change(screen.getByLabelText("用户名"), { target: { value: "bob" } });
+    fireEvent.change(screen.getByLabelText("密码"), { target: { value: "new-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "登录" }));
+    expect(await screen.findByRole("button", { name: "账户：bob" })).toBeVisible();
+
+    await act(async () => {
+      oldSessionRequest.reject({
+        code: "authentication_required",
+        message: "Authentication is required.",
+        status: 401,
+      });
+      try {
+        await oldSessionRequest.promise;
+      } catch {
+        // The stale operation is expected to reject after session B is active.
+      }
+    });
+
+    expect(screen.getByRole("button", { name: "账户：bob" })).toBeVisible();
+    expect(mockedClearAuthentication).toHaveBeenCalledTimes(1);
   });
 
   it("stops an import follow-up when the refreshed library reports authentication_required", async () => {

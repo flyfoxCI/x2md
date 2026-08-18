@@ -96,13 +96,15 @@ function useMediaQuery(query: string) {
 
 interface AuthenticatedStudioProps {
   session: AuthenticatedSession;
-  onAuthenticationRequired: () => void;
+  sessionGeneration: number;
+  onAuthenticationRequired: (sessionGeneration: number) => boolean;
   onChangePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   onLogout: () => Promise<void>;
 }
 
 function AuthenticatedStudio({
   session,
+  sessionGeneration,
   onAuthenticationRequired,
   onChangePassword,
   onLogout,
@@ -147,6 +149,11 @@ function AuthenticatedStudio({
   const isCompactViewport = useMediaQuery(compactViewportQuery);
   const isPreviewOverlayViewport = useMediaQuery(previewOverlayViewportQuery);
 
+  const handleAuthenticationRequired = useCallback(
+    () => onAuthenticationRequired(sessionGeneration),
+    [onAuthenticationRequired, sessionGeneration],
+  );
+
   const handleContentChange = useCallback((markdown: string, artifact: Artifact | null) => {
     setCurrentMarkdown(markdown);
     setSelectedArtifact(artifact);
@@ -172,6 +179,7 @@ function AuthenticatedStudio({
     settingsSaveRef.current = controller;
     settingsSaveInFlightRef.current = true;
     let acceptedResponse = false;
+    let authenticationFailed = false;
     void updateSettings(requestedPresentation, controller.signal)
       .then((settings) => {
         if (controller.signal.aborted || !isMountedRef.current) {
@@ -186,7 +194,8 @@ function AuthenticatedStudio({
       })
       .catch((reason) => {
         if (isAuthenticationRequired(reason)) {
-          onAuthenticationRequired();
+          authenticationFailed = true;
+          handleAuthenticationRequired();
           return;
         }
         if (
@@ -215,12 +224,13 @@ function AuthenticatedStudio({
           !controller.signal.aborted
           && isMountedRef.current
           && !acceptedResponse
+          && !authenticationFailed
           && !samePresentation(desiredPresentationRef.current, requestedPresentation)
         ) {
           flushPresentationSaveRef.current();
         }
       });
-  }, [applyPresentation, onAuthenticationRequired]);
+  }, [applyPresentation, handleAuthenticationRequired]);
 
   flushPresentationSaveRef.current = flushPresentationSave;
 
@@ -265,7 +275,7 @@ function AuthenticatedStudio({
         return false;
       }
       if (isAuthenticationRequired(reason)) {
-        onAuthenticationRequired();
+        handleAuthenticationRequired();
         return false;
       }
       setDetail(null);
@@ -276,7 +286,7 @@ function AuthenticatedStudio({
         setDetailLoading(false);
       }
     }
-  }, [onAuthenticationRequired]);
+  }, [handleAuthenticationRequired]);
 
   const loadSources = useCallback(async (search = "", signal?: AbortSignal) => {
     setLibraryLoading(true);
@@ -287,7 +297,7 @@ function AuthenticatedStudio({
       return true;
     } catch (reason) {
       if (isAuthenticationRequired(reason)) {
-        onAuthenticationRequired();
+        handleAuthenticationRequired();
         return false;
       } else if (!isAbortError(reason)) {
         setError(asApiError(reason));
@@ -298,7 +308,7 @@ function AuthenticatedStudio({
         setLibraryLoading(false);
       }
     }
-  }, [onAuthenticationRequired]);
+  }, [handleAuthenticationRequired]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -331,7 +341,7 @@ function AuthenticatedStudio({
           return;
         }
         if (isAuthenticationRequired(reason)) {
-          onAuthenticationRequired();
+          handleAuthenticationRequired();
           return;
         }
         if (!controller.signal.aborted) {
@@ -339,7 +349,7 @@ function AuthenticatedStudio({
         }
       });
     return () => controller.abort();
-  }, [applyPresentation, onAuthenticationRequired]);
+  }, [applyPresentation, handleAuthenticationRequired]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -412,7 +422,7 @@ function AuthenticatedStudio({
       setSuccess("来源已导入并保存到知识库");
     } catch (reason) {
       if (isAuthenticationRequired(reason)) {
-        onAuthenticationRequired();
+        handleAuthenticationRequired();
       } else {
         setError(asApiError(reason));
       }
@@ -447,7 +457,7 @@ function AuthenticatedStudio({
     } catch (reason) {
       if (selectedSourceRef.current?.id === actionSource.id) {
         if (isAuthenticationRequired(reason)) {
-          onAuthenticationRequired();
+          handleAuthenticationRequired();
         } else {
           setError(asApiError(reason));
         }
@@ -483,7 +493,7 @@ function AuthenticatedStudio({
     } catch (reason) {
       if (selectedSourceRef.current?.id === actionSource.id) {
         if (isAuthenticationRequired(reason)) {
-          onAuthenticationRequired();
+          handleAuthenticationRequired();
         } else {
           setError(asApiError(reason));
         }
@@ -551,7 +561,7 @@ function AuthenticatedStudio({
           artifact={selectedArtifact}
           markdown={currentMarkdown}
           onPresentationChange={handlePresentationChange}
-          onAuthenticationRequired={onAuthenticationRequired}
+          onAuthenticationRequired={handleAuthenticationRequired}
           presentation={presentation}
           isOverlayViewport={isPreviewOverlayViewport}
           source={detail?.source ?? null}
@@ -582,29 +592,51 @@ type AuthenticationStatus = "checking" | "anonymous" | "authenticated";
 function App() {
   const [status, setStatus] = useState<AuthenticationStatus>("checking");
   const [session, setSession] = useState<AuthenticatedSession | null>(null);
+  const [sessionGeneration, setSessionGeneration] = useState(0);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
   const [recoveryAttempt, setRecoveryAttempt] = useState(0);
+  const sessionGenerationRef = useRef(0);
 
-  const transitionToAnonymous = useCallback(() => {
+  const advanceSessionGeneration = useCallback(() => {
+    const nextSessionGeneration = sessionGenerationRef.current + 1;
+    sessionGenerationRef.current = nextSessionGeneration;
+    setSessionGeneration(nextSessionGeneration);
+  }, []);
+
+  const transitionToAnonymous = useCallback((expectedSessionGeneration: number) => {
+    if (sessionGenerationRef.current !== expectedSessionGeneration) {
+      return false;
+    }
     clearAuthentication();
+    advanceSessionGeneration();
     setSession(null);
     setRecoveryError(null);
     setStatus("anonymous");
-  }, []);
+    return true;
+  }, [advanceSessionGeneration]);
 
-  const installSession = useCallback((nextSession: AuthenticatedSession) => {
+  const installSession = useCallback((
+    nextSession: AuthenticatedSession,
+    expectedSessionGeneration: number,
+  ) => {
+    if (sessionGenerationRef.current !== expectedSessionGeneration) {
+      return false;
+    }
+    advanceSessionGeneration();
     setSession(nextSession);
     setRecoveryError(null);
     setStatus("authenticated");
-  }, []);
+    return true;
+  }, [advanceSessionGeneration]);
 
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
+    const expectedSessionGeneration = sessionGenerationRef.current;
     void getCurrentSession(controller.signal)
       .then((nextSession) => {
         if (!controller.signal.aborted && active) {
-          installSession(nextSession);
+          installSession(nextSession, expectedSessionGeneration);
         }
       })
       .catch((reason) => {
@@ -612,7 +644,10 @@ function App() {
           return;
         }
         if (isAuthenticationRequired(reason)) {
-          transitionToAnonymous();
+          transitionToAnonymous(expectedSessionGeneration);
+          return;
+        }
+        if (sessionGenerationRef.current !== expectedSessionGeneration) {
           return;
         }
         setSession(null);
@@ -626,21 +661,27 @@ function App() {
   }, [installSession, recoveryAttempt, transitionToAnonymous]);
 
   const handleLogin = useCallback(async (username: string, password: string) => {
+    const expectedSessionGeneration = sessionGenerationRef.current;
     const nextSession = await login(username, password);
-    installSession(nextSession);
+    installSession(nextSession, expectedSessionGeneration);
   }, [installSession]);
 
   const handleLogout = useCallback(async () => {
-    await logout();
-    transitionToAnonymous();
+    const expectedSessionGeneration = sessionGenerationRef.current;
+    try {
+      await logout();
+    } finally {
+      transitionToAnonymous(expectedSessionGeneration);
+    }
   }, [transitionToAnonymous]);
 
   const handleChangePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    const expectedSessionGeneration = sessionGenerationRef.current;
     try {
-      installSession(await changePassword(currentPassword, newPassword));
+      installSession(await changePassword(currentPassword, newPassword), expectedSessionGeneration);
     } catch (reason) {
       if (isAuthenticationRequired(reason)) {
-        transitionToAnonymous();
+        transitionToAnonymous(expectedSessionGeneration);
       }
       throw reason;
     }
@@ -674,6 +715,7 @@ function App() {
       onChangePassword={handleChangePassword}
       onLogout={handleLogout}
       session={session}
+      sessionGeneration={sessionGeneration}
     />
   );
 }
