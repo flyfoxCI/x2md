@@ -32,3 +32,9 @@
 - RED：`cd backend && uv run pytest tests/connectors/test_research_github.py tests/test_url_safety.py -q` 因 `app.services.research.collectors` 不存在而收集失败。
 - GREEN：同一命令通过，`34 passed in 0.08s`；`uv run ruff check app/services/research/collectors app/services/composition.py` 通过；既有轻量导入回归 `uv run pytest tests/connectors/test_github.py -q` 为 `15 passed in 0.07s`。
 - 证据：collector 从 REST metadata、branch ref 与 recursive tree 得到不可变 commit SHA；按 README、manifest、entry point、architecture、source 的固定优先级最多选择 20 个 UTF-8 文本文件；每个 included/excluded 条目拥有 commit-aware locator。vendor、二进制、minified/generated、体积/文件/请求上限及失败响应均作为排除原因保存；truncated tree 被显式标为 partial coverage；共用安全 client 的 host 上限提升为 40 请求/60 秒，collector 自身仍以 32 请求/run 为硬上限。
+
+## 任务 4 — arXiv PDF 与 Hugging Face 有界采集
+
+- RED：`cd backend && uv run pytest tests/connectors/test_research_arxiv.py tests/connectors/test_research_huggingface.py tests/connectors/test_response_policy.py -q` 因 arXiv/Hub research collectors 尚不存在而收集失败。
+- GREEN：同一命令通过，`10 passed in 0.13s`；`uv run ruff check app/services/research/collectors app/services/connectors/response_policy.py` 通过；既有轻量导入回归 `uv run pytest tests/connectors/test_arxiv.py tests/connectors/test_huggingface.py -q` 为 `22 passed in 0.07s`；后端全量为 `235 passed in 2.45s`，完整 ruff 通过。
+- 证据：PDF 技能指导使用 `pypdf` 对内存中的公开文档作页级文本抽取（不使用 OCR）；arXiv 仅接收 `application/pdf`，将单文档限制为 25 MiB、60 页、50 万字符，使用版本化 PDF/page locator，并把加密、无文本、无效或超限情况标记为 partial。Hub 以 API `sha` 锁定 revision，最多读取 12 个 README/config/源码文本，拒绝权重和数据载荷；共享 response policy 可按调用显式放宽 PDF body limit，而历史默认仍为 5 MiB。

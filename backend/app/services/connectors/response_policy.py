@@ -25,17 +25,26 @@ class ResponseBodyValidation:
 
 
 def validate_response_body(
-    response: ResponseLike, *, allowed_mime_types: AbstractSet[str]
+    response: ResponseLike,
+    *,
+    allowed_mime_types: AbstractSet[str],
+    max_response_bytes: int = MAX_RESPONSE_BYTES,
 ) -> ResponseBodyValidation:
     """Reject unsupported or oversized bodies before a connector decodes them."""
+    if (
+        isinstance(max_response_bytes, bool)
+        or not isinstance(max_response_bytes, int)
+        or max_response_bytes <= 0
+    ):
+        raise ValueError("max_response_bytes must be a positive integer")
     content_type = _content_type(response.headers)
     metadata = {"http_status": response.status_code, "content_type": content_type}
     content_length = _declared_content_length(response.headers)
-    if content_length is not None and content_length > MAX_RESPONSE_BYTES:
+    if content_length is not None and content_length > max_response_bytes:
         return ResponseBodyValidation("response_too_large", metadata)
     if content_type not in {mime_type.lower() for mime_type in allowed_mime_types}:
         return ResponseBodyValidation("unsupported_mime", metadata)
-    if len(response.content) > MAX_RESPONSE_BYTES:
+    if len(response.content) > max_response_bytes:
         return ResponseBodyValidation("response_too_large", metadata)
     return ResponseBodyValidation(None, metadata)
 

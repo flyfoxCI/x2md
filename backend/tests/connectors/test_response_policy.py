@@ -66,6 +66,24 @@ def test_response_policy_rejects_actual_oversize_and_invalid_mime_case_insensiti
     assert unsupported.metadata == {"http_status": 200, "content_type": "text/html"}
 
 
+def test_response_policy_accepts_an_explicit_larger_pdf_limit_without_changing_default() -> None:
+    response = FakeResponse(
+        200,
+        {"content-type": "application/pdf", "content-length": str(6 * 1024 * 1024)},
+        b"%PDF-small-fixture",
+    )
+
+    default = validate_response_body(response, allowed_mime_types={"application/pdf"})
+    explicit = validate_response_body(
+        response,
+        allowed_mime_types={"application/pdf"},
+        max_response_bytes=25 * 1024 * 1024,
+    )
+
+    assert default.reason == "response_too_large"
+    assert explicit.reason is None
+
+
 @pytest.mark.parametrize("content_length", ["not-a-number", "-1"])
 def test_response_policy_ignores_malformed_or_negative_declared_size(
     content_length: str,
