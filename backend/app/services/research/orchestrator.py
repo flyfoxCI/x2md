@@ -138,6 +138,9 @@ class ResearchOrchestrator:
             return self._finish(run_id, status="failed", failure_code="collection_error")
         inputs = self._persist_collection(run_id, collection)
         if not inputs:
+            reason = collection.coverage.get("reason")
+            if reason in {"network_error", "rate_limited"}:
+                return self._finish(run_id, status="failed", failure_code=str(reason))
             return self._finish(run_id, status="blocked", failure_code="no_included_evidence")
 
         try:

@@ -4,7 +4,7 @@ import httpx
 import pytest
 from sqlalchemy import func, select
 
-from app.models import Source
+from app.models import AppSetting, Source
 from app.services.connectors.base import NormalizedSource
 from tests.api.conftest import ApiHarness
 
@@ -38,6 +38,38 @@ async def test_import_persists_connector_output_and_is_idempotent(
     assert api_harness.router.requested_urls == [url]
     with api_harness.session_factory() as session:
         assert session.scalar(select(func.count()).select_from(Source)) == 1
+
+
+@pytest.mark.asyncio
+async def test_enabled_auto_research_enqueues_only_supported_content_bearing_imports(
+    api_harness: ApiHarness,
+) -> None:
+    class RecordingOrchestrator:
+        def __init__(self) -> None:
+            self.calls: list[tuple[int, str]] = []
+
+        def enqueue(self, source_id: int, *, trigger: str) -> None:
+            self.calls.append((source_id, trigger))
+
+    orchestrator = RecordingOrchestrator()
+    api_harness.app.state.research_orchestrator = orchestrator
+    url = "https://github.com/openai/auto-research"
+    api_harness.router.sources[url] = NormalizedSource(
+        canonical_url=url,
+        platform="github",
+        title="Auto research",
+        text="Repository README",
+        markdown="# Repository README",
+        status="ready",
+    )
+    with api_harness.session_factory() as session:
+        session.add(AppSetting(key="research.auto_start", value_json={"enabled": True}))
+        session.commit()
+
+    response = await post_import(api_harness, url)
+
+    assert response.status_code == 200
+    assert orchestrator.calls == [(response.json()["id"], "auto")]
 
 
 @pytest.mark.asyncio

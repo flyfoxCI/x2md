@@ -44,3 +44,9 @@
 - RED：`cd backend && uv run pytest tests/services/test_research_orchestrator.py tests/services/test_tags.py tests/api/test_sources.py -q` 因 `ResearchOrchestrator` 与 `TagService` 不存在而收集失败。
 - GREEN：同一命令通过，`8 passed in 0.37s`；相关 ruff 通过；`uv run pytest -q -W error && uv run ruff check .` 为 `239 passed in 2.50s`。
 - 证据：`ResearchOrchestrator` 在 collector/AI 网络等待外使用短数据库会话，按 collect → persist evidence → note → validate report → tag 的单一状态机运行。它保存内容 hash、覆盖 JSON、证据 digest、同源 citation 和报告 Artifact，且绝不写回 `Source` 原材料；partial 覆盖、未配置 provider 和无效 citation 分别产生真实 terminal 状态。`TagService` 提供受控层级 seed、带 evidence 的 AI suggestion、用户 accept/reject、自定义标签；来源筛选已退休 legacy JSON 路径，仅查 accepted governed tag（含子标签）。
+
+## 任务 6 — 持久 worker 与自动启动设置
+
+- RED：`cd backend && uv run pytest tests/services/test_research_worker.py tests/api/test_imports.py tests/api/test_derivations.py -q` 因 `app.services.research.worker` 不存在而收集失败。
+- GREEN：worker/import/settings/lifecycle 关联套件为 `23 passed in 1.00s`；相关 ruff 通过；后端全量 `243 passed in 2.61s`，完整 ruff 通过。
+- 证据：单 worker 使用数据库 compare-and-set lease 认领 queued 或过期 running 任务，执行后释放 lease；仅 `provider_error`、`network_error`、`rate_limited` 等瞬时失败可以在初次执行之外重试两次。`research.auto_start` 是持久、默认 false 的 browser-safe 设置；原有仅 presentation 的 PATCH 保持有效。lifespan 仅在该设置已启用时启动一个 worker；支持且有内容的 GitHub/arXiv/Hub 导入只有在提交后才会自动入队。

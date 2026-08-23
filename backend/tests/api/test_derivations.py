@@ -188,6 +188,7 @@ async def test_settings_exposes_and_accepts_only_non_secret_presentation_values(
     assert first.json() == {
         "aiConfigured": False,
         "presentation": {"theme": "system", "preview_device": "desktop"},
+        "research": {"autoStart": False},
     }
     assert rejected.status_code == 422
     assert rejected.json()["detail"]["code"] == "invalid_request"
@@ -195,6 +196,7 @@ async def test_settings_exposes_and_accepts_only_non_secret_presentation_values(
     assert saved.json() == {
         "aiConfigured": False,
         "presentation": {"theme": "dark", "preview_device": "mobile"},
+        "research": {"autoStart": False},
     }
     serialized = json.dumps(saved.json())
     assert "api_key" not in serialized.lower()

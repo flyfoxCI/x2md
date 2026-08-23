@@ -14,6 +14,8 @@ from app.config import Settings
 from app.db import create_database_resources
 from app.services.ai import AIService
 from app.services.composition import compose_connector_resources
+from app.services.research.orchestrator import ResearchOrchestrator
+from app.services.research.worker import ResearchWorker, auto_start_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -30,12 +32,32 @@ class HealthResponse(BaseModel):
 async def app_lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Compose and close resources once for one deterministic application lifetime."""
     composed_resources = None
+    research_worker = None
     body_error: BaseException | None = None
     try:
         if getattr(app.state, "connector_router", None) is None:
             composed_resources = compose_connector_resources(app.state.settings)
             app.state.connector_resources = composed_resources
             app.state.connector_router = composed_resources.router
+        if getattr(app.state, "research_orchestrator", None) is None:
+            collectors = (
+                getattr(composed_resources, "research_collectors", {})
+                if composed_resources is not None
+                else {}
+            )
+            app.state.research_orchestrator = ResearchOrchestrator(
+                app.state.session_factory,
+                collectors=collectors,
+                ai=app.state.ai_service,
+            )
+        with app.state.session_factory() as session:
+            should_start_research = auto_start_enabled(session)
+        if should_start_research:
+            research_worker = ResearchWorker(
+                app.state.session_factory, app.state.research_orchestrator
+            )
+            app.state.research_worker = research_worker
+            await research_worker.start()
         try:
             yield
         except BaseException as error:
@@ -44,47 +66,60 @@ async def app_lifespan(app: FastAPI) -> AsyncIterator[None]:
     finally:
         close_error: BaseException | None = None
         try:
-            ai_service = getattr(app.state, "ai_service", None)
-            if ai_service is not None:
+            if research_worker is not None:
                 try:
-                    await ai_service.aclose()
+                    await research_worker.stop()
                 except BaseException as error:
                     close_error = error
-                    logger.exception("Failed to close AI service during application shutdown")
+                    logger.exception("Failed to stop research worker during application shutdown")
         finally:
             try:
-                if composed_resources is not None:
+                ai_service = getattr(app.state, "ai_service", None)
+                if ai_service is not None:
                     try:
-                        await composed_resources.aclose()
+                        await ai_service.aclose()
                     except BaseException as error:
                         if close_error is None:
                             close_error = error
-                        logger.exception("Failed to close connector resources during shutdown")
+                        logger.exception("Failed to close AI service during application shutdown")
             finally:
                 try:
-                    database_resources = getattr(app.state, "database_resources", None)
-                    if database_resources is not None:
+                    if composed_resources is not None:
                         try:
-                            database_resources.dispose()
+                            await composed_resources.aclose()
                         except BaseException as error:
                             if close_error is None:
                                 close_error = error
-                            logger.exception("Failed to dispose database resources during shutdown")
+                            logger.exception("Failed to close connector resources during shutdown")
                 finally:
                     if hasattr(app.state, "ai_service"):
                         del app.state.ai_service
-                    if composed_resources is not None:
-                        if getattr(app.state, "connector_resources", None) is composed_resources:
-                            del app.state.connector_resources
-                        if (
-                            getattr(app.state, "connector_router", None)
-                            is composed_resources.router
-                        ):
-                            del app.state.connector_router
-                    if hasattr(app.state, "database_resources"):
-                        del app.state.database_resources
-                    if hasattr(app.state, "session_factory"):
-                        del app.state.session_factory
+                    if hasattr(app.state, "research_worker"):
+                        del app.state.research_worker
+                    if hasattr(app.state, "research_orchestrator"):
+                        del app.state.research_orchestrator
+                    try:
+                        database_resources = getattr(app.state, "database_resources", None)
+                        if database_resources is not None:
+                            try:
+                                database_resources.dispose()
+                            except BaseException as error:
+                                if close_error is None:
+                                    close_error = error
+                                logger.exception("Failed to dispose database resources during shutdown")
+                    finally:
+                        if composed_resources is not None:
+                            if getattr(app.state, "connector_resources", None) is composed_resources:
+                                del app.state.connector_resources
+                            if (
+                                getattr(app.state, "connector_router", None)
+                                is composed_resources.router
+                            ):
+                                del app.state.connector_router
+                        if hasattr(app.state, "database_resources"):
+                            del app.state.database_resources
+                        if hasattr(app.state, "session_factory"):
+                            del app.state.session_factory
         if body_error is None and close_error is not None:
             raise close_error
 

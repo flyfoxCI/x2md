@@ -1,6 +1,7 @@
 """Runtime composition for safe public-source connectors."""
 
 from dataclasses import dataclass
+from typing import Any
 
 from app.config import Settings
 from app.services.connectors import (
@@ -12,6 +13,11 @@ from app.services.connectors import (
     XConnector,
     YouTubeConnector,
 )
+from app.services.research.collectors import (
+    ArxivResearchCollector,
+    GitHubResearchCollector,
+    HuggingFaceResearchCollector,
+)
 from app.services.url_safety import SafeHttpClient
 
 
@@ -21,6 +27,7 @@ class ConnectorResources:
 
     router: ConnectorRouter
     client: SafeHttpClient
+    research_collectors: dict[str, Any]
 
     async def aclose(self) -> None:
         """Release the safe outbound client at application shutdown."""
@@ -43,4 +50,12 @@ def compose_connector_resources(settings: Settings) -> ConnectorResources:
             XConnector(client, bearer_token=settings.x_bearer_token),
         ),
     )
-    return ConnectorResources(router=router, client=client)
+    return ConnectorResources(
+        router=router,
+        client=client,
+        research_collectors={
+            "github": GitHubResearchCollector(client, token=github_token),
+            "arxiv": ArxivResearchCollector(client),
+            "huggingface": HuggingFaceResearchCollector(client),
+        },
+    )
