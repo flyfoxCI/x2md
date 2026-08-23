@@ -29,7 +29,7 @@ class ConnectorResources:
 
 def compose_connector_resources(settings: Settings) -> ConnectorResources:
     """Build the one safe connector router using server-side configuration only."""
-    client = SafeHttpClient()
+    client = SafeHttpClient(max_requests_per_host=40)
     github_token = (
         settings.github_token.get_secret_value() if settings.github_token else None
     )
