@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-ArtifactKind = Literal["translation", "summary", "skill", "user_edit"]
+ArtifactKind = Literal["translation", "summary", "skill", "research", "user_edit"]
 ImportStatus = Literal["ready", "partial", "blocked"]
 
 
@@ -56,6 +56,7 @@ class ArtifactCreate(BaseModel):
     markdown: str
     language: str | None = None
     parent_artifact_id: int | None = None
+    research_run_id: int | None = None
     model_metadata_json: dict[str, Any] = Field(default_factory=dict)
 
 

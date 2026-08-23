@@ -16,7 +16,18 @@ from sqlalchemy.schema import CreateTable
 from alembic import command
 from app.config import Settings
 from app.db import create_database_engine
-from app.models import Artifact, Base, KnowledgeNote, Source
+from app.models import (
+    Artifact,
+    Base,
+    KnowledgeNote,
+    ResearchCitation,
+    ResearchEvidence,
+    ResearchRun,
+    Source,
+    TagAssignment,
+    TagAssignmentEvidence,
+    TagDefinition,
+)
 
 
 @pytest.fixture
@@ -315,3 +326,246 @@ def test_alembic_preserves_percent_encoded_postgresql_password_before_connecting
     normalized_url = make_url(captured["url"])
     assert normalized_url.drivername == "postgresql+psycopg"
     assert normalized_url.password == "password@with-symbol"
+
+
+def test_research_records_preserve_source_lineage_and_evidence_links(
+    session: Session,
+) -> None:
+    source = Source(
+        canonical_url="https://github.com/example/researchable",
+        platform="github",
+        title="Researchable repository",
+        raw_text="# README",
+        source_markdown="# README",
+        metadata_json={},
+        import_status="ready",
+    )
+    run = ResearchRun(
+        source=source,
+        trigger="manual",
+        status="completed",
+        budget_json={"max_files": 20},
+        coverage_json={"included": 1, "excluded": 0},
+        attempt_count=1,
+        max_attempts=2,
+    )
+    session.add_all([source, run])
+    session.flush()
+
+    evidence = ResearchEvidence(
+        research_run_id=run.id,
+        source_id=source.id,
+        locator="github://example/researchable@abc123/README.md#L1-L1",
+        kind="markdown",
+        title="README.md",
+        ordinal=1,
+        source_revision="abc123",
+        content="# README",
+        content_sha256="a" * 64,
+        status="included",
+    )
+    report = Artifact(
+        source_id=source.id,
+        research_run_id=run.id,
+        kind="research",
+        title="研究档案",
+        markdown="# 研究档案\n\n结论 [E1]",
+        language="zh",
+        model_metadata_json={},
+    )
+    tag = TagDefinition(
+        slug="method-transformer",
+        label="Transformer",
+        facet="method",
+        is_system=True,
+    )
+    session.add_all([evidence, report, tag])
+    session.flush()
+
+    citation = ResearchCitation(
+        artifact_id=report.id,
+        evidence_id=evidence.id,
+        source_id=source.id,
+        token="E1",
+    )
+    assignment = TagAssignment(
+        source_id=source.id,
+        research_run_id=run.id,
+        tag_id=tag.id,
+        origin="ai",
+        status="suggested",
+        confidence=0.91,
+    )
+    session.add_all([citation, assignment])
+    session.flush()
+    assignment_evidence = TagAssignmentEvidence(
+        tag_assignment_id=assignment.id,
+        evidence_id=evidence.id,
+        source_id=source.id,
+    )
+    session.add(assignment_evidence)
+    session.commit()
+
+    assert report.research_run_id == run.id
+    assert citation.evidence_id == evidence.id
+    assert assignment_evidence.tag_assignment_id == assignment.id
+    assert source.raw_text == "# README"
+
+
+def test_research_citation_rejects_artifact_and_evidence_from_different_sources(
+    session: Session,
+) -> None:
+    first_source = Source(
+        canonical_url="https://example.com/first-research",
+        platform="web",
+        title="First source",
+        raw_text="First",
+        source_markdown="# First",
+        metadata_json={},
+        import_status="ready",
+    )
+    second_source = Source(
+        canonical_url="https://example.com/second-research",
+        platform="web",
+        title="Second source",
+        raw_text="Second",
+        source_markdown="# Second",
+        metadata_json={},
+        import_status="ready",
+    )
+    first_run = ResearchRun(
+        source=first_source,
+        trigger="manual",
+        status="completed",
+        budget_json={},
+        coverage_json={},
+    )
+    second_run = ResearchRun(
+        source=second_source,
+        trigger="manual",
+        status="completed",
+        budget_json={},
+        coverage_json={},
+    )
+    session.add_all([first_source, second_source, first_run, second_run])
+    session.flush()
+    report = Artifact(
+        source_id=first_source.id,
+        research_run_id=first_run.id,
+        kind="research",
+        title="First report",
+        markdown="# First report",
+        model_metadata_json={},
+    )
+    evidence = ResearchEvidence(
+        research_run_id=second_run.id,
+        source_id=second_source.id,
+        locator="web://second#1",
+        kind="text",
+        ordinal=1,
+        status="included",
+    )
+    session.add_all([report, evidence])
+    session.flush()
+    session.add(
+        ResearchCitation(
+            artifact_id=report.id,
+            evidence_id=evidence.id,
+            source_id=first_source.id,
+            token="E1",
+        )
+    )
+
+    with pytest.raises(exc.IntegrityError):
+        session.commit()
+
+
+def test_research_run_allows_only_one_active_run_for_a_source(session: Session) -> None:
+    source = Source(
+        canonical_url="https://example.com/one-active-run",
+        platform="web",
+        title="One active run",
+        raw_text="Source",
+        source_markdown="# Source",
+        metadata_json={},
+        import_status="ready",
+    )
+    session.add(source)
+    session.flush()
+    session.add_all(
+        [
+            ResearchRun(
+                source_id=source.id,
+                trigger="manual",
+                status="queued",
+                budget_json={},
+                coverage_json={},
+            ),
+            ResearchRun(
+                source_id=source.id,
+                trigger="automatic",
+                status="running",
+                budget_json={},
+                coverage_json={},
+            ),
+        ]
+    )
+
+    with pytest.raises(exc.IntegrityError):
+        session.commit()
+
+
+def test_deep_research_migration_converts_legacy_note_tags(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    database_path = tmp_path / "legacy-tags.db"
+    database_url = f"sqlite:///{database_path}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    alembic_config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+    command.upgrade(alembic_config, "0001_initial_schema")
+
+    engine = create_database_engine(database_url)
+    with engine.begin() as connection:
+        connection.exec_driver_sql(
+            """
+            INSERT INTO sources (
+                canonical_url, platform, title, raw_text, source_markdown,
+                metadata_json, import_status, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """,
+            (
+                "https://example.com/legacy-tags",
+                "web",
+                "Legacy tags",
+                "Source",
+                "# Source",
+                "{}",
+                "ready",
+            ),
+        )
+        connection.exec_driver_sql(
+            """
+            INSERT INTO knowledge_notes (
+                source_id, artifact_id, tags_json, pinned, created_at, updated_at
+            ) VALUES (?, NULL, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """,
+            (1, '["RAG", "rag", "agents"]', 0),
+        )
+    engine.dispose()
+
+    command.upgrade(alembic_config, "head")
+    engine = create_database_engine(database_url)
+    with Session(engine) as migrated:
+        definitions = list(migrated.query(TagDefinition).order_by(TagDefinition.slug))
+        assignments = list(migrated.query(TagAssignment).order_by(TagAssignment.id))
+
+    engine.dispose()
+
+    assert [(tag.label, tag.facet, tag.is_system) for tag in definitions] == [
+        ("agents", None, False),
+        ("RAG", None, False),
+    ]
+    assert [(assignment.origin, assignment.status) for assignment in assignments] == [
+        ("user", "accepted"),
+        ("user", "accepted"),
+    ]

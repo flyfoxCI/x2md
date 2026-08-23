@@ -45,3 +45,6 @@ Entries are workspace records, not authoritative runtime decisions.
 | 2026-08-18 | plan | docs/aegis/plans/2026-08-18-public-login-security.md | Public deployment login and session security implementation |
 | 2026-08-23 | spec | docs/aegis/specs/2026-08-23-deep-research-knowledge-base-design.md | 深度研究知识库设计规格 |
 | 2026-08-23 | plan | docs/aegis/plans/2026-08-23-deep-research-knowledge-base.md | 深度研究知识库实施计划 |
+| 2026-08-23 | work | docs/aegis/work/2026-08-23-deep-research-knowledge-base/10-intent.md | 深度研究知识库实施意图 |
+| 2026-08-23 | work | docs/aegis/work/2026-08-23-deep-research-knowledge-base/20-checkpoint.md | 深度研究知识库检查点 |
+| 2026-08-23 | work | docs/aegis/work/2026-08-23-deep-research-knowledge-base/90-evidence.md | 深度研究知识库实施证据 |

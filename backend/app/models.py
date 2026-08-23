@@ -11,9 +11,11 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
+    Index,
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -53,6 +55,12 @@ class Source(Base):
     )
     knowledge_notes: Mapped[list[KnowledgeNote]] = relationship(back_populates="source")
     chat_turns: Mapped[list[ChatTurn]] = relationship(back_populates="source")
+    research_runs: Mapped[list[ResearchRun]] = relationship(
+        back_populates="source", cascade="all, delete-orphan"
+    )
+    tag_assignments: Mapped[list[TagAssignment]] = relationship(
+        back_populates="source", cascade="all, delete-orphan"
+    )
 
 
 class Artifact(Base):
@@ -66,6 +74,11 @@ class Artifact(Base):
             ["artifacts.id", "artifacts.source_id"],
             name="fk_artifacts_parent_same_source",
         ),
+        ForeignKeyConstraint(
+            ["research_run_id", "source_id"],
+            ["research_runs.id", "research_runs.source_id"],
+            name="fk_artifacts_research_run_same_source",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -75,6 +88,7 @@ class Artifact(Base):
     markdown: Mapped[str] = mapped_column(Text)
     language: Mapped[str | None] = mapped_column(String(32), nullable=True)
     parent_artifact_id: Mapped[int | None] = mapped_column(nullable=True, index=True)
+    research_run_id: Mapped[int | None] = mapped_column(nullable=True, index=True)
     model_metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
@@ -134,3 +148,177 @@ class AppSetting(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, onupdate=utc_now
     )
+
+
+class ResearchRun(Base):
+    """One bounded, durable attempt to study a canonical source."""
+
+    __tablename__ = "research_runs"
+    __table_args__ = (
+        UniqueConstraint("id", "source_id", name="uq_research_runs_id_source_id"),
+        Index(
+            "uq_research_runs_one_active_per_source",
+            "source_id",
+            unique=True,
+            sqlite_where=text("status IN ('queued', 'running')"),
+            postgresql_where=text("status IN ('queued', 'running')"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source_id: Mapped[int] = mapped_column(ForeignKey("sources.id"), index=True)
+    trigger: Mapped[str] = mapped_column(String(16))
+    status: Mapped[str] = mapped_column(String(16), index=True)
+    phase: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    budget_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    coverage_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    attempt_count: Mapped[int] = mapped_column(default=0)
+    max_attempts: Mapped[int] = mapped_column(default=2)
+    next_attempt_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    lease_owner: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    failure_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    provider_metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+    )
+
+    source: Mapped[Source] = relationship(back_populates="research_runs")
+
+
+class ResearchEvidence(Base):
+    """Included or excluded material discovered during one research run."""
+
+    __tablename__ = "research_evidence"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["research_run_id", "source_id"],
+            ["research_runs.id", "research_runs.source_id"],
+            name="fk_research_evidence_run_same_source",
+        ),
+        UniqueConstraint("id", "source_id", name="uq_research_evidence_id_source_id"),
+        UniqueConstraint("research_run_id", "locator", name="uq_research_evidence_run_locator"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    research_run_id: Mapped[int] = mapped_column(index=True)
+    source_id: Mapped[int] = mapped_column(index=True)
+    locator: Mapped[str] = mapped_column(String(4096))
+    kind: Mapped[str] = mapped_column(String(32))
+    title: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    ordinal: Mapped[int] = mapped_column()
+    source_revision: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    digest_markdown: Mapped[str | None] = mapped_column(Text, nullable=True)
+    digest_model_metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String(16), index=True)
+    exclusion_reason: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class ResearchCitation(Base):
+    """A report citation that cannot cross a source boundary."""
+
+    __tablename__ = "research_citations"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["artifact_id", "source_id"],
+            ["artifacts.id", "artifacts.source_id"],
+            name="fk_research_citations_artifact_same_source",
+        ),
+        ForeignKeyConstraint(
+            ["evidence_id", "source_id"],
+            ["research_evidence.id", "research_evidence.source_id"],
+            name="fk_research_citations_evidence_same_source",
+        ),
+        UniqueConstraint("artifact_id", "token", name="uq_research_citations_artifact_token"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    artifact_id: Mapped[int] = mapped_column(index=True)
+    evidence_id: Mapped[int] = mapped_column(index=True)
+    source_id: Mapped[int] = mapped_column(index=True)
+    token: Mapped[str] = mapped_column(String(32))
+    paragraph_anchor: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class TagDefinition(Base):
+    """One controlled or user-defined label in the research taxonomy."""
+
+    __tablename__ = "tag_definitions"
+    __table_args__ = (UniqueConstraint("slug", name="uq_tag_definitions_slug"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    slug: Mapped[str] = mapped_column(String(160))
+    label: Mapped[str] = mapped_column(String(160))
+    facet: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    parent_id: Mapped[int | None] = mapped_column(
+        ForeignKey("tag_definitions.id"), nullable=True, index=True
+    )
+    is_system: Mapped[bool] = mapped_column(Boolean, default=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class TagAssignment(Base):
+    """A source-level tag suggestion or an explicit user decision."""
+
+    __tablename__ = "tag_assignments"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["research_run_id", "source_id"],
+            ["research_runs.id", "research_runs.source_id"],
+            name="fk_tag_assignments_run_same_source",
+        ),
+        UniqueConstraint("id", "source_id", name="uq_tag_assignments_id_source_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source_id: Mapped[int] = mapped_column(ForeignKey("sources.id"), index=True)
+    research_run_id: Mapped[int | None] = mapped_column(nullable=True, index=True)
+    tag_id: Mapped[int] = mapped_column(ForeignKey("tag_definitions.id"), index=True)
+    origin: Mapped[str] = mapped_column(String(16))
+    status: Mapped[str] = mapped_column(String(16), index=True)
+    confidence: Mapped[float | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+    )
+
+    source: Mapped[Source] = relationship(back_populates="tag_assignments")
+
+
+class TagAssignmentEvidence(Base):
+    """Evidence supporting one suggested or confirmed tag assignment."""
+
+    __tablename__ = "tag_assignment_evidence"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tag_assignment_id", "source_id"],
+            ["tag_assignments.id", "tag_assignments.source_id"],
+            name="fk_tag_assignment_evidence_assignment_same_source",
+        ),
+        ForeignKeyConstraint(
+            ["evidence_id", "source_id"],
+            ["research_evidence.id", "research_evidence.source_id"],
+            name="fk_tag_assignment_evidence_evidence_same_source",
+        ),
+        UniqueConstraint(
+            "tag_assignment_id", "evidence_id", name="uq_tag_assignment_evidence_link"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    tag_assignment_id: Mapped[int] = mapped_column(index=True)
+    evidence_id: Mapped[int] = mapped_column(index=True)
+    source_id: Mapped[int] = mapped_column(index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
