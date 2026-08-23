@@ -21,4 +21,3 @@ class ResearchCollector(Protocol):
 
     async def collect(self, source: ResearchableSource) -> CollectionResult:
         """Collect version-pinned included/excluded evidence for one source."""
-
