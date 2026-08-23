@@ -19,3 +19,10 @@
 - 迁移验证：`uv run alembic upgrade head && uv run alembic downgrade -1 && uv run alembic upgrade head` 成功。
 - 静态验证：`uv run ruff check app/models.py app/schemas.py alembic/versions/0002_deep_research.py` 通过。
 - 证据：`ResearchRun`、included/excluded `ResearchEvidence`、同源 `ResearchCitation`、标签建议/证据链接、一个来源仅一个 active run，以及 legacy tag 迁移都由测试覆盖。
+
+## 任务 2 — 预算、引文验证与 AI 研究合同
+
+- RED：`cd backend && uv run pytest tests/services/test_research_citations.py tests/test_ai.py -q` 在 `app.services.research` 与 `GeneratedResearchNote` 均不存在时收集失败，证明预算/解析/提示合同尚未实现。
+- GREEN：`uv run pytest tests/services/test_research_citations.py tests/test_ai.py -q` 通过，`18 passed in 0.19s`。
+- 静态验证：`uv run ruff check app/services/research app/services/ai.py` 通过；随后 `uv run pytest -q -W error && uv run ruff check .` 通过，`228 passed in 2.45s`。
+- 证据：三个来源各有固定预算（含 32 请求上限）；采集定位符和 included/excluded 记录被类型校验；报告固定为十个章节，未知 `[E<n>]`、重复/错序标题和无引用实质段落被拒绝；模型对单证据、报告和标签候选均把公共材料标为 untrusted data，并只接受 evidence-scoped JSON 标签建议。
