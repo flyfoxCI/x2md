@@ -38,3 +38,9 @@
 - RED：`cd backend && uv run pytest tests/connectors/test_research_arxiv.py tests/connectors/test_research_huggingface.py tests/connectors/test_response_policy.py -q` 因 arXiv/Hub research collectors 尚不存在而收集失败。
 - GREEN：同一命令通过，`10 passed in 0.13s`；`uv run ruff check app/services/research/collectors app/services/connectors/response_policy.py` 通过；既有轻量导入回归 `uv run pytest tests/connectors/test_arxiv.py tests/connectors/test_huggingface.py -q` 为 `22 passed in 0.07s`；后端全量为 `235 passed in 2.45s`，完整 ruff 通过。
 - 证据：PDF 技能指导使用 `pypdf` 对内存中的公开文档作页级文本抽取（不使用 OCR）；arXiv 仅接收 `application/pdf`，将单文档限制为 25 MiB、60 页、50 万字符，使用版本化 PDF/page locator，并把加密、无文本、无效或超限情况标记为 partial。Hub 以 API `sha` 锁定 revision，最多读取 12 个 README/config/源码文本，拒绝权重和数据载荷；共享 response policy 可按调用显式放宽 PDF body limit，而历史默认仍为 5 MiB。
+
+## 任务 5 — 编排器与治理标签生命周期
+
+- RED：`cd backend && uv run pytest tests/services/test_research_orchestrator.py tests/services/test_tags.py tests/api/test_sources.py -q` 因 `ResearchOrchestrator` 与 `TagService` 不存在而收集失败。
+- GREEN：同一命令通过，`8 passed in 0.37s`；相关 ruff 通过；`uv run pytest -q -W error && uv run ruff check .` 为 `239 passed in 2.50s`。
+- 证据：`ResearchOrchestrator` 在 collector/AI 网络等待外使用短数据库会话，按 collect → persist evidence → note → validate report → tag 的单一状态机运行。它保存内容 hash、覆盖 JSON、证据 digest、同源 citation 和报告 Artifact，且绝不写回 `Source` 原材料；partial 覆盖、未配置 provider 和无效 citation 分别产生真实 terminal 状态。`TagService` 提供受控层级 seed、带 evidence 的 AI suggestion、用户 accept/reject、自定义标签；来源筛选已退休 legacy JSON 路径，仅查 accepted governed tag（含子标签）。

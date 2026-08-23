@@ -6,13 +6,18 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Protocol
 
-from sqlalchemy import cast, exists, func, or_, select
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import exists, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.orm.session import sessionmaker
 
-from app.models import Artifact, ChatTurn, KnowledgeNote, Source
+from app.models import (
+    Artifact,
+    ChatTurn,
+    Source,
+    TagAssignment,
+    TagDefinition,
+)
 from app.services.connectors.base import NormalizedSource
 from app.services.url_safety import UnsafeUrlError, validate_public_url
 
@@ -356,18 +361,23 @@ class KnowledgeService:
 
 
 def _source_has_tag(tag: str, session: Session) -> object:
-    """Match a note tag with dialect-specific JSON operators under one API contract."""
-    if session.bind is not None and session.bind.dialect.name == "postgresql":
-        tag_matches = cast(KnowledgeNote.tags_json, JSONB).contains(cast([tag], JSONB))
-    else:
-        json_values = func.json_each(KnowledgeNote.tags_json).table_valued("value")
-        tag_matches = exists(
-            select(1).select_from(json_values).where(json_values.c.value == tag)
-        )
+    """Match accepted governed tags, including descendants of a selected taxonomy node."""
+    tag_tree = (
+        select(TagDefinition.id.label("id"))
+        .where(or_(TagDefinition.slug == tag, TagDefinition.label == tag))
+        .cte("tag_tree", recursive=True)
+    )
+    tag_tree = tag_tree.union_all(
+        select(TagDefinition.id).where(TagDefinition.parent_id == tag_tree.c.id)
+    )
     return exists(
         select(1)
-        .select_from(KnowledgeNote)
-        .where(KnowledgeNote.source_id == Source.id, tag_matches)
+        .select_from(TagAssignment)
+        .where(
+            TagAssignment.source_id == Source.id,
+            TagAssignment.status == "accepted",
+            TagAssignment.tag_id.in_(select(tag_tree.c.id)),
+        )
     )
 
 

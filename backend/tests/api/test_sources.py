@@ -2,9 +2,10 @@
 
 import httpx
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Artifact, KnowledgeNote, Source
+from app.models import Artifact, Source, TagAssignment, TagDefinition
 from tests.api.conftest import ApiHarness
 
 
@@ -132,7 +133,7 @@ async def test_sources_filters_by_a_knowledge_note_tag_without_duplicates(
                 import_status="ready",
             ),
         )
-        untagged = add_source(
+        add_source(
             session,
             Source(
                 canonical_url="https://example.com/untagged",
@@ -146,9 +147,18 @@ async def test_sources_filters_by_a_knowledge_note_tag_without_duplicates(
         )
         session.add_all(
             [
-                KnowledgeNote(source_id=tagged.id, tags_json=["machine-learning", "ai"]),
-                KnowledgeNote(source_id=tagged.id, tags_json=["machine-learning"]),
-                KnowledgeNote(source_id=untagged.id, tags_json=["reference"]),
+                TagDefinition(slug="machine-learning", label="machine-learning", is_system=False),
+                TagDefinition(slug="ai", label="ai", is_system=False),
+            ]
+        )
+        session.flush()
+        machine_learning = session.scalar(select(TagDefinition).where(TagDefinition.slug == "machine-learning"))
+        ai = session.scalar(select(TagDefinition).where(TagDefinition.slug == "ai"))
+        assert machine_learning is not None and ai is not None
+        session.add_all(
+            [
+                TagAssignment(source_id=tagged.id, tag_id=machine_learning.id, origin="user", status="accepted"),
+                TagAssignment(source_id=tagged.id, tag_id=ai.id, origin="user", status="accepted"),
             ]
         )
         session.commit()
