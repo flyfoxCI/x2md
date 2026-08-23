@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  createCustomTag,
+  deleteTagAssignment,
   deriveSource,
   editArtifact,
   getSource,
@@ -8,7 +10,10 @@ import {
   importSource,
   isAbortError,
   isApiError,
+  listResearchEvidence,
   listSources,
+  listTags,
+  updateTagAssignment,
   updateSettings,
 } from "./api";
 import { AppHeader } from "./components/AppHeader";
@@ -16,8 +21,11 @@ import { EditorWorkspace, type WorkspaceTab } from "./components/EditorWorkspace
 import { ImportDialog } from "./components/ImportDialog";
 import { KnowledgeSidebar } from "./components/KnowledgeSidebar";
 import { PreviewPanel } from "./components/PreviewPanel";
+import { ResearchPanel } from "./components/ResearchPanel";
 import { StatusMessage } from "./components/StatusMessage";
-import type { ApiError, Artifact, DerivationKind, PresentationSettings, Source, SourceDetail } from "./types";
+import { TagManager } from "./components/TagManager";
+import { useResearchRun } from "./hooks/useResearchRun";
+import type { ApiError, Artifact, DerivationKind, PresentationSettings, ResearchEvidence, Source, SourceDetail, TagDefinition } from "./types";
 import "./styles/app.css";
 import "./styles/tokens.css";
 import "./styles/workspace.css";
@@ -83,6 +91,7 @@ function App() {
   const [detail, setDetail] = useState<SourceDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [query, setQuery] = useState("");
+  const [tagFilter, setTagFilter] = useState("");
   const [url, setUrl] = useState("");
   const [importing, setImporting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -95,6 +104,9 @@ function App() {
   const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(null);
   const [presentation, setPresentation] = useState<PresentationSettings>(defaultPresentation);
   const [presentationError, setPresentationError] = useState<string | null>(null);
+  const [researchEvidence, setResearchEvidence] = useState<ResearchEvidence[]>([]);
+  const [tagDefinitions, setTagDefinitions] = useState<TagDefinition[]>([]);
+  const [tagPending, setTagPending] = useState(false);
   const detailRequestRef = useRef<AbortController | null>(null);
   const detailRequestIdRef = useRef(0);
   const importTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -113,6 +125,9 @@ function App() {
   const presentationRef = useRef<PresentationSettings>(defaultPresentation);
   const isCompactViewport = useMediaQuery(compactViewportQuery);
   const isPreviewOverlayViewport = useMediaQuery(previewOverlayViewportQuery);
+  const research = useResearchRun(selectedSource?.id ?? null);
+  const adoptResearchRun = research.adopt;
+  const detailSourceId = detail?.source.id;
 
   const handleContentChange = useCallback((markdown: string, artifact: Artifact | null) => {
     setCurrentMarkdown(markdown);
@@ -235,10 +250,14 @@ function App() {
     }
   }, []);
 
-  const loadSources = useCallback(async (search = "", signal?: AbortSignal) => {
+  const loadSources = useCallback(async (search = "", signal?: AbortSignal, tag = "") => {
     setLibraryLoading(true);
     try {
-      const page = await listSources(search.trim() ? { q: search.trim() } : {}, signal);
+      const sourceQuery = {
+        ...(search.trim() ? { q: search.trim() } : {}),
+        ...(tag ? { tag } : {}),
+      };
+      const page = await listSources(sourceQuery, signal);
       setSources(page.items);
       setTotal(page.total);
     } catch (reason) {
@@ -254,11 +273,48 @@ function App() {
 
   useEffect(() => {
     const controller = new AbortController();
-    void loadSources(query, controller.signal);
+    void loadSources(query, controller.signal, tagFilter);
     return () => controller.abort();
-  }, [loadSources, query]);
+  }, [loadSources, query, tagFilter]);
 
   useEffect(() => () => detailRequestRef.current?.abort(), []);
+
+  useEffect(() => {
+    adoptResearchRun(detail?.research_runs?.[0] ?? null);
+  }, [adoptResearchRun, detail?.research_runs]);
+
+  useEffect(() => {
+    const run = research.run;
+    if (!run || run.source_id !== selectedSource?.id) {
+      setResearchEvidence([]);
+      return undefined;
+    }
+    const controller = new AbortController();
+    void listResearchEvidence(run.id, 1, 100, controller.signal)
+      .then((page) => {
+        if (!controller.signal.aborted) setResearchEvidence(page.items);
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [research.run, selectedSource?.id]);
+
+  useEffect(() => {
+    if (detailSourceId === undefined) return undefined;
+    const controller = new AbortController();
+    void listTags(controller.signal)
+      .then((result) => {
+        if (!controller.signal.aborted) setTagDefinitions(result.items);
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [detailSourceId]);
+
+  useEffect(() => {
+    const run = research.run;
+    const actionSource = selectedSourceRef.current;
+    if (!run || !actionSource || run.source_id !== actionSource.id || !["completed", "partial", "blocked", "failed"].includes(run.status)) return;
+    void loadDetail(actionSource);
+  }, [loadDetail, research.run]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = presentation.theme;
@@ -339,7 +395,7 @@ function App() {
       const imported = await importSource(candidate);
       setUrl("");
       closeImportDialog();
-      await loadSources(query);
+      await loadSources(query, undefined, tagFilter);
       await loadDetail(imported);
       setSuccess("来源已导入并保存到知识库");
     } catch (reason) {
@@ -413,6 +469,51 @@ function App() {
     }
   }
 
+  async function handleTagDecision(assignmentId: number, status: "accepted" | "rejected") {
+    const actionSource = selectedSourceRef.current;
+    if (!actionSource || tagPending) return;
+    setTagPending(true);
+    try {
+      await updateTagAssignment(assignmentId, status);
+      await loadDetail(actionSource);
+      setSuccess(status === "accepted" ? "标签已接受" : "标签已拒绝");
+    } catch (reason) {
+      setError(asApiError(reason));
+    } finally {
+      setTagPending(false);
+    }
+  }
+
+  async function handleCreateTag(label: string) {
+    const actionSource = selectedSourceRef.current;
+    if (!actionSource || tagPending) return;
+    setTagPending(true);
+    try {
+      await createCustomTag(actionSource.id, label);
+      await loadDetail(actionSource);
+      setSuccess("自定义标签已添加");
+    } catch (reason) {
+      setError(asApiError(reason));
+    } finally {
+      setTagPending(false);
+    }
+  }
+
+  async function handleDeleteTag(assignmentId: number) {
+    const actionSource = selectedSourceRef.current;
+    if (!actionSource || tagPending) return;
+    setTagPending(true);
+    try {
+      await deleteTagAssignment(assignmentId);
+      await loadDetail(actionSource);
+      setSuccess("标签已移除");
+    } catch (reason) {
+      setError(asApiError(reason));
+    } finally {
+      setTagPending(false);
+    }
+  }
+
   const statusSource = detail?.source ?? selectedSource;
   const activeDerivation = selectedSource
     ? derivingBySourceId[selectedSource.id] ?? null
@@ -420,6 +521,8 @@ function App() {
   const activeSaving = selectedSource
     ? Boolean(savingBySourceId[selectedSource.id])
     : false;
+  const sourceSupported = detail !== null && ["github", "arxiv", "huggingface"].includes(detail.source.platform);
+  const reportMarkdown = detail?.artifacts.filter((artifact) => artifact.kind === "research").at(-1)?.markdown ?? null;
 
   return (
     <main className="studio-shell">
@@ -440,14 +543,37 @@ function App() {
           onReturnFocus={focusLibraryTrigger}
           onOpenImport={openImportDialog}
           onQueryChange={setQuery}
+          onTagFilterChange={setTagFilter}
           onSelect={(source) => void loadDetail(source)}
           query={query}
+          tagDefinitions={tagDefinitions}
+          tagFilter={tagFilter}
           selectedSourceId={selectedSource?.id ?? null}
           sources={sources}
           total={total}
         />
         <div className="workspace-column">
           <StatusMessage error={error} source={statusSource} success={success} />
+          <ResearchPanel
+            evidence={researchEvidence}
+            onSelectEvidence={(evidenceId) => {
+              const evidence = researchEvidence.find((item) => item.id === evidenceId);
+              if (evidence) setSuccess(`已定位证据 E${evidenceId}：${evidence.title ?? evidence.locator}`);
+            }}
+            onStart={() => void research.start()}
+            reportMarkdown={reportMarkdown}
+            run={research.run}
+            sourceSupported={sourceSupported}
+            starting={research.starting}
+          />
+          {detail ? <TagManager
+            assignments={detail.tag_assignments ?? []}
+            definitions={tagDefinitions}
+            onCreate={(label) => void handleCreateTag(label)}
+            onDecision={(assignmentId, status) => void handleTagDecision(assignmentId, status)}
+            onDelete={(assignmentId) => void handleDeleteTag(assignmentId)}
+            pending={tagPending}
+          /> : null}
           <EditorWorkspace
             currentMarkdown={currentMarkdown}
             deriving={activeDerivation}

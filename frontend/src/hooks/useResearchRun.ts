@@ -77,5 +77,10 @@ export function useResearchRun(sourceId: number | null, options: UseResearchRunO
     }
   }, [sourceId, starting]);
 
-  return { error, run, start, starting };
+  const adopt = useCallback((next: ResearchRun | null) => {
+    if (next === null || next.source_id !== sourceId) return;
+    setRun((current) => current?.id === next.id && current.status === next.status ? current : next);
+  }, [sourceId]);
+
+  return { adopt, error, run, start, starting };
 }

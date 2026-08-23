@@ -443,6 +443,24 @@ export function updateTagAssignment(
   });
 }
 
+export async function deleteTagAssignment(assignmentId: number): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(path(`/tag-assignments/${assignmentId}`), {
+      method: "DELETE",
+      headers: { Accept: "application/json" },
+    });
+  } catch (error) {
+    throw normalizeApiError(error);
+  }
+  if (!response.ok) {
+    const payload = safelyParseJson(await response.text());
+    throw isBackendErrorEnvelope(payload)
+      ? normalizeApiError(payload, response.status)
+      : requestFailed(response.status);
+  }
+}
+
 export function deriveSource(
   sourceId: number,
   kind: DerivationKind,

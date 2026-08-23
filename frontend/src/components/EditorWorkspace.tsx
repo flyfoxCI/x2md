@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 
 import type { Artifact, ArtifactKind, DerivationKind, SourceDetail } from "../types";
 
-export type WorkspaceTab = "original" | "translation" | "summary" | "skill";
+export type WorkspaceTab = "original" | "translation" | "summary" | "skill" | "research";
 
 interface EditorWorkspaceProps {
   detail: SourceDetail | null;
@@ -19,7 +19,7 @@ interface EditorWorkspaceProps {
 interface TabDefinition {
   id: WorkspaceTab;
   label: string;
-  artifactKind?: DerivationKind;
+  artifactKind?: ArtifactKind;
 }
 
 const tabs: readonly TabDefinition[] = [
@@ -27,6 +27,7 @@ const tabs: readonly TabDefinition[] = [
   { id: "translation", label: "中文翻译", artifactKind: "translation" },
   { id: "summary", label: "知识摘要", artifactKind: "summary" },
   { id: "skill", label: "Distilled Skill", artifactKind: "skill" },
+  { id: "research", label: "深度研究", artifactKind: "research" },
 ];
 
 export function EditorWorkspace({
@@ -145,15 +146,15 @@ export function EditorWorkspace({
       >
         {activeDefinition.artifactKind && !activeArtifact ? (
           <div className="derive-empty">
-            <p>{activeDefinition.label}尚未生成。</p>
-            <button
+            <p>{activeDefinition.label}{activeDefinition.id === "research" ? "报告尚未生成，请先在上方启动研究。" : "尚未生成。"}</p>
+            {activeDefinition.id !== "research" ? <button
               className="primary-button"
               disabled={deriving !== null}
-              onClick={() => onDerive(activeDefinition.artifactKind!)}
+              onClick={() => onDerive(activeDefinition.artifactKind as DerivationKind)}
               type="button"
             >
               {deriving === activeTab ? "正在生成…" : `生成${activeDefinition.label}`}
-            </button>
+            </button> : null}
           </div>
         ) : (
           <textarea
@@ -167,7 +168,7 @@ export function EditorWorkspace({
       </div>
       <footer className="editor-footer">
         <span>{currentMarkdown.length.toLocaleString()} 字符</span>
-        <span>{canEdit ? "编辑会保存为新版本" : "原始来源保持不变"}</span>
+        <span>{canEdit ? activeDefinition.id === "research" ? "编辑后的研究报告不再自动验证引用" : "编辑会保存为新版本" : "原始来源保持不变"}</span>
       </footer>
     </section>
   );

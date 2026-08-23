@@ -62,3 +62,9 @@
 - RED：`cd frontend && npm run test -- --run src/hooks/useResearchRun.test.tsx src/api.test.ts` 显示 `getResearchRun`、`startResearch` 与 `useResearchRun` 均不存在。
 - GREEN：同一命令为 `23 passed in 24ms`；`npm run lint` 通过；`npm run build` 通过。
 - 证据：`types.ts` 与 API guard 识别 research run、evidence、tag 和 `research` Artifact；浏览器端可启动任务、读取 run/evidence/tag DTO。独立 `useResearchRun` 只轮询非终态持久 run，在 complete/partial/blocked/failed 后停止，并在来源切换与 unmount 时 abort 请求；既有派生类型被收窄，不能把 research Artifact 错送往 legacy derive 端点。
+
+## 任务 9 — 研究报告、证据与标签治理界面
+
+- RED：`cd frontend && npm run test -- --run src/components/ResearchPanel.test.tsx src/components/TagManager.test.tsx src/components/EditorWorkspace.test.tsx` 在 `ResearchPanel` 和 `TagManager` 尚不存在时收集失败。
+- GREEN：上述组件套件为 `19 passed`；完整前端验证为 `10 files / 68 passed in 1.44s`，`npm run lint`、`npm run build` 与 `git diff --check` 全部通过。
+- 证据：来源工作区可显式启动深度研究，展示 queued/running/terminal 状态、partial 覆盖原因和安全失败码；仅当报告中的 `[E<n>]` 确实存在于本 run 的持久证据时才显示引用跳转。证据清单保留 included 与 excluded 条目及排除原因。研究报告是独立 tab，编辑界面明示 user edit 不再自动验证引用。AI suggested 标签与 accepted 标签分区，接受、拒绝、自定义和移除均为显式动作；侧栏只把 accepted 标签筛选参数发送给后端。

@@ -1,16 +1,19 @@
 import { useEffect, useLayoutEffect, useRef, type ChangeEvent } from "react";
 
-import type { Source } from "../types";
+import type { Source, TagDefinition } from "../types";
 
 interface KnowledgeSidebarProps {
   sources: Source[];
   total: number;
   loading: boolean;
   query: string;
+  tagDefinitions: TagDefinition[];
+  tagFilter: string;
   selectedSourceId: number | null;
   isCompactViewport: boolean;
   mobileOpen: boolean;
   onQueryChange: (query: string) => void;
+  onTagFilterChange: (tag: string) => void;
   onSelect: (source: Source) => void;
   onOpenImport: (trigger: HTMLButtonElement) => void;
   onCloseMobile: () => void;
@@ -31,10 +34,13 @@ export function KnowledgeSidebar({
   total,
   loading,
   query,
+  tagDefinitions,
+  tagFilter,
   selectedSourceId,
   isCompactViewport,
   mobileOpen,
   onQueryChange,
+  onTagFilterChange,
   onSelect,
   onOpenImport,
   onCloseMobile,
@@ -101,6 +107,13 @@ export function KnowledgeSidebar({
           type="search"
           value={query}
         />
+      </label>
+      <label className="tag-filter" htmlFor="library-tag-filter">
+        <span>标签</span>
+        <select id="library-tag-filter" onChange={(event) => onTagFilterChange(event.target.value)} value={tagFilter}>
+          <option value="">全部已接受标签</option>
+          {tagDefinitions.map((tag) => <option key={tag.id} value={tag.slug}>{tag.label}</option>)}
+        </select>
       </label>
       <nav aria-label="知识库筛选" className="sidebar-nav">
         <span>全部来源 <strong>{total}</strong></span>
