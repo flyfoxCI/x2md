@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "taskId": "2026-08-23-deep-research-knowledge-base",
+  "lastCheckpointRef": "docs/aegis/work/2026-08-23-deep-research-knowledge-base/todo-checkpoint-draft.json",
+  "resumeInstruction": "先阅读检查点、最终证据和 README；仅补执行容器运行时验证或按用户选择处理分支。",
+  "knownPartialWork": [
+    "研究持久化、迁移与治理标签",
+    "三类受限证据采集与报告引文校验",
+    "持久 worker、自动设置、API 与前端工作台",
+    "全量后端/前端与 SQLite 迁移验证"
+  ],
+  "mustReadBeforeContinuing": [
+    "docs/aegis/work/2026-08-23-deep-research-knowledge-base/10-intent.md",
+    "docs/aegis/work/2026-08-23-deep-research-knowledge-base/20-checkpoint.md",
+    "docs/aegis/work/2026-08-23-deep-research-knowledge-base/todo-checkpoint-draft.json"
+  ],
+  "unsafeToAssume": [
+    "未执行 Compose config 不代表 Compose 配置已验证。"
+  ]
+}

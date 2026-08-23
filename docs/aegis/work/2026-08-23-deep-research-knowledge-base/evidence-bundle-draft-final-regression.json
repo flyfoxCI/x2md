@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "final-regression",
+  "type": "test-suite",
+  "source": "backend pytest/ruff/alembic; frontend vitest/lint/build",
+  "summary": "Backend 247 passed, frontend 69 passed; migration upgrade succeeds on a fresh SQLite database.",
+  "verifier": "commands recorded in 90-evidence.md"
+}

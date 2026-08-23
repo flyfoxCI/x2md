@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "requestedOutcome": "实现 GitHub、arXiv 与 Hugging Face 的证据优先深度研究知识库。",
+  "scope": "持久证据、可验证研究报告、标签治理、手动/自动运行、API 与浏览器工作台。",
+  "changeKinds": [
+    "schema",
+    "research pipeline",
+    "API",
+    "web UI",
+    "documentation"
+  ],
+  "riskHints": [
+    "公开材料必须有边界且可追溯",
+    "不改写来源和既有 Artifact",
+    "自动研究设置必须持久且不被显示设置覆盖"
+  ]
+}

@@ -48,3 +48,12 @@ Entries are workspace records, not authoritative runtime decisions.
 | 2026-08-23 | work | docs/aegis/work/2026-08-23-deep-research-knowledge-base/10-intent.md | 深度研究知识库实施意图 |
 | 2026-08-23 | work | docs/aegis/work/2026-08-23-deep-research-knowledge-base/20-checkpoint.md | 深度研究知识库检查点 |
 | 2026-08-23 | work | docs/aegis/work/2026-08-23-deep-research-knowledge-base/90-evidence.md | 深度研究知识库实施证据 |
+| 2026-08-23 | artifact | docs/aegis/work/2026-08-23-deep-research-knowledge-base/task-intent-draft.json | 深度研究知识库任务意图草案 |
+| 2026-08-23 | artifact | docs/aegis/work/2026-08-23-deep-research-knowledge-base/baseline-read-set-hint.json | 深度研究知识库基线读取提示 |
+| 2026-08-23 | artifact | docs/aegis/work/2026-08-23-deep-research-knowledge-base/impact-statement-draft.json | 深度研究知识库影响声明草案 |
+| 2026-08-23 | artifact | docs/aegis/work/2026-08-23-deep-research-knowledge-base/todo-checkpoint-draft.json | 深度研究知识库检查点草案 |
+| 2026-08-23 | artifact | docs/aegis/work/2026-08-23-deep-research-knowledge-base/drift-check-draft.json | 深度研究知识库偏差检查草案 |
+| 2026-08-23 | artifact | docs/aegis/work/2026-08-23-deep-research-knowledge-base/evidence-bundle-draft-final-regression.json | 2026-08-23-deep-research-knowledge-base evidence final-regression |
+| 2026-08-23 | artifact | docs/aegis/work/2026-08-23-deep-research-knowledge-base/resume-state-hint.json | 2026-08-23-deep-research-knowledge-base resume state hint |
+| 2026-08-23 | artifact | docs/aegis/work/2026-08-23-deep-research-knowledge-base/gate-input-pack.json | 2026-08-23-deep-research-knowledge-base gate input pack |
+| 2026-08-23 | work | docs/aegis/work/2026-08-23-deep-research-knowledge-base/proof-bundle.md | 2026-08-23-deep-research-knowledge-base proof bundle |

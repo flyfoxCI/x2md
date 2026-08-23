@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "taskId": "2026-08-23-deep-research-knowledge-base",
+  "currentTodo": "交付复核完成，等待用户选择集成方式。",
+  "completedTodos": [
+    "研究持久化、迁移与治理标签",
+    "三类受限证据采集与报告引文校验",
+    "持久 worker、自动设置、API 与前端工作台",
+    "全量后端/前端与 SQLite 迁移验证"
+  ],
+  "activeSlice": "delivery-review",
+  "evidenceRefs": [
+    "docs/aegis/work/2026-08-23-deep-research-knowledge-base/90-evidence.md",
+    "docs/aegis/work/2026-08-23-deep-research-knowledge-base/evidence-bundle-draft-final-regression.json"
+  ],
+  "blockedOn": "Docker/Podman 容器运行时未启动，无法执行 Compose config。",
+  "nextStep": "在具备 Docker 或运行中的 Podman 环境执行 docker compose config；按用户选择合并、推送或保留分支。",
+  "updatedAt": "2026-08-23"
+}

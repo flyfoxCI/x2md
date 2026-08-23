@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "affectedLayers": [
+    "persistence",
+    "collectors",
+    "AI boundary",
+    "worker",
+    "API",
+    "frontend"
+  ],
+  "owners": [
+    "ResearchOrchestrator",
+    "TagService",
+    "ResearchWorker",
+    "AIService"
+  ],
+  "invariants": [
+    "Source 原材料不可变",
+    "报告引文和 AI 标签仅能关联同一 ResearchRun 的证据",
+    "浏览器不拥有研究状态或外部凭据"
+  ],
+  "compatBoundary": "研究字段和端点只追加；legacy tags_json 只保留迁移安全副本且不再参与检索。",
+  "nonGoals": [
+    "私有或受限材料",
+    "模型权重、完整数据集和 OCR",
+    "分布式 worker"
+  ]
+}

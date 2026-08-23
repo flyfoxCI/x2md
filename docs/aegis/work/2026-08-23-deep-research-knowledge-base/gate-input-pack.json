@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "baselineRefs": [
+    "docs/aegis/specs/2026-08-23-deep-research-knowledge-base-design.md",
+    "docs/aegis/plans/2026-08-23-deep-research-knowledge-base.md"
+  ],
+  "impactStatement": "docs/aegis/work/2026-08-23-deep-research-knowledge-base/impact-statement-draft.json",
+  "compatPlan": "研究字段和端点只追加；legacy tags_json 只保留迁移安全副本且不再参与检索。",
+  "retirementPlan": "legacy tag JSON query retired; historical storage retained only for migration rollback safety",
+  "evidenceBundle": [
+    "docs/aegis/work/2026-08-23-deep-research-knowledge-base/evidence-bundle-draft-final-regression.json"
+  ]
+}

@@ -29,3 +29,27 @@
 - Compatibility：`Source` 与历史 Artifact 未改写；新 `research_run_id` 可空，`research` 仅为新增 Artifact kind；原有 derive/chat 使用的 provider 上限和响应合同保持不变。
 - Retirement：legacy `KnowledgeNote.tags_json` 已只作为 migration rollback 安全副本；来源 tag 筛选已改用 accepted `TagAssignment` 与层级 `TagDefinition`。
 - Decision：continue。
+
+## Checkpoint Update
+
+- Current todo: 交付复核完成，等待用户选择集成方式。
+- Active slice: delivery-review
+- Completed todos:
+- 研究持久化、迁移与治理标签
+- 三类受限证据采集与报告引文校验
+- 持久 worker、自动设置、API 与前端工作台
+- 全量后端/前端与 SQLite 迁移验证
+- Evidence refs:
+- docs/aegis/work/2026-08-23-deep-research-knowledge-base/90-evidence.md
+- docs/aegis/work/2026-08-23-deep-research-knowledge-base/evidence-bundle-draft-final-regression.json
+- Blocked on: Docker/Podman 容器运行时未启动，无法执行 Compose config。
+- Next step: 在具备 Docker 或运行中的 Podman 环境执行 docker compose config；按用户选择合并、推送或保留分支。
+
+## DriftCheckDraft
+
+- Scope status: aligned
+- Compatibility status: additive API/schema and preserved source content
+- Retirement status: legacy tag JSON query retired; historical storage retained only for migration rollback safety
+- New risk signals:
+- Compose validation depends on an available container runtime
+- Advisory decision: continue

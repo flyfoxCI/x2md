@@ -76,3 +76,11 @@
 - 全量验证：`cd backend && uv run pytest -q -W error` 为 `247 passed in 2.66s`，`uv run ruff check .` 通过；全新临时 SQLite 上 `DATABASE_URL=… uv run alembic upgrade head` 完成 `0001_initial_schema → 0002_deep_research`。`cd frontend && npm run test -- --run` 为 `10 files / 69 passed`，lint/build 通过，`git diff --check` 通过。
 - 交付文档：README 记录研究工作流、三类平台的证据/预算/禁区、引文和标签治理、自动模式的重启语义及 worker 边界；API 文档说明 PATCH 会保留未提交的设置组。
 - 环境限制：没有 `docker` 可执行文件；`podman compose config` 已尝试，但本机 Podman socket 未运行（connection refused），故本环境无法完成 Compose 解析。该项是宿主环境前置条件，不是应用测试失败。
+
+## EvidenceBundleDraft
+
+- Artifact key: final-regression
+- Type: test-suite
+- Source: backend pytest/ruff/alembic; frontend vitest/lint/build
+- Summary: Backend 247 passed, frontend 69 passed; migration upgrade succeeds on a fresh SQLite database.
+- Verifier: commands recorded in 90-evidence.md
