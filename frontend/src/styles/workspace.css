@@ -54,6 +54,9 @@
 .research-heading span, .tag-heading strong { color: var(--ink); font-size: .82rem; font-weight: 760; }
 .research-heading p, .tag-heading span, .research-empty { margin: 0; color: var(--muted); font-size: .7rem; }
 .research-heading .secondary-button { min-height: 2rem; padding: 0 .65rem; font-size: .72rem; }
+.research-auto-start { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin-top: .55rem; color: var(--muted); font-size: .7rem; }
+.research-auto-start input { accent-color: var(--link); }
+.research-auto-start small { width: 100%; margin-left: 1.2rem; color: var(--muted); font-size: .65rem; }
 .research-summary { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; margin-top: .55rem; color: var(--muted); font-size: .72rem; }
 .research-status { padding: .16rem .38rem; color: #166351; background: #e4f5ee; border-radius: 999px; font-size: .68rem; }
 .research-status.is-partial, .research-status.is-blocked, .research-status.is-failed { color: var(--warning-ink); background: var(--warning-bg); }

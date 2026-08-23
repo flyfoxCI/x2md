@@ -14,6 +14,7 @@ import {
   listSources,
   listTags,
   updateTagAssignment,
+  updateResearchSettings,
   updateSettings,
 } from "./api";
 import { AppHeader } from "./components/AppHeader";
@@ -107,6 +108,8 @@ function App() {
   const [researchEvidence, setResearchEvidence] = useState<ResearchEvidence[]>([]);
   const [tagDefinitions, setTagDefinitions] = useState<TagDefinition[]>([]);
   const [tagPending, setTagPending] = useState(false);
+  const [autoResearch, setAutoResearch] = useState(false);
+  const [autoResearchPending, setAutoResearchPending] = useState(false);
   const detailRequestRef = useRef<AbortController | null>(null);
   const detailRequestIdRef = useRef(0);
   const importTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -333,6 +336,9 @@ function App() {
         if (!controller.signal.aborted && !presentationDirtyRef.current) {
           applyPresentation(settings.presentation);
         }
+        if (!controller.signal.aborted) {
+          setAutoResearch(settings.research?.autoStart ?? false);
+        }
       })
       .catch((reason) => {
         if (!controller.signal.aborted && !isAbortError(reason)) {
@@ -514,6 +520,23 @@ function App() {
     }
   }
 
+  async function handleAutoResearchChange(nextAutoStart: boolean) {
+    if (autoResearchPending) return;
+    setAutoResearchPending(true);
+    try {
+      const settings = await updateResearchSettings(nextAutoStart);
+      setAutoResearch(settings.research?.autoStart ?? nextAutoStart);
+      setSuccess(nextAutoStart
+        ? "自动研究已启用；重启服务后后台工作器会处理新导入来源。"
+        : "自动研究已关闭。",
+      );
+    } catch (reason) {
+      setError(asApiError(reason));
+    } finally {
+      setAutoResearchPending(false);
+    }
+  }
+
   const statusSource = detail?.source ?? selectedSource;
   const activeDerivation = selectedSource
     ? derivingBySourceId[selectedSource.id] ?? null
@@ -561,10 +584,13 @@ function App() {
               if (evidence) setSuccess(`已定位证据 E${evidenceId}：${evidence.title ?? evidence.locator}`);
             }}
             onStart={() => void research.start()}
+            onAutoStartChange={(nextAutoStart) => void handleAutoResearchChange(nextAutoStart)}
             reportMarkdown={reportMarkdown}
             run={research.run}
             sourceSupported={sourceSupported}
             starting={research.starting}
+            autoStart={autoResearch}
+            autoStartPending={autoResearchPending}
           />
           {detail ? <TagManager
             assignments={detail.tag_assignments ?? []}

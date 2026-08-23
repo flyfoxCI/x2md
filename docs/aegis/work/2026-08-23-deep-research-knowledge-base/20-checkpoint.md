@@ -2,10 +2,10 @@
 
 ## TodoCheckpointDraft
 
-- 当前切片：任务 10 — 文档、端到端质量闸门与交付验证。
-- 已完成：设计规格、实施计划、隔离工作区、基线验证；任务 1–8 的后端/API/typed 客户端链路；任务 9 的研究报告、证据、标签治理和侧栏筛选界面。
-- 未完成：任务 10 的最终 README、迁移/Compose 与全量回归验证。
-- 下一步：更新公开产品说明，执行后端、前端、迁移和 Compose 质量闸门，并核对工作树交付状态。
+- 当前切片：交付前复核。
+- 已完成：设计规格、实施计划、隔离工作区、基线验证；任务 1–9 的后端/API/typed 客户端/UI 链路；任务 10 的 README/API 文档、自动研究设置修复、全量后端/前端与 SQLite 迁移验证。
+- 未完成：仅 Docker Compose 的环境级检查；本机没有 `docker`，而可用的 Podman 未运行，无法连接其 socket。
+- 下一步：提交最终文档/设置修复，执行提交后工作树与提交范围复核；在具备 Docker 或已启动 Podman 的环境运行 `docker compose config`。
 
 ## ResumeStateHint
 
@@ -21,6 +21,7 @@
 - 任务 7：`tests/api/test_research.py tests/api/test_tags_api.py tests/api/test_sources.py` 为 7 passed；API 全量为 38 passed；后端全量为 246 passed；ruff 通过。
 - 任务 8：`src/hooks/useResearchRun.test.tsx src/api.test.ts` 为 23 passed；前端 lint/build 通过。
 - 任务 9：`npm run test -- --run` 为 68 passed；前端 lint/build 和 `git diff --check` 通过。
+- 任务 10：后端 `247 passed`、完整 ruff、全新 SQLite 的 Alembic `0001 → 0002` upgrade 通过；前端 `69 passed`、lint/build 通过。`docker compose config` 因 `docker` 未安装无法在本环境执行，`podman compose config` 同样因 Podman socket 未运行而无法执行。
 
 ## DriftCheckDraft
 

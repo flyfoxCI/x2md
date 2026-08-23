@@ -508,6 +508,17 @@ export function updateSettings(
   });
 }
 
+export function updateResearchSettings(
+  autoStart: boolean,
+  signal?: AbortSignal,
+): Promise<Settings> {
+  return request("/settings", isSettings, {
+    method: "PATCH",
+    body: JSON.stringify({ research: { autoStart } }),
+    signal,
+  });
+}
+
 export function artifactDownloadUrl(artifactId: number): string {
   return path(`/artifacts/${artifactId}/download`);
 }

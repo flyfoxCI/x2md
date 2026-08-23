@@ -204,6 +204,29 @@ async def test_settings_exposes_and_accepts_only_non_secret_presentation_values(
 
 
 @pytest.mark.asyncio
+async def test_settings_preserves_auto_research_when_only_presentation_changes(
+    api_harness: ApiHarness,
+) -> None:
+    enabled = await request(
+        api_harness,
+        "PATCH",
+        "/api/settings",
+        json={"research": {"autoStart": True}},
+    )
+    presentation_only = await request(
+        api_harness,
+        "PATCH",
+        "/api/settings",
+        json={"presentation": {"theme": "light", "preview_device": "desktop"}},
+    )
+
+    assert enabled.status_code == 200
+    assert enabled.json()["research"] == {"autoStart": True}
+    assert presentation_only.status_code == 200
+    assert presentation_only.json()["research"] == {"autoStart": True}
+
+
+@pytest.mark.asyncio
 async def test_settings_concurrent_first_writes_both_succeed_and_leave_valid_preferences(
     api_harness: ApiHarness, monkeypatch: pytest.MonkeyPatch
 ) -> None:

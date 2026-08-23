@@ -25,6 +25,7 @@ const run = {
 describe("ResearchPanel", () => {
   it("starts a study and presents partial coverage with evidence controls", () => {
     const onStart = vi.fn();
+    const onAutoStartChange = vi.fn();
     const onSelectEvidence = vi.fn();
     render(
       <ResearchPanel
@@ -62,6 +63,9 @@ describe("ResearchPanel", () => {
         ]}
         onSelectEvidence={onSelectEvidence}
         onStart={onStart}
+        onAutoStartChange={onAutoStartChange}
+        autoStart={false}
+        autoStartPending={false}
         reportMarkdown="结论可追溯。[E1] 无效 [E99]"
         run={run}
         sourceSupported
@@ -70,10 +74,12 @@ describe("ResearchPanel", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "开始深度研究" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "自动研究新导入" }));
     fireEvent.click(screen.getByRole("button", { name: "查看证据 E1" }));
     fireEvent.click(screen.getByText("证据清单（2）"));
 
     expect(onStart).toHaveBeenCalledOnce();
+    expect(onAutoStartChange).toHaveBeenCalledWith(true);
     expect(screen.getByText("部分覆盖")).toBeVisible();
     expect(screen.getByText("tree_truncated")).toBeVisible();
     expect(screen.getByText("binary_or_unsupported")).toBeVisible();

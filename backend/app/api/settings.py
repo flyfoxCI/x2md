@@ -35,12 +35,12 @@ class ResearchSettings(BaseModel):
 
 
 class SettingsPatch(BaseModel):
-    """Restrict writes to a typed allow-list of non-secret display preferences."""
+    """Restrict partial writes to typed, non-secret preferences."""
 
     model_config = ConfigDict(extra="forbid")
 
-    presentation: PresentationSettings = Field(default_factory=PresentationSettings)
-    research: ResearchSettings = Field(default_factory=ResearchSettings)
+    presentation: PresentationSettings | None = None
+    research: ResearchSettings | None = None
 
 
 class SettingsRead(BaseModel):
@@ -119,12 +119,13 @@ def get_settings(request: Request, session: DatabaseSession) -> SettingsRead:
 def update_settings(
     request: Request, payload: SettingsPatch, session: DatabaseSession
 ) -> SettingsRead:
-    """Persist a complete replacement of the browser-visible presentation settings."""
-    values = payload.presentation.model_dump()
-    _save_presentation(session, values)
-    _save_research(session, payload.research.model_dump())
+    """Persist only supplied browser-visible preferences without resetting others."""
+    presentation = payload.presentation or _presentation(session)
+    research = payload.research or _research(session)
+    _save_presentation(session, presentation.model_dump())
+    _save_research(session, research.model_dump())
     return SettingsRead(
         ai_configured=request.app.state.settings.ai_configured,
-        presentation=payload.presentation,
-        research=payload.research,
+        presentation=presentation,
+        research=research,
     )

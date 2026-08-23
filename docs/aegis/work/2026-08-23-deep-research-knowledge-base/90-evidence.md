@@ -68,3 +68,11 @@
 - RED：`cd frontend && npm run test -- --run src/components/ResearchPanel.test.tsx src/components/TagManager.test.tsx src/components/EditorWorkspace.test.tsx` 在 `ResearchPanel` 和 `TagManager` 尚不存在时收集失败。
 - GREEN：上述组件套件为 `19 passed`；完整前端验证为 `10 files / 68 passed in 1.44s`，`npm run lint`、`npm run build` 与 `git diff --check` 全部通过。
 - 证据：来源工作区可显式启动深度研究，展示 queued/running/terminal 状态、partial 覆盖原因和安全失败码；仅当报告中的 `[E<n>]` 确实存在于本 run 的持久证据时才显示引用跳转。证据清单保留 included 与 excluded 条目及排除原因。研究报告是独立 tab，编辑界面明示 user edit 不再自动验证引用。AI suggested 标签与 accepted 标签分区，接受、拒绝、自定义和移除均为显式动作；侧栏只把 accepted 标签筛选参数发送给后端。
+
+## 任务 10 — 使用说明、设置修复与最终质量闸门
+
+- RED：将自动研究设置的生产键 `{"auto_start":true}` 放入导入路径，并连续发送“启用自动研究 → 仅更新显示设置”请求后，`tests/api/test_imports.py::test_enabled_auto_research_enqueues_only_supported_content_bearing_imports` 和 `tests/api/test_derivations.py::test_settings_preserves_auto_research_when_only_presentation_changes` 均失败：worker 读取了旧的 `enabled` 键，后一次 PATCH 重置了 research 设置。
+- GREEN：修复为 partial PATCH 语义、以 `auto_start` 为 canonical key 并兼容历史 `enabled` 后，上述 API 测试为 `2 passed`；自动导入测试通过正式 `PATCH /api/settings` 写入设置，覆盖端到端持久设置 → 导入 → enqueue 路径。
+- 全量验证：`cd backend && uv run pytest -q -W error` 为 `247 passed in 2.66s`，`uv run ruff check .` 通过；全新临时 SQLite 上 `DATABASE_URL=… uv run alembic upgrade head` 完成 `0001_initial_schema → 0002_deep_research`。`cd frontend && npm run test -- --run` 为 `10 files / 69 passed`，lint/build 通过，`git diff --check` 通过。
+- 交付文档：README 记录研究工作流、三类平台的证据/预算/禁区、引文和标签治理、自动模式的重启语义及 worker 边界；API 文档说明 PATCH 会保留未提交的设置组。
+- 环境限制：没有 `docker` 可执行文件；`podman compose config` 已尝试，但本机 Podman socket 未运行（connection refused），故本环境无法完成 Compose 解析。该项是宿主环境前置条件，不是应用测试失败。

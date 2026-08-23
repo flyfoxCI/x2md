@@ -10,6 +10,7 @@ import {
   importSource,
   listSources,
   startResearch,
+  updateResearchSettings,
   updateSettings,
 } from "./api";
 
@@ -165,6 +166,7 @@ describe("public API response guards", () => {
       "settings write",
       () => updateSettings({ theme: "system", preview_device: "desktop" }),
     ],
+    ["research settings write", () => updateResearchSettings(true)],
   ])("rejects a malformed successful %s response", async (_name, call) => {
     vi.stubGlobal(
       "fetch",

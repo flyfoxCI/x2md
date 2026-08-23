@@ -4,7 +4,7 @@ import httpx
 import pytest
 from sqlalchemy import func, select
 
-from app.models import AppSetting, Source
+from app.models import Source
 from app.services.connectors.base import NormalizedSource
 from tests.api.conftest import ApiHarness
 
@@ -62,12 +62,16 @@ async def test_enabled_auto_research_enqueues_only_supported_content_bearing_imp
         markdown="# Repository README",
         status="ready",
     )
-    with api_harness.session_factory() as session:
-        session.add(AppSetting(key="research.auto_start", value_json={"enabled": True}))
-        session.commit()
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=api_harness.app), base_url="http://testserver"
+    ) as client:
+        settings = await client.patch(
+            "/api/settings", json={"research": {"autoStart": True}}
+        )
+        response = await client.post("/api/imports", json={"url": url})
 
-    response = await post_import(api_harness, url)
-
+    assert settings.status_code == 200
+    assert settings.json()["research"] == {"autoStart": True}
     assert response.status_code == 200
     assert orchestrator.calls == [(response.json()["id"], "auto")]
 

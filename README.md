@@ -2,6 +2,8 @@
 
 将公开专家内容沉淀为可检索、可编辑、可导出的知识库。输入一条公开 HTTPS 链接，服务端会抓取并规范化内容；配置兼容 OpenAI 的 AI 服务后，可生成中文翻译、知识摘要和可复用 Skill Markdown。
 
+对于 GitHub、arXiv 和 Hugging Face，产品还提供“深度研究”工作流：它不是 README 或摘要的改写，而是从版本固定、预算受限的公开材料中建立证据集，逐条生成研究笔记，并产出有章节和可验证 `[E<n>]` 引文的中文研究报告。每次运行都会保存覆盖范围、没有采集的材料及其原因；AI 推荐标签必须经用户接受后才会影响知识库筛选。
+
 支持的来源包括通用公开网页、GitHub 公开仓库、arXiv 论文、Hugging Face 模型/数据集页面、可公开获得字幕的 YouTube 视频，以及配置 X API bearer token 后的 X 帖子。详细 API 合同见 [docs/api.md](docs/api.md)。
 
 ## Quick start (development)
@@ -37,6 +39,23 @@ The default development database is `backend/expert-content-studio.db`. It is in
 DATABASE_URL='postgresql://USER:PASSWORD@HOST:5432/DB' uv run alembic upgrade head
 ```
 
+## Deep research workflow
+
+1. 导入公开 GitHub 仓库、arXiv 论文或 Hugging Face 模型/数据集，打开该来源。
+2. 在工作区顶部选择“开始深度研究”。运行会持久化为 queued/running/terminal 状态，离开页面后仍可恢复查看。
+3. 在“深度研究”tab 阅读报告；报告中的 `[E<n>]` 只会在对应证据已持久化时显示为可点击证据控制。
+4. 展开证据清单查看采集和排除记录；在“标签治理”中接受/拒绝 AI 建议，或添加/移除自定义标签。只有已接受标签参与侧栏筛选。
+
+自动研究默认关闭。选中受支持来源后可勾选“新导入后自动研究”；设置会保存，**重启后端服务**后单一后台 worker 会处理此后导入的受支持来源。自动模式仅处理来源成功导入且确有公开内容的情况；手动启动始终可用。
+
+| 平台 | 研究证据 | 固定上限 | 明确不采集 |
+| --- | --- | --- | --- |
+| GitHub | README、manifest、入口、架构文档和优先级最高的源文件；定位到 commit | 20 个文本文件、1.5 MiB、32 请求/run | 私有仓库、vendor、二进制、minified/generated 文件 |
+| arXiv | 版本化公开 PDF 的页级文本 | 25 MiB PDF、60 页、50 万字符、32 请求/run | OCR、加密/无文本 PDF 的伪造文本 |
+| Hugging Face | card、配置和小型源码文本；定位到 revision | 12 个文件、1 MiB、32 请求/run | 模型权重、数据集载荷及其他二进制对象 |
+
+报告在写入前接受固定章节和引文校验：背景与目标、核心贡献、方法或架构、实现/实验与配置、关键结果、局限与风险、复现与应用建议等实质段落必须引用同一运行中的证据。编辑研究报告会创建普通的 `user_edit` 版本，界面会明确标注该版本不再自动验证引用。
+
 ## AI and provider configuration
 
 Derivation and source-scoped chat are disabled until all three server environment values are present:
@@ -55,17 +74,15 @@ AI_MODEL=
 
 Only public HTTPS URLs are accepted. The importer rejects localhost, private/link-local/loopback addresses, URL credentials and unsafe redirect targets before fetching. Platform behavior is deliberately conservative:
 
-- GitHub imports public repository metadata and README when available; private/restricted repositories are not imported.
-- arXiv imports record metadata and abstract, not the paper PDF.
-- Hugging Face imports public model/dataset metadata and cards where available.
+- GitHub imports public repository metadata and README when available; private/restricted repositories are not imported. Deep research may additionally read the bounded text evidence listed above.
+- arXiv imports record metadata and abstract. Deep research may additionally parse a bounded public text-layer PDF; it does not use OCR.
+- Hugging Face imports public model/dataset metadata and cards where available. Deep research may additionally read selected small config/source files, never weights or dataset payloads.
 - YouTube imports oEmbed metadata plus a public transcript only when it can be retrieved. Missing captions yield a `partial` source, not fabricated content.
 - X uses X API v2 only when `X_BEARER_TOKEN` is configured. If text cannot be legally retrieved, the source is partial or blocked with an explicit reason.
 
 Provider/API access can change independently of the application. A successful URL submission does not imply the source is accessible, and a partial source cannot be used to fabricate AI material.
 
-Imports run synchronously within the HTTP request in this version. There is no
-background job queue or automatic retry worker: slow or restricted sources return
-their current status/error, and callers may retry intentionally.
+Initial imports run synchronously within the HTTP request. Deep research is intentionally separate: it uses a durable database queue and a single lifecycle-owned worker, with a lease and at most two retries after the initial attempt for transient collection/provider failures. This worker is a local single-instance design, not a distributed job system.
 
 ## Docker Compose
 
@@ -91,6 +108,8 @@ curl -I http://127.0.0.1:5173/
 cd backend
 uv run pytest -q -W error
 uv run ruff check .
+TASK_DB=$(mktemp)
+DATABASE_URL="sqlite+pysqlite:///$TASK_DB" uv run alembic upgrade head
 
 cd ../frontend
 npm run lint

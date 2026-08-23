@@ -16,7 +16,9 @@ from app.services.research.orchestrator import ResearchOrchestrator
 
 type SessionFactory = sessionmaker[Session]
 
-_TRANSIENT_FAILURE_CODES = frozenset({"collection_error", "network_error", "provider_error", "rate_limited"})
+_TRANSIENT_FAILURE_CODES = frozenset(
+    {"collection_error", "network_error", "provider_error", "rate_limited"}
+)
 
 
 class ResearchWorker:
@@ -169,4 +171,8 @@ def auto_start_enabled(session: Session) -> bool:
         setting = session.get(AppSetting, "research.auto_start")
     except OperationalError:
         return False
-    return bool(setting and setting.value_json.get("enabled") is True)
+    if setting is None:
+        return False
+    # ``enabled`` was used by pre-release rows; accepting it keeps those local
+    # databases safe while the public settings API persists ``auto_start``.
+    return bool(setting.value_json.get("auto_start", setting.value_json.get("enabled", False)))

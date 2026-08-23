@@ -6,7 +6,10 @@ interface ResearchPanelProps {
   evidence: ResearchEvidence[];
   reportMarkdown: string | null;
   starting: boolean;
+  autoStart: boolean;
+  autoStartPending: boolean;
   onStart: () => void;
+  onAutoStartChange: (autoStart: boolean) => void;
   onSelectEvidence: (evidenceId: number) => void;
 }
 
@@ -25,7 +28,10 @@ export function ResearchPanel({
   evidence,
   reportMarkdown,
   starting,
+  autoStart,
+  autoStartPending,
   onStart,
+  onAutoStartChange,
   onSelectEvidence,
 }: ResearchPanelProps) {
   const evidenceIds = new Set(evidence.map((item) => item.id));
@@ -48,6 +54,17 @@ export function ResearchPanel({
           {starting ? "正在入队…" : run?.status === "running" || run?.status === "queued" ? "研究进行中" : "开始深度研究"}
         </button>
       </div>
+      <label className="research-auto-start">
+        <input
+          aria-label="自动研究新导入"
+          checked={autoStart}
+          disabled={autoStartPending}
+          onChange={(event) => onAutoStartChange(event.target.checked)}
+          type="checkbox"
+        />
+        <span>新导入后自动研究</span>
+        <small>启用后请重启服务以启动后台工作器</small>
+      </label>
       {run ? (
         <div className="research-summary">
           <strong className={`research-status is-${run.status}`}>{statusCopy[run.status]}</strong>

@@ -25,7 +25,7 @@ Returns browser-safe presentation settings, `aiConfigured`, and `{ "research": {
 
 ### `PATCH /settings`
 
-Replaces typed, non-secret presentation and automatic-research preferences. `research` is optional, so existing presentation-only requests remain valid:
+Updates the supplied typed, non-secret presentation and automatic-research preferences; omitted groups retain their persisted value. Existing presentation-only requests remain valid:
 
 ```json
 {"presentation":{"theme":"dark","preview_device":"mobile"}}
