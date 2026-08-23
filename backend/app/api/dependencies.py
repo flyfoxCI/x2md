@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.services.ai import AIService
 from app.services.knowledge import ConnectorFetcher, KnowledgeService
+from app.services.research.orchestrator import ResearchOrchestrator
 
 
 def get_connector_router(request: Request) -> ConnectorFetcher:
@@ -74,3 +75,21 @@ def get_ai_service(request: Request) -> AIService:
 
 
 AIServiceDependency = Annotated[AIService, Depends(get_ai_service)]
+
+
+def get_research_orchestrator(request: Request) -> ResearchOrchestrator:
+    """Return the application-owned durable research state-machine service."""
+    orchestrator = getattr(request.app.state, "research_orchestrator", None)
+    if orchestrator is None:
+        orchestrator = ResearchOrchestrator(
+            request.app.state.session_factory,
+            collectors={},
+            ai=request.app.state.ai_service,
+        )
+        request.app.state.research_orchestrator = orchestrator
+    return orchestrator
+
+
+ResearchOrchestratorDependency = Annotated[
+    ResearchOrchestrator, Depends(get_research_orchestrator)
+]

@@ -9,7 +9,15 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from app.api import artifacts_router, imports_router, settings_router, sources_router
+from app.api import (
+    artifacts_router,
+    imports_router,
+    research_router,
+    research_sources_router,
+    settings_router,
+    sources_router,
+    tags_router,
+)
 from app.config import Settings
 from app.db import create_database_resources
 from app.services.ai import AIService
@@ -136,8 +144,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.ai_service = AIService(configured_settings)
     app.include_router(imports_router)
     app.include_router(sources_router)
+    app.include_router(research_sources_router)
+    app.include_router(research_router)
     app.include_router(artifacts_router)
     app.include_router(settings_router)
+    app.include_router(tags_router)
 
     @app.get("/api/health", response_model=HealthResponse)
     def health() -> HealthResponse:

@@ -107,6 +107,80 @@ class ChatTurnRead(ChatTurnCreate):
     created_at: datetime
 
 
+class ResearchRunRead(BaseModel):
+    """Safe persistent research-run state exposed to a browser client."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    source_id: int
+    trigger: str
+    status: str
+    phase: str | None
+    budget_json: dict[str, Any]
+    coverage_json: dict[str, Any]
+    attempt_count: int
+    max_attempts: int
+    next_attempt_at: datetime | None
+    failure_code: str | None
+    provider_metadata_json: dict[str, Any]
+    started_at: datetime | None
+    finished_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ResearchEvidenceRead(BaseModel):
+    """One stored included/excluded evidence record without internal file paths."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    research_run_id: int
+    source_id: int
+    locator: str
+    kind: str
+    title: str | None
+    ordinal: int
+    source_revision: str | None
+    content: str | None
+    digest_markdown: str | None
+    status: str
+    exclusion_reason: str | None
+    created_at: datetime
+
+
+class TagDefinitionRead(BaseModel):
+    """One controlled or user-defined taxonomy node."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    slug: str
+    label: str
+    facet: str | None
+    parent_id: int | None
+    is_system: bool
+    description: str | None
+    created_at: datetime
+
+
+class TagAssignmentRead(BaseModel):
+    """One explicit user or AI assignment; evidence links are queried separately."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    source_id: int
+    research_run_id: int | None
+    tag_id: int
+    origin: str
+    status: str
+    confidence: float | None
+    created_at: datetime
+    updated_at: datetime
+
+
 class AppSettingWrite(BaseModel):
     """Value to store for a non-secret application setting."""
 

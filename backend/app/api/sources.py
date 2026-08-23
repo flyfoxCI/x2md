@@ -2,19 +2,24 @@
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
+from sqlalchemy import select
 
 from app.api.dependencies import (
     AIKnowledgeServiceDependency,
     AIServiceDependency,
+    DatabaseSession,
     KnowledgeServiceDependency,
 )
+from app.models import ResearchRun, TagAssignment
 from app.schemas import (
     ApiErrorResponse,
     ArtifactRead,
     ChatRequest,
     ChatTurnRead,
     DerivationRequest,
+    ResearchRunRead,
     SourceRead,
+    TagAssignmentRead,
 )
 from app.services.ai import ProviderError
 from app.services.knowledge import KnowledgeError
@@ -47,6 +52,8 @@ class SourceDetailRead(BaseModel):
 
     source: SourceRead
     artifacts: list[ArtifactRead]
+    research_runs: list[ResearchRunRead]
+    tag_assignments: list[TagAssignmentRead]
 
 
 @router.get("", response_model=SourcePageRead)
@@ -80,6 +87,7 @@ def list_sources(
 def get_source(
     source_id: int,
     service: KnowledgeServiceDependency,
+    session: DatabaseSession,
 ) -> SourceDetailRead:
     """Read one canonical source, its status, and append-only artifact history."""
     try:
@@ -94,6 +102,22 @@ def get_source(
         artifacts=[
             ArtifactRead.model_validate(artifact)
             for artifact in sorted(source.artifacts, key=lambda item: (item.created_at, item.id))
+        ],
+        research_runs=[
+            ResearchRunRead.model_validate(run)
+            for run in session.scalars(
+                select(ResearchRun)
+                .where(ResearchRun.source_id == source.id)
+                .order_by(ResearchRun.created_at.desc(), ResearchRun.id.desc())
+            )
+        ],
+        tag_assignments=[
+            TagAssignmentRead.model_validate(assignment)
+            for assignment in session.scalars(
+                select(TagAssignment)
+                .where(TagAssignment.source_id == source.id)
+                .order_by(TagAssignment.created_at.desc(), TagAssignment.id.desc())
+            )
         ],
     )
 

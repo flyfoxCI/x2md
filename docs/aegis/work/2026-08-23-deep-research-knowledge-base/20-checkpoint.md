@@ -2,10 +2,10 @@
 
 ## TodoCheckpointDraft
 
-- 当前切片：任务 7 — 研究与标签 API 合同。
-- 已完成：设计规格、实施计划、隔离工作区、基线验证；任务 1–5 的持久化、预算/AI、三类采集、编排与标签治理；任务 6 的持久 single worker 和自动启动设置。
-- 未完成：任务 7–10 的实现与全量验证。
-- 下一步：为手动入队/active idempotency、run/evidence 分页、标签树与用户确认/拒绝/删除以及 source detail 扩展编写失败 API 测试。
+- 当前切片：任务 8 — 前端 typed API 合同与运行轮询。
+- 已完成：设计规格、实施计划、隔离工作区、基线验证；任务 1–6 的持久化、深度采集、编排、标签治理、worker/auto setting；任务 7 的研究与标签 API 合同。
+- 未完成：任务 8–10 的实现与全量验证。
+- 下一步：为 run/evidence/tag DTO guards、手动启动、运行时轮询、terminal stop、来源切换/unmount abort 编写失败前端测试。
 
 ## ResumeStateHint
 
@@ -18,6 +18,7 @@
 - 任务 4：`tests/connectors/test_research_arxiv.py tests/connectors/test_research_huggingface.py tests/connectors/test_response_policy.py` 为 10 passed；既有 arXiv/Hub 导入回归为 22 passed；后端全量为 235 passed；ruff 通过。
 - 任务 5：`tests/services/test_research_orchestrator.py tests/services/test_tags.py tests/api/test_sources.py` 为 8 passed；后端全量为 239 passed；ruff 通过。
 - 任务 6：`tests/services/test_research_worker.py tests/api/test_imports.py tests/api/test_derivations.py tests/api/test_lifecycle.py` 为 23 passed；后端全量为 243 passed；ruff 通过。
+- 任务 7：`tests/api/test_research.py tests/api/test_tags_api.py tests/api/test_sources.py` 为 7 passed；API 全量为 38 passed；后端全量为 246 passed；ruff 通过。
 
 ## DriftCheckDraft
 

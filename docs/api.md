@@ -21,17 +21,17 @@ Returns `{ "status": "ok", "database": "uninitialized", "aiConfigured": false }`
 
 ### `GET /settings`
 
-Returns browser-safe presentation settings and `aiConfigured`.
+Returns browser-safe presentation settings, `aiConfigured`, and `{ "research": { "autoStart": false } }`.
 
 ### `PATCH /settings`
 
-Replaces the typed, non-secret presentation preferences:
+Replaces typed, non-secret presentation and automatic-research preferences. `research` is optional, so existing presentation-only requests remain valid:
 
 ```json
 {"presentation":{"theme":"dark","preview_device":"mobile"}}
 ```
 
-Allowed themes are `system`, `light`, `dark`; allowed preview devices are `desktop`, `mobile`. Extra fields are rejected with `422 invalid_request`.
+To enable automatic enqueueing after a successful supported import, send `{"research":{"autoStart":true}}`. The worker starts on the next application lifespan; it is disabled by default. Allowed themes are `system`, `light`, `dark`; allowed preview devices are `desktop`, `mobile`. Extra fields are rejected with `422 invalid_request`.
 
 ## Import and library
 
@@ -51,7 +51,7 @@ Lists sources. Query parameters:
 
 - `q`: title or canonical URL text search (maximum 512 characters)
 - `platform`: exact platform filter
-- `tag`: a knowledge-note tag filter
+- `tag`: an accepted governed tag filter; selecting a taxonomy parent includes accepted descendants
 - `page`: one-based page, default `1`
 - `page_size`: default `20`, maximum `100`
 
@@ -59,7 +59,37 @@ Response shape: `{ "items": [Source], "total": 1, "page": 1, "page_size": 20 }`.
 
 ### `GET /sources/{source_id}`
 
-Returns `{ "source": Source, "artifacts": [Artifact] }`, including the immutable imported material and append-only artifact history.
+Returns `{ "source": Source, "artifacts": [Artifact], "research_runs": [ResearchRun], "tag_assignments": [TagAssignment] }`, including the immutable imported material and append-only artifact history.
+
+## Deep research and taxonomy
+
+### `POST /sources/{source_id}/research`
+
+Queues a manual deep-research run for a GitHub repository, arXiv paper, or Hugging Face model/dataset. Returns `202` with the persisted `ResearchRun`; when a run is already queued/running for that source, returns the same run. The request never invokes external collection or the AI provider inline.
+
+### `GET /research-runs/{run_id}`
+
+Returns durable run state, phase, bounded budget/coverage snapshots, retry counts, safe failure code and provider/model metadata. Worker leases are never returned.
+
+### `GET /research-runs/{run_id}/evidence`
+
+Returns paginated evidence in deterministic collection order: `{ "items": [ResearchEvidence], "total": 1, "page": 1, "page_size": 20 }`. Included evidence carries its stable locator and content/digest; excluded evidence carries its reason.
+
+### `GET /tags`
+
+Returns the controlled hierarchical taxonomy. A fresh database is seeded with the standard object, method and capability nodes without deleting custom labels.
+
+### `POST /sources/{source_id}/tags`
+
+Creates a custom user label and attaches it as an accepted assignment:
+
+```json
+{"label":"内部评审"}
+```
+
+### `PATCH /tag-assignments/{assignment_id}` and `DELETE /tag-assignments/{assignment_id}`
+
+Confirms or rejects an AI suggestion with `{"status":"accepted"}` or `{"status":"rejected"}`, or removes an assignment. Deletion removes assignment/evidence join rows only; the shared tag definition remains available.
 
 ## Derived knowledge and chat
 
@@ -103,7 +133,7 @@ Streams the stored Markdown as a `text/markdown` attachment with a safe `.md` fi
 
 | HTTP | Code | Meaning |
 | --- | --- | --- |
-| 404 | `source_not_found`, `artifact_not_found` | The requested stored entity does not exist. |
+| 404 | `source_not_found`, `artifact_not_found`, `research_run_not_found`, `tag_assignment_not_found` | The requested stored entity does not exist. |
 | 422 | `invalid_request` | Payload or query validation failed. |
 | 422 | `unsupported_url` | URL is not public HTTPS or is an unsupported platform form. |
 | 422 | `restricted_source` | The provider reports a private/restricted source. |

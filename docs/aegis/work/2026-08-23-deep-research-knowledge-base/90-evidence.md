@@ -50,3 +50,9 @@
 - RED：`cd backend && uv run pytest tests/services/test_research_worker.py tests/api/test_imports.py tests/api/test_derivations.py -q` 因 `app.services.research.worker` 不存在而收集失败。
 - GREEN：worker/import/settings/lifecycle 关联套件为 `23 passed in 1.00s`；相关 ruff 通过；后端全量 `243 passed in 2.61s`，完整 ruff 通过。
 - 证据：单 worker 使用数据库 compare-and-set lease 认领 queued 或过期 running 任务，执行后释放 lease；仅 `provider_error`、`network_error`、`rate_limited` 等瞬时失败可以在初次执行之外重试两次。`research.auto_start` 是持久、默认 false 的 browser-safe 设置；原有仅 presentation 的 PATCH 保持有效。lifespan 仅在该设置已启用时启动一个 worker；支持且有内容的 GitHub/arXiv/Hub 导入只有在提交后才会自动入队。
+
+## 任务 7 — 研究与标签 API 合同
+
+- RED：`cd backend && uv run pytest tests/api/test_research.py tests/api/test_tags.py tests/api/test_sources.py -q` 显示研究/标签路由未注册；随后发现新 API 测试与服务测试同名，已重命名为 `test_tags_api.py` 以避免 pytest 模块冲突。
+- GREEN：`tests/api/test_research.py tests/api/test_tags_api.py tests/api/test_sources.py` 为 `7 passed in 0.39s`；全部 API 测试为 `38 passed in 1.91s`；后端全量为 `246 passed in 2.93s`，ruff 通过。
+- 证据：`POST /sources/{id}/research` 使用持久运行合同并对 active run 幂等地返回 202；run detail 和证据分页只读取存储状态。tag tree/custom/decision/delete API 与 source detail 的 appended research/tag fields 均为 additive；`docs/api.md` 记录新的状态、自动开关、分页、治理路由和安全错误语义。
