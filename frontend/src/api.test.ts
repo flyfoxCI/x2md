@@ -5,9 +5,11 @@ import {
   deriveSource,
   editArtifact,
   getSettings,
+  getResearchRun,
   getSource,
   importSource,
   listSources,
+  startResearch,
   updateSettings,
 } from "./api";
 
@@ -59,6 +61,25 @@ const chatTurn = {
 const settings = {
   aiConfigured: false,
   presentation: { theme: "system", preview_device: "desktop" },
+};
+
+const researchRun = {
+  id: 7,
+  source_id: 1,
+  trigger: "manual",
+  status: "queued",
+  phase: null,
+  budget_json: {},
+  coverage_json: {},
+  attempt_count: 0,
+  max_attempts: 2,
+  next_attempt_at: null,
+  failure_code: null,
+  provider_metadata_json: {},
+  started_at: null,
+  finished_at: null,
+  created_at: "2026-08-23T00:00:00Z",
+  updated_at: "2026-08-23T00:00:00Z",
 };
 
 function response(payload: unknown, status = 200): Response {
@@ -138,6 +159,8 @@ describe("public API response guards", () => {
     ["artifact edit", () => editArtifact(1, { markdown: "# edit" })],
     ["chat", () => chatWithSource(1, "What changed?")],
     ["settings read", () => getSettings()],
+    ["research run", () => getResearchRun(7)],
+    ["research start", () => startResearch(1)],
     [
       "settings write",
       () => updateSettings({ theme: "system", preview_device: "desktop" }),
@@ -170,6 +193,7 @@ describe("public API response guards", () => {
     ["artifact", () => deriveSource(1, "summary"), artifact, Object.keys(artifact)],
     ["chat turn", () => chatWithSource(1, "What changed?"), chatTurn, Object.keys(chatTurn)],
     ["settings", () => getSettings(), settings, ["aiConfigured", "presentation"]],
+    ["research run", () => getResearchRun(7), researchRun, Object.keys(researchRun)],
   ])("rejects a %s missing each required key", async (_name, call, payload, fields) => {
     for (const field of fields) {
       vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response(without(payload, field))));

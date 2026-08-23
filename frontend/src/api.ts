@@ -2,13 +2,18 @@ import type {
   ApiError,
   Artifact,
   ArtifactEdit,
-  ArtifactKind,
+  DerivationKind,
   ChatTurn,
+  ResearchEvidence,
+  ResearchEvidencePage,
+  ResearchRun,
   Settings,
   Source,
   SourceDetail,
   SourcePage,
   SourceQuery,
+  TagAssignment,
+  TagDefinition,
 } from "./types";
 
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
@@ -209,6 +214,7 @@ function isArtifact(value: unknown): value is Artifact {
     typeof value.markdown === "string" &&
     nullableString(value.language) &&
     nullableNumber(value.parent_artifact_id) &&
+    (!Object.hasOwn(value, "research_run_id") || nullableNumber(value.research_run_id)) &&
     isRecord(value.model_metadata_json) &&
     typeof value.created_at === "string" &&
     typeof value.updated_at === "string"
@@ -220,7 +226,9 @@ function isSourceDetail(value: unknown): value is SourceDetail {
     isRecord(value) &&
     isSource(value.source) &&
     Array.isArray(value.artifacts) &&
-    value.artifacts.every(isArtifact)
+    value.artifacts.every(isArtifact) &&
+    (!Object.hasOwn(value, "research_runs") || (Array.isArray(value.research_runs) && value.research_runs.every(isResearchRun))) &&
+    (!Object.hasOwn(value, "tag_assignments") || (Array.isArray(value.tag_assignments) && value.tag_assignments.every(isTagAssignment)))
   );
 }
 
@@ -255,6 +263,82 @@ function isSettings(value: unknown): value is Settings {
   );
 }
 
+function isResearchRun(value: unknown): value is ResearchRun {
+  return isRecord(value)
+    && typeof value.id === "number"
+    && typeof value.source_id === "number"
+    && typeof value.trigger === "string"
+    && isResearchRunStatus(value.status)
+    && nullableString(value.phase)
+    && isRecord(value.budget_json)
+    && isRecord(value.coverage_json)
+    && typeof value.attempt_count === "number"
+    && typeof value.max_attempts === "number"
+    && nullableString(value.next_attempt_at)
+    && nullableString(value.failure_code)
+    && isRecord(value.provider_metadata_json)
+    && nullableString(value.started_at)
+    && nullableString(value.finished_at)
+    && typeof value.created_at === "string"
+    && typeof value.updated_at === "string";
+}
+
+function isResearchEvidence(value: unknown): value is ResearchEvidence {
+  return isRecord(value)
+    && typeof value.id === "number"
+    && typeof value.research_run_id === "number"
+    && typeof value.source_id === "number"
+    && typeof value.locator === "string"
+    && typeof value.kind === "string"
+    && nullableString(value.title)
+    && typeof value.ordinal === "number"
+    && nullableString(value.source_revision)
+    && nullableString(value.content)
+    && nullableString(value.digest_markdown)
+    && typeof value.status === "string"
+    && nullableString(value.exclusion_reason)
+    && typeof value.created_at === "string";
+}
+
+function isResearchEvidencePage(value: unknown): value is ResearchEvidencePage {
+  return isRecord(value)
+    && Array.isArray(value.items)
+    && value.items.every(isResearchEvidence)
+    && typeof value.total === "number"
+    && typeof value.page === "number"
+    && typeof value.page_size === "number";
+}
+
+function isTagDefinition(value: unknown): value is TagDefinition {
+  return isRecord(value)
+    && typeof value.id === "number"
+    && typeof value.slug === "string"
+    && typeof value.label === "string"
+    && nullableString(value.facet)
+    && nullableNumber(value.parent_id)
+    && typeof value.is_system === "boolean"
+    && nullableString(value.description)
+    && typeof value.created_at === "string";
+}
+
+function isTagAssignment(value: unknown): value is TagAssignment {
+  return isRecord(value)
+    && typeof value.id === "number"
+    && typeof value.source_id === "number"
+    && nullableNumber(value.research_run_id)
+    && typeof value.tag_id === "number"
+    && typeof value.origin === "string"
+    && typeof value.status === "string"
+    && nullableNumber(value.confidence)
+    && typeof value.created_at === "string"
+    && typeof value.updated_at === "string";
+}
+
+function isResearchRunStatus(value: unknown): value is ResearchRun["status"] {
+  return value === "queued" || value === "running" || value === "completed"
+    || value === "partial" || value === "blocked" || value === "failed";
+}
+
 function isCitation(value: unknown): boolean {
   return (
     isRecord(value) &&
@@ -282,6 +366,7 @@ function isArtifactKind(value: unknown): value is Artifact["kind"] {
     value === "translation" ||
     value === "summary" ||
     value === "skill" ||
+    value === "research" ||
     value === "user_edit"
   );
 }
@@ -311,9 +396,56 @@ export function getSource(
   return request(`/sources/${sourceId}`, isSourceDetail, { signal });
 }
 
+export function startResearch(sourceId: number, signal?: AbortSignal): Promise<ResearchRun> {
+  return request(`/sources/${sourceId}/research`, isResearchRun, {
+    method: "POST",
+    signal,
+  });
+}
+
+export function getResearchRun(runId: number, signal?: AbortSignal): Promise<ResearchRun> {
+  return request(`/research-runs/${runId}`, isResearchRun, { signal });
+}
+
+export function listResearchEvidence(
+  runId: number,
+  page = 1,
+  pageSize = 20,
+  signal?: AbortSignal,
+): Promise<ResearchEvidencePage> {
+  return request(
+    `/research-runs/${runId}/evidence?page=${page}&page_size=${pageSize}`,
+    isResearchEvidencePage,
+    { signal },
+  );
+}
+
+export function listTags(signal?: AbortSignal): Promise<{ items: TagDefinition[] }> {
+  return request("/tags", (value): value is { items: TagDefinition[] } => (
+    isRecord(value) && Array.isArray(value.items) && value.items.every(isTagDefinition)
+  ), { signal });
+}
+
+export function createCustomTag(sourceId: number, label: string): Promise<TagAssignment> {
+  return request(`/sources/${sourceId}/tags`, isTagAssignment, {
+    method: "POST",
+    body: JSON.stringify({ label }),
+  });
+}
+
+export function updateTagAssignment(
+  assignmentId: number,
+  status: "accepted" | "rejected",
+): Promise<TagAssignment> {
+  return request(`/tag-assignments/${assignmentId}`, isTagAssignment, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
+
 export function deriveSource(
   sourceId: number,
-  kind: Exclude<ArtifactKind, "user_edit">,
+  kind: DerivationKind,
 ): Promise<Artifact> {
   return request(`/sources/${sourceId}/derive`, isArtifact, {
     method: "POST",

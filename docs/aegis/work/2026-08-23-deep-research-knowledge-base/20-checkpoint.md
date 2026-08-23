@@ -2,10 +2,10 @@
 
 ## TodoCheckpointDraft
 
-- 当前切片：任务 8 — 前端 typed API 合同与运行轮询。
-- 已完成：设计规格、实施计划、隔离工作区、基线验证；任务 1–6 的持久化、深度采集、编排、标签治理、worker/auto setting；任务 7 的研究与标签 API 合同。
-- 未完成：任务 8–10 的实现与全量验证。
-- 下一步：为 run/evidence/tag DTO guards、手动启动、运行时轮询、terminal stop、来源切换/unmount abort 编写失败前端测试。
+- 当前切片：任务 9 — 深度研究报告、证据和标签交互。
+- 已完成：设计规格、实施计划、隔离工作区、基线验证；任务 1–7 的后端链路与 API；任务 8 的浏览器 DTO/API 客户端与取消安全轮询。
+- 未完成：任务 9–10 的实现与全量验证。
+- 下一步：为启动/active/completed/partial/blocked UI、证据展开、有效 citation、报告编辑警示、标签接受/拒绝/自定义/移除和侧栏过滤编写失败组件测试。
 
 ## ResumeStateHint
 
@@ -19,6 +19,7 @@
 - 任务 5：`tests/services/test_research_orchestrator.py tests/services/test_tags.py tests/api/test_sources.py` 为 8 passed；后端全量为 239 passed；ruff 通过。
 - 任务 6：`tests/services/test_research_worker.py tests/api/test_imports.py tests/api/test_derivations.py tests/api/test_lifecycle.py` 为 23 passed；后端全量为 243 passed；ruff 通过。
 - 任务 7：`tests/api/test_research.py tests/api/test_tags_api.py tests/api/test_sources.py` 为 7 passed；API 全量为 38 passed；后端全量为 246 passed；ruff 通过。
+- 任务 8：`src/hooks/useResearchRun.test.tsx src/api.test.ts` 为 23 passed；前端 lint/build 通过。
 
 ## DriftCheckDraft
 

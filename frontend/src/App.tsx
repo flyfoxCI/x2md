@@ -17,7 +17,7 @@ import { ImportDialog } from "./components/ImportDialog";
 import { KnowledgeSidebar } from "./components/KnowledgeSidebar";
 import { PreviewPanel } from "./components/PreviewPanel";
 import { StatusMessage } from "./components/StatusMessage";
-import type { ApiError, Artifact, ArtifactKind, PresentationSettings, Source, SourceDetail } from "./types";
+import type { ApiError, Artifact, DerivationKind, PresentationSettings, Source, SourceDetail } from "./types";
 import "./styles/app.css";
 import "./styles/tokens.css";
 import "./styles/workspace.css";
@@ -349,10 +349,10 @@ function App() {
     }
   }
 
-  async function handleDerive(kind: Exclude<ArtifactKind, "user_edit">) {
+  async function handleDerive(kind: DerivationKind) {
     const actionSource = selectedSourceRef.current;
     if (!actionSource || derivingBySourceId[actionSource.id]) return;
-    const tabByKind: Record<Exclude<ArtifactKind, "user_edit">, WorkspaceTab> = {
+    const tabByKind: Record<DerivationKind, WorkspaceTab> = {
       translation: "translation",
       summary: "summary",
       skill: "skill",

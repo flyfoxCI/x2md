@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 
-import type { Artifact, ArtifactKind, SourceDetail } from "../types";
+import type { Artifact, ArtifactKind, DerivationKind, SourceDetail } from "../types";
 
 export type WorkspaceTab = "original" | "translation" | "summary" | "skill";
 
@@ -9,7 +9,7 @@ interface EditorWorkspaceProps {
   loading: boolean;
   deriving: WorkspaceTab | null;
   saving: boolean;
-  onDerive: (kind: Exclude<ArtifactKind, "user_edit">) => void;
+  onDerive: (kind: DerivationKind) => void;
   onSave: (artifact: Artifact, markdown: string) => void;
   onContentChange: (markdown: string, artifact: Artifact | null) => void;
   currentMarkdown: string;
@@ -19,7 +19,7 @@ interface EditorWorkspaceProps {
 interface TabDefinition {
   id: WorkspaceTab;
   label: string;
-  artifactKind?: Exclude<ArtifactKind, "user_edit">;
+  artifactKind?: DerivationKind;
 }
 
 const tabs: readonly TabDefinition[] = [

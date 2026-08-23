@@ -56,3 +56,9 @@
 - RED：`cd backend && uv run pytest tests/api/test_research.py tests/api/test_tags.py tests/api/test_sources.py -q` 显示研究/标签路由未注册；随后发现新 API 测试与服务测试同名，已重命名为 `test_tags_api.py` 以避免 pytest 模块冲突。
 - GREEN：`tests/api/test_research.py tests/api/test_tags_api.py tests/api/test_sources.py` 为 `7 passed in 0.39s`；全部 API 测试为 `38 passed in 1.91s`；后端全量为 `246 passed in 2.93s`，ruff 通过。
 - 证据：`POST /sources/{id}/research` 使用持久运行合同并对 active run 幂等地返回 202；run detail 和证据分页只读取存储状态。tag tree/custom/decision/delete API 与 source detail 的 appended research/tag fields 均为 additive；`docs/api.md` 记录新的状态、自动开关、分页、治理路由和安全错误语义。
+
+## 任务 8 — 前端 typed API 合同与轮询
+
+- RED：`cd frontend && npm run test -- --run src/hooks/useResearchRun.test.tsx src/api.test.ts` 显示 `getResearchRun`、`startResearch` 与 `useResearchRun` 均不存在。
+- GREEN：同一命令为 `23 passed in 24ms`；`npm run lint` 通过；`npm run build` 通过。
+- 证据：`types.ts` 与 API guard 识别 research run、evidence、tag 和 `research` Artifact；浏览器端可启动任务、读取 run/evidence/tag DTO。独立 `useResearchRun` 只轮询非终态持久 run，在 complete/partial/blocked/failed 后停止，并在来源切换与 unmount 时 abort 请求；既有派生类型被收窄，不能把 research Artifact 错送往 legacy derive 端点。
