@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  changePassword,
+  clearAuthentication,
   createCustomTag,
   deleteTagAssignment,
   deriveSource,
   editArtifact,
+  getCurrentSession,
   getSource,
   getSettings,
   importSource,
@@ -13,20 +16,34 @@ import {
   listResearchEvidence,
   listSources,
   listTags,
+  login,
+  logout,
   updateTagAssignment,
   updateResearchSettings,
   updateSettings,
 } from "./api";
+import { AccountDialog } from "./components/AccountDialog";
 import { AppHeader } from "./components/AppHeader";
 import { EditorWorkspace, type WorkspaceTab } from "./components/EditorWorkspace";
 import { ImportDialog } from "./components/ImportDialog";
 import { KnowledgeSidebar } from "./components/KnowledgeSidebar";
+import { LoginScreen } from "./components/LoginScreen";
 import { PreviewPanel } from "./components/PreviewPanel";
 import { ResearchPanel } from "./components/ResearchPanel";
 import { StatusMessage } from "./components/StatusMessage";
 import { TagManager } from "./components/TagManager";
 import { useResearchRun } from "./hooks/useResearchRun";
-import type { ApiError, Artifact, DerivationKind, PresentationSettings, ResearchEvidence, Source, SourceDetail, TagDefinition } from "./types";
+import type {
+  ApiError,
+  Artifact,
+  AuthenticatedSession,
+  DerivationKind,
+  PresentationSettings,
+  ResearchEvidence,
+  Source,
+  SourceDetail,
+  TagDefinition,
+} from "./types";
 import "./styles/app.css";
 import "./styles/tokens.css";
 import "./styles/workspace.css";
@@ -49,6 +66,10 @@ const presentationSaveRetryDelayMs = 500;
 
 function asApiError(reason: unknown): ApiError {
   return isApiError(reason) ? reason : defaultError;
+}
+
+function isAuthenticationRequired(reason: unknown): boolean {
+  return isApiError(reason) && reason.code === "authentication_required";
 }
 
 function samePresentation(left: PresentationSettings, right: PresentationSettings): boolean {
@@ -84,7 +105,21 @@ function useMediaQuery(query: string) {
   return matches;
 }
 
-function App() {
+interface AuthenticatedStudioProps {
+  session: AuthenticatedSession;
+  sessionGeneration: number;
+  onAuthenticationRequired: (sessionGeneration: number) => boolean;
+  onChangePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  onLogout: () => Promise<void>;
+}
+
+function AuthenticatedStudio({
+  session,
+  sessionGeneration,
+  onAuthenticationRequired,
+  onChangePassword,
+  onLogout,
+}: AuthenticatedStudioProps) {
   const [sources, setSources] = useState<Source[]>([]);
   const [total, setTotal] = useState(0);
   const [libraryLoading, setLibraryLoading] = useState(true);
@@ -96,6 +131,7 @@ function App() {
   const [url, setUrl] = useState("");
   const [importing, setImporting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [accountDialogOpen, setAccountDialogOpen] = useState(false);
   const [mobileLibraryOpen, setMobileLibraryOpen] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -113,6 +149,7 @@ function App() {
   const detailRequestRef = useRef<AbortController | null>(null);
   const detailRequestIdRef = useRef(0);
   const importTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const accountTriggerRef = useRef<HTMLButtonElement | null>(null);
   const libraryTriggerRef = useRef<HTMLButtonElement | null>(null);
   const selectedSourceRef = useRef<Source | null>(null);
   const restoreImportFocusRef = useRef(false);
@@ -128,9 +165,14 @@ function App() {
   const presentationRef = useRef<PresentationSettings>(defaultPresentation);
   const isCompactViewport = useMediaQuery(compactViewportQuery);
   const isPreviewOverlayViewport = useMediaQuery(previewOverlayViewportQuery);
-  const research = useResearchRun(selectedSource?.id ?? null);
-  const adoptResearchRun = research.adopt;
   const detailSourceId = detail?.source.id;
+
+  const handleAuthenticationRequired = useCallback(
+    () => onAuthenticationRequired(sessionGeneration),
+    [onAuthenticationRequired, sessionGeneration],
+  );
+  const research = useResearchRun(selectedSource?.id ?? null, { onAuthenticationRequired: handleAuthenticationRequired });
+  const adoptResearchRun = research.adopt;
 
   const handleContentChange = useCallback((markdown: string, artifact: Artifact | null) => {
     setCurrentMarkdown(markdown);
@@ -157,6 +199,7 @@ function App() {
     settingsSaveRef.current = controller;
     settingsSaveInFlightRef.current = true;
     let acceptedResponse = false;
+    let authenticationFailed = false;
     void updateSettings(requestedPresentation, controller.signal)
       .then((settings) => {
         if (controller.signal.aborted || !isMountedRef.current) {
@@ -170,6 +213,11 @@ function App() {
         }
       })
       .catch((reason) => {
+        if (isAuthenticationRequired(reason)) {
+          authenticationFailed = true;
+          handleAuthenticationRequired();
+          return;
+        }
         if (
           !controller.signal.aborted
           && isMountedRef.current
@@ -196,12 +244,13 @@ function App() {
           !controller.signal.aborted
           && isMountedRef.current
           && !acceptedResponse
+          && !authenticationFailed
           && !samePresentation(desiredPresentationRef.current, requestedPresentation)
         ) {
           flushPresentationSaveRef.current();
         }
       });
-  }, [applyPresentation]);
+  }, [applyPresentation, handleAuthenticationRequired]);
 
   flushPresentationSaveRef.current = flushPresentationSave;
 
@@ -237,21 +286,27 @@ function App() {
     try {
       const loaded = await getSource(source.id, controller.signal);
       if (controller.signal.aborted || requestId !== detailRequestIdRef.current) {
-        return;
+        return false;
       }
       setDetail(loaded);
+      return true;
     } catch (reason) {
+      if (isAuthenticationRequired(reason)) {
+        handleAuthenticationRequired();
+        return false;
+      }
       if (controller.signal.aborted || requestId !== detailRequestIdRef.current || isAbortError(reason)) {
-        return;
+        return false;
       }
       setDetail(null);
       setError(asApiError(reason));
+      return false;
     } finally {
       if (requestId === detailRequestIdRef.current) {
         setDetailLoading(false);
       }
     }
-  }, []);
+  }, [handleAuthenticationRequired]);
 
   const loadSources = useCallback(async (search = "", signal?: AbortSignal, tag = "") => {
     setLibraryLoading(true);
@@ -263,16 +318,21 @@ function App() {
       const page = await listSources(sourceQuery, signal);
       setSources(page.items);
       setTotal(page.total);
+      return true;
     } catch (reason) {
-      if (!isAbortError(reason)) {
+      if (isAuthenticationRequired(reason)) {
+        handleAuthenticationRequired();
+        return false;
+      } else if (!isAbortError(reason)) {
         setError(asApiError(reason));
       }
+      return true;
     } finally {
       if (!signal?.aborted) {
         setLibraryLoading(false);
       }
     }
-  }, []);
+  }, [handleAuthenticationRequired]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -297,9 +357,11 @@ function App() {
       .then((page) => {
         if (!controller.signal.aborted) setResearchEvidence(page.items);
       })
-      .catch(() => undefined);
+      .catch((reason) => {
+        if (isAuthenticationRequired(reason)) handleAuthenticationRequired();
+      });
     return () => controller.abort();
-  }, [research.run, selectedSource?.id]);
+  }, [handleAuthenticationRequired, research.run, selectedSource?.id]);
 
   useEffect(() => {
     if (detailSourceId === undefined) return undefined;
@@ -308,9 +370,11 @@ function App() {
       .then((result) => {
         if (!controller.signal.aborted) setTagDefinitions(result.items);
       })
-      .catch(() => undefined);
+      .catch((reason) => {
+        if (isAuthenticationRequired(reason)) handleAuthenticationRequired();
+      });
     return () => controller.abort();
-  }, [detailSourceId]);
+  }, [detailSourceId, handleAuthenticationRequired]);
 
   useEffect(() => {
     const run = research.run;
@@ -341,12 +405,19 @@ function App() {
         }
       })
       .catch((reason) => {
-        if (!controller.signal.aborted && !isAbortError(reason)) {
+        if (isAuthenticationRequired(reason)) {
+          handleAuthenticationRequired();
+          return;
+        }
+        if (controller.signal.aborted || isAbortError(reason)) {
+          return;
+        }
+        if (!controller.signal.aborted) {
           setPresentationError("显示设置无法加载，已使用默认设置。");
         }
       });
     return () => controller.abort();
-  }, [applyPresentation]);
+  }, [applyPresentation, handleAuthenticationRequired]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -378,6 +449,15 @@ function App() {
     setDialogOpen(false);
   }, []);
 
+  const openAccountDialog = useCallback((trigger: HTMLButtonElement) => {
+    accountTriggerRef.current = trigger;
+    setAccountDialogOpen(true);
+  }, []);
+
+  const closeAccountDialog = useCallback(() => {
+    setAccountDialogOpen(false);
+  }, []);
+
   const handlePresentationChange = useCallback((nextPresentation: PresentationSettings) => {
     presentationDirtyRef.current = true;
     presentationSaveAttemptRef.current = 0;
@@ -401,11 +481,19 @@ function App() {
       const imported = await importSource(candidate);
       setUrl("");
       closeImportDialog();
-      await loadSources(query, undefined, tagFilter);
-      await loadDetail(imported);
+      if (!await loadSources(query, undefined, tagFilter)) {
+        return;
+      }
+      if (!await loadDetail(imported)) {
+        return;
+      }
       setSuccess("来源已导入并保存到知识库");
     } catch (reason) {
-      setError(asApiError(reason));
+      if (isAuthenticationRequired(reason)) {
+        handleAuthenticationRequired();
+      } else {
+        setError(asApiError(reason));
+      }
     } finally {
       setImporting(false);
     }
@@ -428,12 +516,16 @@ function App() {
       if (selectedSourceRef.current?.id !== actionSource.id) {
         return;
       }
-      await loadDetail(actionSource);
+      if (!await loadDetail(actionSource)) {
+        return;
+      }
       if (selectedSourceRef.current?.id === actionSource.id) {
         setSuccess("已生成新的知识版本");
       }
     } catch (reason) {
-      if (selectedSourceRef.current?.id === actionSource.id) {
+      if (isAuthenticationRequired(reason)) {
+        handleAuthenticationRequired();
+      } else if (selectedSourceRef.current?.id === actionSource.id) {
         setError(asApiError(reason));
       }
     } finally {
@@ -458,12 +550,16 @@ function App() {
       }
       setSelectedArtifact(saved);
       setCurrentMarkdown(saved.markdown);
-      await loadDetail(actionSource);
+      if (!await loadDetail(actionSource)) {
+        return;
+      }
       if (selectedSourceRef.current?.id === actionSource.id) {
         setSuccess("已保存为新版本");
       }
     } catch (reason) {
-      if (selectedSourceRef.current?.id === actionSource.id) {
+      if (isAuthenticationRequired(reason)) {
+        handleAuthenticationRequired();
+      } else if (selectedSourceRef.current?.id === actionSource.id) {
         setError(asApiError(reason));
       }
     } finally {
@@ -484,7 +580,8 @@ function App() {
       await loadDetail(actionSource);
       setSuccess(status === "accepted" ? "标签已接受" : "标签已拒绝");
     } catch (reason) {
-      setError(asApiError(reason));
+      if (isAuthenticationRequired(reason)) handleAuthenticationRequired();
+      else setError(asApiError(reason));
     } finally {
       setTagPending(false);
     }
@@ -499,7 +596,8 @@ function App() {
       await loadDetail(actionSource);
       setSuccess("自定义标签已添加");
     } catch (reason) {
-      setError(asApiError(reason));
+      if (isAuthenticationRequired(reason)) handleAuthenticationRequired();
+      else setError(asApiError(reason));
     } finally {
       setTagPending(false);
     }
@@ -514,7 +612,8 @@ function App() {
       await loadDetail(actionSource);
       setSuccess("标签已移除");
     } catch (reason) {
-      setError(asApiError(reason));
+      if (isAuthenticationRequired(reason)) handleAuthenticationRequired();
+      else setError(asApiError(reason));
     } finally {
       setTagPending(false);
     }
@@ -531,7 +630,8 @@ function App() {
         : "自动研究已关闭。",
       );
     } catch (reason) {
-      setError(asApiError(reason));
+      if (isAuthenticationRequired(reason)) handleAuthenticationRequired();
+      else setError(asApiError(reason));
     } finally {
       setAutoResearchPending(false);
     }
@@ -554,7 +654,10 @@ function App() {
         libraryButtonRef={libraryTriggerRef}
         onImport={() => void handleImport()}
         onOpenLibrary={openMobileLibrary}
+        onOpenAccount={openAccountDialog}
+        onLogout={onLogout}
         onUrlChange={setUrl}
+        user={session.user}
         url={url}
       />
       <div className="studio-grid">
@@ -616,6 +719,7 @@ function App() {
           artifact={selectedArtifact}
           markdown={currentMarkdown}
           onPresentationChange={handlePresentationChange}
+          onAuthenticationRequired={handleAuthenticationRequired}
           presentation={presentation}
           isOverlayViewport={isPreviewOverlayViewport}
           source={detail?.source ?? null}
@@ -628,7 +732,167 @@ function App() {
         onImport={(dialogUrl) => void handleImport(dialogUrl)}
         open={dialogOpen}
       />
+      {accountDialogOpen ? (
+        <AccountDialog
+          onChangePassword={onChangePassword}
+          onClose={closeAccountDialog}
+          onLogout={onLogout}
+          trigger={accountTriggerRef.current}
+          user={session.user}
+        />
+      ) : null}
     </main>
+  );
+}
+
+type AuthenticationStatus = "checking" | "anonymous" | "authenticated";
+
+function App() {
+  const [status, setStatus] = useState<AuthenticationStatus>("checking");
+  const [session, setSession] = useState<AuthenticatedSession | null>(null);
+  const [sessionGeneration, setSessionGeneration] = useState(0);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [recoveryAttempt, setRecoveryAttempt] = useState(0);
+  const sessionGenerationRef = useRef(0);
+  const authenticationIntentRef = useRef(0);
+
+  const advanceSessionGeneration = useCallback(() => {
+    const nextSessionGeneration = sessionGenerationRef.current + 1;
+    sessionGenerationRef.current = nextSessionGeneration;
+    setSessionGeneration(nextSessionGeneration);
+  }, []);
+
+  const reserveAuthenticationIntent = useCallback(() => {
+    authenticationIntentRef.current += 1;
+  }, []);
+
+  const enterAnonymous = useCallback(() => {
+    clearAuthentication();
+    advanceSessionGeneration();
+    setSession(null);
+    setRecoveryError(null);
+    setStatus("anonymous");
+  }, [advanceSessionGeneration]);
+
+  const transitionToAnonymous = useCallback((expectedSessionGeneration: number) => {
+    if (sessionGenerationRef.current !== expectedSessionGeneration) {
+      return false;
+    }
+    enterAnonymous();
+    return true;
+  }, [enterAnonymous]);
+
+  const transitionToAnonymousAfterLogout = useCallback((logoutAuthenticationIntent: number) => {
+    if (authenticationIntentRef.current !== logoutAuthenticationIntent) {
+      return false;
+    }
+    enterAnonymous();
+    return true;
+  }, [enterAnonymous]);
+
+  const installSession = useCallback((
+    nextSession: AuthenticatedSession,
+    expectedSessionGeneration: number,
+  ) => {
+    if (sessionGenerationRef.current !== expectedSessionGeneration) {
+      return false;
+    }
+    advanceSessionGeneration();
+    setSession(nextSession);
+    setRecoveryError(null);
+    setStatus("authenticated");
+    return true;
+  }, [advanceSessionGeneration]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    const expectedSessionGeneration = sessionGenerationRef.current;
+    void getCurrentSession(controller.signal)
+      .then((nextSession) => {
+        if (!controller.signal.aborted && active) {
+          installSession(nextSession, expectedSessionGeneration);
+        }
+      })
+      .catch((reason) => {
+        if (isAuthenticationRequired(reason)) {
+          transitionToAnonymous(expectedSessionGeneration);
+          return;
+        }
+        if (controller.signal.aborted || !active || isAbortError(reason)) {
+          return;
+        }
+        if (sessionGenerationRef.current !== expectedSessionGeneration) {
+          return;
+        }
+        setSession(null);
+        setRecoveryError("无法恢复登录状态，请检查连接后重试。");
+        setStatus("anonymous");
+      });
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [installSession, recoveryAttempt, transitionToAnonymous]);
+
+  const handleLogin = useCallback(async (username: string, password: string) => {
+    const expectedSessionGeneration = sessionGenerationRef.current;
+    reserveAuthenticationIntent();
+    const nextSession = await login(username, password);
+    installSession(nextSession, expectedSessionGeneration);
+  }, [installSession, reserveAuthenticationIntent]);
+
+  const handleLogout = useCallback(async () => {
+    const logoutAuthenticationIntent = authenticationIntentRef.current;
+    try {
+      await logout();
+    } finally {
+      transitionToAnonymousAfterLogout(logoutAuthenticationIntent);
+    }
+  }, [transitionToAnonymousAfterLogout]);
+
+  const handleChangePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    const expectedSessionGeneration = sessionGenerationRef.current;
+    try {
+      installSession(await changePassword(currentPassword, newPassword), expectedSessionGeneration);
+    } catch (reason) {
+      if (isAuthenticationRequired(reason)) {
+        transitionToAnonymous(expectedSessionGeneration);
+      }
+      throw reason;
+    }
+  }, [installSession, transitionToAnonymous]);
+
+  if (status === "checking") {
+    return (
+      <main className="auth-shell" aria-busy="true">
+        <p role="status">正在恢复登录状态…</p>
+      </main>
+    );
+  }
+
+  if (status === "anonymous" || !session) {
+    return (
+      <LoginScreen
+        onLogin={handleLogin}
+        onRetrySession={recoveryError ? () => {
+          setRecoveryError(null);
+          setStatus("checking");
+          setRecoveryAttempt((current) => current + 1);
+        } : undefined}
+        recoveryError={recoveryError}
+      />
+    );
+  }
+
+  return (
+    <AuthenticatedStudio
+      onAuthenticationRequired={transitionToAnonymous}
+      onChangePassword={handleChangePassword}
+      onLogout={handleLogout}
+      session={session}
+      sessionGeneration={sessionGeneration}
+    />
   );
 }
 

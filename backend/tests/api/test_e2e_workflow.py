@@ -42,6 +42,7 @@ async def test_api_workflow_imports_derives_edits_searches_and_downloads(
             ai_base_url="https://provider.invalid/v1",
             ai_api_key="fixture-provider-key",
             ai_model="fixture-model",
+            auth_enabled=False,
         ),
         client=httpx.AsyncClient(transport=httpx.MockTransport(provider)),
     )

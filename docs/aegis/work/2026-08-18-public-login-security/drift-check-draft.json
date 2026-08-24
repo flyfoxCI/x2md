@@ -3,13 +3,13 @@
   "taskId": "2026-08-18-public-login-security",
   "taskIntentRef": "docs/aegis/work/2026-08-18-public-login-security/task-intent-draft.json",
   "baselineRefs": [
-    "docs/aegis/specs/2026-08-11-expert-content-studio-design.md"
+    "docs/aegis/specs/2026-08-18-public-login-security-design.md"
   ],
-  "scopeStatus": "not-yet-verified",
-  "compatStatus": "not-yet-verified",
-  "retirementStatus": "not-yet-verified",
+  "scopeStatus": "All approved implementation tasks and final verification are complete; only user-directed branch integration remains.",
+  "compatStatus": "Authentication preserves existing authenticated payloads; the public health probe remains; no compatibility bypass, registration or multi-user path was added.",
+  "retirementStatus": "Unauthenticated knowledge API/studio access is retired and has no retained production fallback; health remains public and AUTH_ENABLED=false remains test/local-only.",
   "newRiskSignals": [
-    "Passwords, bearer-session handling, public API access and migration contracts are security-sensitive."
+    "Docker Compose runtime parsing and live PostgreSQL were not available; static Compose and compiled PostgreSQL DDL are the current bounded substitutes."
   ],
-  "decision": "needs-baseline-readback"
+  "decision": "continue"
 }

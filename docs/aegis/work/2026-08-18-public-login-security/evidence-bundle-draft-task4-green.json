@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "task4-green",
+  "type": "command, browser check and independent review",
+  "source": "Task 4 commits 418a5a1,06e21ea,dc3eaa0,f92e788",
+  "summary": "Strict TDD reproduced gate, stale-current-session, queued logout and focus-trap regressions. Final focused UI 35 plus AccountDialog 6; full frontend 108; lint, build and diff check passed. Desktop/390px login browser check passed without console errors; two independent review stages approved after repairs.",
+  "verifier": "controller plus independent reviewers"
+}

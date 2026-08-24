@@ -69,7 +69,8 @@ The existing Expert Content Studio was deliberately designed as a local single-u
 
 ```text
 User
-  id, username (unique), password_hash, is_active, created_at, updated_at
+  id, singleton_marker (constant, unique), username (unique), password_hash,
+  is_active, created_at, updated_at
 
 AuthSession
   id, user_id -> users.id, token_hash (unique), csrf_token,
@@ -80,6 +81,7 @@ AuthSession
 - Login issues a cryptographically random, opaque token. The HTTP cookie carries the raw value; the database stores only its SHA-256 digest, which is appropriate for a high-entropy bearer secret rather than a user password.
 - A session receives a separate random CSRF value. The login and `GET /api/auth/me` response return it to the SPA; it is held only in module memory and supplied as `X-CSRF-Token` on `POST`, `PATCH`, `PUT`, or `DELETE` API calls.
 - Session expiry is absolute, configurable, and enforced server-side. Logging out deletes the active database session. A password change verifies the current password, changes its Argon2id hash, revokes every old session, and issues exactly one fresh session to the current browser.
+- The database itself enforces the single-administrator model: every `User` row has the same fixed singleton marker, constrained by both `CHECK` and `UNIQUE`. Concurrent first starts with different configured usernames therefore race for the same marker; the loser rolls back and reads the winning administrator rather than creating a second account.
 - At application lifespan startup, after migrations have created the table, no-user databases seed one account only if `AUTH_INITIAL_ADMIN_PASSWORD` is non-empty. `AUTH_INITIAL_ADMIN_USERNAME` defaults to `admin`. If there is no user and no seed password, startup fails closed with an operator-only configuration error. Once an account exists, the bootstrap password is ignored, so it can be removed from deployment secrets.
 
 ## HTTP and browser contract
@@ -115,7 +117,7 @@ The server intentionally does not enable permissive CORS. Public production uses
 1. On initial application load, call `GET /api/auth/me` before any library/settings request.
 2. If it returns `401`, render an accessible focused login view; do not mount the studio or issue protected loading calls.
 3. Successful login saves only user metadata and the transient CSRF token in memory, then loads the existing studio.
-4. Any later `401` clears in-memory authentication state and returns to login. Logout sends CSRF, clears local state and relies on the response to clear the HttpOnly cookie.
+4. Only a current-generation `401 authentication_required` clears in-memory authentication state and returns to login. `401 invalid_credentials` leaves an active session intact; delayed results cannot clear or overwrite a newer credential generation. Logout sends CSRF, clears local state and relies on the response to clear the HttpOnly cookie.
 5. The header exposes the active administrator and an account dialog with current/new/confirm password fields. It shows generic safe errors and never echoes a password.
 
 ## Testing and acceptance

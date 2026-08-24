@@ -1,4 +1,6 @@
 import type {
+  AuthenticatedSession,
+  AuthenticatedUser,
   ApiError,
   Artifact,
   ArtifactEdit,
@@ -31,6 +33,17 @@ interface RequestOptions extends RequestInit {
 }
 
 type ResponseGuard<T> = (value: unknown) => value is T;
+
+let currentCsrfToken: string | undefined;
+let credentialGeneration = 0;
+let authenticationIntent = 0;
+let authMutationQueue: Promise<void> = Promise.resolve();
+
+interface ParsedResponse {
+  response: Response;
+  text: string;
+  payload: unknown;
+}
 
 export function normalizeApiError(
   error: unknown,
@@ -79,6 +92,14 @@ function isBackendErrorEnvelope(value: unknown): value is BackendErrorEnvelope {
   );
 }
 
+function isAuthenticationRequiredEnvelope(value: unknown): value is BackendErrorEnvelope {
+  return (
+    isBackendErrorEnvelope(value) &&
+    value.detail.code === "authentication_required" &&
+    typeof value.detail.message === "string"
+  );
+}
+
 function path(pathname: string): string {
   return `${apiBaseUrl}${pathname}`;
 }
@@ -104,23 +125,29 @@ async function request<T>(
   guard: ResponseGuard<T>,
   init?: RequestOptions,
 ): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(path(pathname), {
-      ...init,
-      headers: {
-        Accept: "application/json",
-        ...(init?.body ? { "Content-Type": "application/json" } : {}),
-        ...init?.headers,
-      },
-    });
-  } catch (error) {
-    if (isAbortError(error)) {
-      throw error;
-    }
-    throw normalizeApiError(error);
+  const requestGeneration = captureCredentialGeneration();
+  const parsed = await receiveResponse(pathname, init);
+  throwForFailedResponse(parsed, requestGeneration);
+  if (parsed.payload === undefined || !guard(parsed.payload)) {
+    throw invalidResponse(parsed.response.status);
   }
+  return parsed.payload;
+}
 
+async function requestNoContent(
+  pathname: string,
+  init: RequestOptions,
+  requestGeneration: number,
+): Promise<void> {
+  const parsed = await receiveResponse(pathname, init);
+  throwForFailedResponse(parsed, requestGeneration);
+  if (parsed.response.status !== 204 || parsed.text !== "") {
+    throw invalidResponse(parsed.response.status);
+  }
+}
+
+async function receiveResponse(pathname: string, init?: RequestOptions): Promise<ParsedResponse> {
+  const response = await fetchResponse(pathname, init);
   let text: string;
   try {
     text = await response.text();
@@ -130,16 +157,70 @@ async function request<T>(
     }
     throw response.ok ? invalidResponse(response.status) : requestFailed(response.status);
   }
-  const payload: unknown = text ? safelyParseJson(text) : undefined;
-  if (!response.ok) {
-    throw isBackendErrorEnvelope(payload)
-      ? normalizeApiError(payload, response.status)
-      : requestFailed(response.status);
+  return {
+    response,
+    text,
+    payload: text ? safelyParseJson(text) : undefined,
+  };
+}
+
+function throwForFailedResponse(parsed: ParsedResponse, requestGeneration: number): void {
+  if (parsed.response.ok) {
+    return;
   }
-  if (payload === undefined || !guard(payload)) {
-    throw invalidResponse(response.status);
+  if (
+    parsed.response.status === 401 &&
+    isAuthenticationRequiredEnvelope(parsed.payload)
+  ) {
+    clearAuthenticationIfCurrent(requestGeneration);
   }
-  return payload;
+  throw isBackendErrorEnvelope(parsed.payload)
+    ? normalizeApiError(parsed.payload, parsed.response.status)
+    : requestFailed(parsed.response.status);
+}
+
+async function fetchResponse(pathname: string, init?: RequestOptions): Promise<Response> {
+  let response: Response;
+  try {
+    response = await fetch(path(pathname), {
+      ...init,
+      credentials: "same-origin",
+      headers: requestHeaders(init),
+    });
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw error;
+    }
+    throw normalizeApiError(error);
+  }
+
+  return response;
+}
+
+function requestHeaders(init?: RequestOptions): Headers {
+  const headers = new Headers(init?.headers);
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json");
+  }
+  if (init?.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  headers.delete("X-CSRF-Token");
+  if (currentCsrfToken && isUnsafeMethod(init?.method)) {
+    headers.set("X-CSRF-Token", currentCsrfToken);
+  }
+  return headers;
+}
+
+function isUnsafeMethod(method?: string): boolean {
+  const normalizedMethod = method?.toUpperCase() || "GET";
+  return (
+    normalizedMethod === "POST" ||
+    normalizedMethod === "PATCH" ||
+    normalizedMethod === "PUT" ||
+    normalizedMethod === "DELETE"
+  );
 }
 
 function safelyParseJson(value: string): unknown {
@@ -373,6 +454,138 @@ function isArtifactKind(value: unknown): value is Artifact["kind"] {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isAuthenticatedUser(value: unknown): value is AuthenticatedUser {
+  return (
+    isRecord(value) &&
+    typeof value.id === "number" &&
+    Number.isInteger(value.id) &&
+    value.id > 0 &&
+    typeof value.username === "string" &&
+    value.username.length > 0
+  );
+}
+
+function isAuthenticatedSession(value: unknown): value is AuthenticatedSession {
+  return (
+    isRecord(value) &&
+    isAuthenticatedUser(value.user) &&
+    typeof value.csrfToken === "string" &&
+    value.csrfToken.length > 0
+  );
+}
+
+export function clearAuthentication(): void {
+  clearCredentials();
+  authenticationIntent += 1;
+}
+
+function clearCredentials(): void {
+  currentCsrfToken = undefined;
+  credentialGeneration += 1;
+}
+
+function captureCredentialGeneration(): number {
+  return credentialGeneration;
+}
+
+function clearAuthenticationIfCurrent(requestGeneration: number): void {
+  if (credentialGeneration === requestGeneration) {
+    clearCredentials();
+  }
+}
+
+function captureAuthenticationIntent(): number {
+  return authenticationIntent;
+}
+
+function reserveAuthenticationMutation(): number {
+  authenticationIntent += 1;
+  return authenticationIntent;
+}
+
+function installSerializedMutationSession(session: AuthenticatedSession): AuthenticatedSession {
+  currentCsrfToken = session.csrfToken;
+  credentialGeneration += 1;
+  return session;
+}
+
+function installSessionReadIfCurrent(
+  session: AuthenticatedSession,
+  authenticationIntentAtStart: number,
+  credentialGenerationAtStart: number,
+): AuthenticatedSession {
+  if (
+    authenticationIntent === authenticationIntentAtStart &&
+    credentialGeneration === credentialGenerationAtStart
+  ) {
+    return installSerializedMutationSession(session);
+  }
+  return session;
+}
+
+function enqueueAuthMutation<T>(operation: () => Promise<T>): Promise<T> {
+  const result = authMutationQueue.then(operation);
+  authMutationQueue = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
+}
+
+export async function getCurrentSession(
+  signal?: AbortSignal,
+): Promise<AuthenticatedSession> {
+  const authenticationIntentAtStart = captureAuthenticationIntent();
+  const credentialGenerationAtStart = captureCredentialGeneration();
+  return installSessionReadIfCurrent(
+    await request("/auth/me", isAuthenticatedSession, { signal }),
+    authenticationIntentAtStart,
+    credentialGenerationAtStart,
+  );
+}
+
+export function login(
+  username: string,
+  password: string,
+): Promise<AuthenticatedSession> {
+  reserveAuthenticationMutation();
+  return enqueueAuthMutation(async () =>
+    installSerializedMutationSession(
+      await request("/auth/login", isAuthenticatedSession, {
+        method: "POST",
+        body: JSON.stringify({ username, password }),
+      }),
+    ),
+  );
+}
+
+export function logout(): Promise<void> {
+  reserveAuthenticationMutation();
+  return enqueueAuthMutation(async () => {
+    const requestGeneration = captureCredentialGeneration();
+    try {
+      await requestNoContent("/auth/logout", { method: "POST" }, requestGeneration);
+    } finally {
+      clearAuthenticationIfCurrent(requestGeneration);
+    }
+  });
+}
+
+export function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<AuthenticatedSession> {
+  reserveAuthenticationMutation();
+  return enqueueAuthMutation(async () =>
+    installSerializedMutationSession(
+      await request("/auth/change-password", isAuthenticatedSession, {
+        method: "POST",
+        body: JSON.stringify({ currentPassword, newPassword }),
+      }),
+    ),
+  );
 }
 
 export async function listSources(

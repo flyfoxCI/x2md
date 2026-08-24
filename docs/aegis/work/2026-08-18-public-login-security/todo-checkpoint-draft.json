@@ -1,11 +1,15 @@
 {
   "schemaVersion": "aegis.schema.v0",
   "taskId": "2026-08-18-public-login-security",
-  "currentTodo": "Write approved implementation plan and establish strict-TDD red tests.",
-  "completedTodos": [],
-  "activeSlice": "Authentication design and planning",
-  "evidenceRefs": [],
+  "currentTodo": "Implementation complete; await branch integration choice",
+  "completedTodos": [
+    "Task 1 core persistence/concurrency hardening; Task 2 public auth HTTP routes, bootstrap lifecycle and protected legacy API policy; Task 3 typed browser session/CSRF transport and stale-response hardening; Task 4 login-gated studio and accessible administrator account flows; Task 5 bootstrap, HTTPS and API deployment documentation; Task 6 final integration verification and independent reviews"
+  ],
+  "activeSlice": "Verified handoff",
+  "evidenceRefs": [
+    "final-integration-green"
+  ],
   "blockedOn": null,
-  "nextStep": "Read writing-plans and subagent-driven-development guidance, then create an executable plan.",
+  "nextStep": "Present the verified branch integration options without auto-merging or pushing.",
   "updatedAt": "2026-08-18"
 }

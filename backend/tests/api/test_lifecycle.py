@@ -5,11 +5,12 @@ from dataclasses import dataclass
 
 import httpx
 import pytest
+from sqlalchemy import func, select
 
 from app.config import Settings
 from app.db import DatabaseResources
 from app.main import create_app
-from app.models import Base
+from app.models import Base, User
 from tests.api.conftest import FakeConnectorRouter
 
 
@@ -48,7 +49,9 @@ class FailingAIService:
 async def test_lifespan_composes_once_for_concurrent_requests_and_closes_resource(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
-    app = create_app(Settings(database_url=f"sqlite+pysqlite:///{tmp_path / 'api.db'}"))
+    app = create_app(
+        Settings(database_url=f"sqlite+pysqlite:///{tmp_path / 'api.db'}", auth_enabled=False)
+    )
     Base.metadata.create_all(app.state.database_resources.engine)
     composed: list[TrackingConnectorResources] = []
 
@@ -77,7 +80,9 @@ async def test_lifespan_composes_once_for_concurrent_requests_and_closes_resourc
 async def test_lifespan_preserves_a_test_injected_router_without_composition(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
-    app = create_app(Settings(database_url=f"sqlite+pysqlite:///{tmp_path / 'api.db'}"))
+    app = create_app(
+        Settings(database_url=f"sqlite+pysqlite:///{tmp_path / 'api.db'}", auth_enabled=False)
+    )
     app.state.connector_router = FakeConnectorRouter()
 
     def fail_if_composed(_: Settings) -> TrackingConnectorResources:
@@ -93,7 +98,9 @@ async def test_lifespan_preserves_a_test_injected_router_without_composition(
 async def test_lifespan_disposes_and_clears_database_state_when_connector_close_fails(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
-    app = create_app(Settings(database_url=f"sqlite+pysqlite:///{tmp_path / 'api.db'}"))
+    app = create_app(
+        Settings(database_url=f"sqlite+pysqlite:///{tmp_path / 'api.db'}", auth_enabled=False)
+    )
     resources = FailingConnectorResources(router=FakeConnectorRouter())
     disposed: list[DatabaseResources] = []
 
@@ -121,7 +128,9 @@ async def test_lifespan_disposes_and_clears_database_state_when_connector_close_
 async def test_lifespan_closes_all_resources_and_cleans_state_when_ai_close_fails(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
-    app = create_app(Settings(database_url=f"sqlite+pysqlite:///{tmp_path / 'api.db'}"))
+    app = create_app(
+        Settings(database_url=f"sqlite+pysqlite:///{tmp_path / 'api.db'}", auth_enabled=False)
+    )
     connector_resources = FailingConnectorResources(router=FakeConnectorRouter())
     failing_ai = FailingAIService()
     disposed: list[DatabaseResources] = []
@@ -156,7 +165,9 @@ async def test_lifespan_preserves_body_error_when_resource_close_also_fails(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
     """A shutdown failure must not mask the actual application execution failure."""
-    app = create_app(Settings(database_url=f"sqlite+pysqlite:///{tmp_path / 'api.db'}"))
+    app = create_app(
+        Settings(database_url=f"sqlite+pysqlite:///{tmp_path / 'api.db'}", auth_enabled=False)
+    )
     connector_resources = FailingConnectorResources(router=FakeConnectorRouter())
     app.state.ai_service = FailingAIService()
     disposed: list[DatabaseResources] = []
@@ -188,7 +199,9 @@ async def test_lifespan_preserves_body_error_when_resource_close_also_fails(
 async def test_lifespan_disposes_and_clears_database_state_when_composition_fails(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ) -> None:
-    app = create_app(Settings(database_url=f"sqlite+pysqlite:///{tmp_path / 'api.db'}"))
+    app = create_app(
+        Settings(database_url=f"sqlite+pysqlite:///{tmp_path / 'api.db'}", auth_enabled=False)
+    )
     database_resources = app.state.database_resources
     disposed: list[DatabaseResources] = []
 
@@ -211,3 +224,70 @@ async def test_lifespan_disposes_and_clears_database_state_when_composition_fail
     assert not hasattr(app.state, "connector_router")
     assert not hasattr(app.state, "database_resources")
     assert not hasattr(app.state, "session_factory")
+
+
+@pytest.mark.asyncio
+async def test_lifespan_fails_closed_without_a_seed_for_an_empty_enabled_database(tmp_path) -> None:
+    """Enabled auth cannot accidentally start with no administrator account."""
+    app = create_app(
+        Settings(
+            database_url=f"sqlite+pysqlite:///{tmp_path / 'empty-auth.db'}",
+            auth_enabled=True,
+            auth_initial_admin_password=None,
+        )
+    )
+    Base.metadata.create_all(app.state.database_resources.engine)
+    app.state.connector_router = FakeConnectorRouter()
+
+    with pytest.raises(RuntimeError, match="AUTH_INITIAL_ADMIN_PASSWORD must be set"):
+        async with app.router.lifespan_context(app):
+            pass
+
+    assert not hasattr(app.state, "database_resources")
+    assert not hasattr(app.state, "session_factory")
+
+
+@pytest.mark.asyncio
+async def test_lifespan_seeds_the_enabled_administrator_once_and_skips_disabled_auth(tmp_path) -> None:
+    """A seed is used only for first enabled startup and never while auth is disabled."""
+    database_url = f"sqlite+pysqlite:///{tmp_path / 'bootstrap-auth.db'}"
+    first = create_app(
+        Settings(
+            database_url=database_url,
+            auth_enabled=True,
+            auth_initial_admin_username="seeded-admin",
+            auth_initial_admin_password="test-only-bootstrap-password",
+        )
+    )
+    Base.metadata.create_all(first.state.database_resources.engine)
+    first.state.connector_router = FakeConnectorRouter()
+    async with first.router.lifespan_context(first):
+        with first.state.session_factory() as session:
+            assert session.scalar(select(func.count()).select_from(User)) == 1
+
+    second = create_app(
+        Settings(
+            database_url=database_url,
+            auth_enabled=True,
+            auth_initial_admin_username="seeded-admin",
+            auth_initial_admin_password=None,
+        )
+    )
+    Base.metadata.create_all(second.state.database_resources.engine)
+    second.state.connector_router = FakeConnectorRouter()
+    async with second.router.lifespan_context(second):
+        with second.state.session_factory() as session:
+            assert session.scalar(select(func.count()).select_from(User)) == 1
+
+    disabled = create_app(
+        Settings(
+            database_url=f"sqlite+pysqlite:///{tmp_path / 'disabled-auth.db'}",
+            auth_enabled=False,
+            auth_initial_admin_password=None,
+        )
+    )
+    Base.metadata.create_all(disabled.state.database_resources.engine)
+    disabled.state.connector_router = FakeConnectorRouter()
+    async with disabled.router.lifespan_context(disabled):
+        with disabled.state.session_factory() as session:
+            assert session.scalar(select(func.count()).select_from(User)) == 0

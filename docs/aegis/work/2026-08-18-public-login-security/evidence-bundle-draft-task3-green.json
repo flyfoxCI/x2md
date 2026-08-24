@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "artifactKey": "task3-green",
+  "type": "command and independent review",
+  "source": "Task 3 commits 01d68b1,b62b82a,02aad8e,9e53ed1,173b07f",
+  "summary": "RED reproduced stale /auth/me overwriting new login CSRF; GREEN guards installs by intent and credential generation. Focused API 43, full frontend 86, lint, build and diff check passed; two independent reviews approved.",
+  "verifier": "controller plus independent reviewers"
+}

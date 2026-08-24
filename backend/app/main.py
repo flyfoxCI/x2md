@@ -4,13 +4,14 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.api import (
     artifacts_router,
+    auth_router,
     imports_router,
     research_router,
     research_sources_router,
@@ -18,9 +19,11 @@ from app.api import (
     sources_router,
     tags_router,
 )
+from app.api.dependencies import require_authenticated_user
 from app.config import Settings
 from app.db import create_database_resources
 from app.services.ai import AIService
+from app.services.auth import AuthService
 from app.services.composition import compose_connector_resources
 from app.services.research.orchestrator import ResearchOrchestrator
 from app.services.research.worker import ResearchWorker, auto_start_enabled
@@ -43,6 +46,17 @@ async def app_lifespan(app: FastAPI) -> AsyncIterator[None]:
     research_worker = None
     body_error: BaseException | None = None
     try:
+        settings: Settings = app.state.settings
+        if settings.auth_enabled:
+            with app.state.session_factory() as session:
+                AuthService(
+                    session,
+                    session_ttl_seconds=settings.auth_session_ttl_seconds,
+                ).bootstrap_admin(
+                    username=settings.auth_initial_admin_username,
+                    initial_password=settings.auth_initial_admin_password,
+                    auth_enabled=True,
+                )
         if getattr(app.state, "connector_router", None) is None:
             composed_resources = compose_connector_resources(app.state.settings)
             app.state.connector_resources = composed_resources
@@ -142,13 +156,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.session_factory = app.state.database_resources.session_factory
     app.state.ai_service = AIService(configured_settings)
-    app.include_router(imports_router)
-    app.include_router(sources_router)
-    app.include_router(research_sources_router)
-    app.include_router(research_router)
-    app.include_router(artifacts_router)
-    app.include_router(settings_router)
-    app.include_router(tags_router)
+    app.include_router(auth_router)
+    app.include_router(imports_router, dependencies=[Depends(require_authenticated_user)])
+    app.include_router(sources_router, dependencies=[Depends(require_authenticated_user)])
+    app.include_router(
+        research_sources_router, dependencies=[Depends(require_authenticated_user)]
+    )
+    app.include_router(research_router, dependencies=[Depends(require_authenticated_user)])
+    app.include_router(artifacts_router, dependencies=[Depends(require_authenticated_user)])
+    app.include_router(settings_router, dependencies=[Depends(require_authenticated_user)])
+    app.include_router(tags_router, dependencies=[Depends(require_authenticated_user)])
 
     @app.get("/api/health", response_model=HealthResponse)
     def health() -> HealthResponse:

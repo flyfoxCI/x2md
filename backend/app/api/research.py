@@ -1,10 +1,14 @@
 """Additive APIs for durable research runs and paginated evidence inspection."""
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
-from app.api.dependencies import DatabaseSession, ResearchOrchestratorDependency
+from app.api.dependencies import (
+    DatabaseSession,
+    ResearchOrchestratorDependency,
+    require_csrf,
+)
 from app.models import ResearchEvidence, ResearchRun
 from app.schemas import ApiErrorResponse, ResearchEvidenceRead, ResearchRunRead
 from app.services.research.orchestrator import ResearchError
@@ -24,6 +28,7 @@ class EvidencePageRead(BaseModel):
 
 @sources_router.post(
     "/{source_id}/research",
+    dependencies=[Depends(require_csrf)],
     response_model=ResearchRunRead,
     status_code=202,
     responses={

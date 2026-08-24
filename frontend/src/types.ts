@@ -153,6 +153,16 @@ export interface ApiError {
   status?: number;
 }
 
+export interface AuthenticatedUser {
+  id: number;
+  username: string;
+}
+
+export interface AuthenticatedSession {
+  user: AuthenticatedUser;
+  csrfToken: string;
+}
+
 export interface SourceQuery {
   q?: string;
   platform?: string;

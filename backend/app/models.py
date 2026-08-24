@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
@@ -17,7 +18,13 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    mapped_column,
+    relationship,
+    validates,
+)
 
 
 def utc_now() -> datetime:
@@ -27,6 +34,68 @@ def utc_now() -> datetime:
 
 class Base(DeclarativeBase):
     """Declarative metadata owner for database migrations."""
+
+
+ADMIN_SINGLETON_MARKER = "administrator"
+
+
+class User(Base):
+    """The single administrator account used to protect the knowledge library."""
+
+    __tablename__ = "users"
+    __table_args__ = (
+        CheckConstraint(
+            f"singleton_marker = '{ADMIN_SINGLETON_MARKER}'",
+            name="ck_users_singleton_marker",
+        ),
+        UniqueConstraint("singleton_marker", name="uq_users_singleton_marker"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    singleton_marker: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default=ADMIN_SINGLETON_MARKER,
+        server_default=text(f"'{ADMIN_SINGLETON_MARKER}'"),
+    )
+    password_hash: Mapped[str] = mapped_column(String(1024))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+    )
+
+    auth_sessions: Mapped[list[AuthSession]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+
+    @validates("singleton_marker")
+    def validate_singleton_marker(self, _: str, value: str) -> str:
+        """Prevent model callers from selecting another administrator slot."""
+        if value != ADMIN_SINGLETON_MARKER:
+            raise ValueError("singleton_marker must use the administrator marker")
+        return value
+
+
+class AuthSession(Base):
+    """A revocable opaque browser session whose raw token is never persisted."""
+
+    __tablename__ = "auth_sessions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    csrf_token: Mapped[str] = mapped_column(String(128))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+    )
+
+    user: Mapped[User] = relationship(back_populates="auth_sessions")
 
 
 class Source(Base):

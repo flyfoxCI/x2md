@@ -5,7 +5,8 @@ import { getResearchRun, startResearch } from "../api";
 import type { ResearchRun } from "../types";
 import { useResearchRun } from "./useResearchRun";
 
-vi.mock("../api", () => ({
+vi.mock("../api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../api")>()),
   getResearchRun: vi.fn(),
   startResearch: vi.fn(),
 }));
@@ -71,5 +72,30 @@ describe("useResearchRun", () => {
     rerender({ sourceId: 2 });
     await waitFor(() => expect(pollingSignal?.aborted).toBe(true));
     unmount();
+  });
+
+  it.each(["start", "poll"] as const)("reports authentication_required from %s", async (phase) => {
+    const onAuthenticationRequired = vi.fn();
+    const authenticationError = {
+      code: "authentication_required",
+      message: "Authentication is required.",
+      status: 401,
+    };
+    if (phase === "start") {
+      mockedStartResearch.mockRejectedValue(authenticationError);
+    } else {
+      mockedGetResearchRun.mockRejectedValue(authenticationError);
+    }
+    const { result } = renderHook(() => useResearchRun(1, {
+      onAuthenticationRequired,
+      pollIntervalMs: 1,
+    }));
+
+    await act(async () => {
+      await result.current.start();
+    });
+
+    await waitFor(() => expect(onAuthenticationRequired).toHaveBeenCalledTimes(1));
+    expect(result.current.error).toBeNull();
   });
 });

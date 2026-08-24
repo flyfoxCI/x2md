@@ -1,14 +1,15 @@
 """Persistence invariants for canonical sources and derived artifacts."""
 
 from collections.abc import Generator
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
-from sqlalchemy import exc
-from sqlalchemy.dialects import postgresql
+from sqlalchemy import CheckConstraint, UniqueConstraint, exc
+from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 from sqlalchemy.schema import CreateTable
@@ -254,6 +255,171 @@ def test_settings_repr_hides_database_url_password(monkeypatch: pytest.MonkeyPat
     monkeypatch.setenv("DATABASE_URL", "postgresql://user:not-a-real-secret@db.example.test/content")
 
     assert "not-a-real-secret" not in repr(Settings())
+
+
+def test_auth_models_persist_a_user_and_its_session(session: Session) -> None:
+    """Administrator sessions retain only their relation and opaque digest fields."""
+    from app import models
+
+    user_model = getattr(models, "User", None)
+    auth_session_model = getattr(models, "AuthSession", None)
+
+    assert user_model is not None
+    assert auth_session_model is not None
+
+    administrator = user_model(
+        username="admin",
+        password_hash="argon2id-hash",
+        is_active=True,
+    )
+    session.add(administrator)
+    session.flush()
+    auth_session = auth_session_model(
+        user_id=administrator.id,
+        token_hash="a" * 64,
+        csrf_token="csrf-token",
+        expires_at=datetime(2026, 8, 18, 12, tzinfo=UTC),
+    )
+    session.add(auth_session)
+    session.commit()
+    session.expire_all()
+
+    persisted = session.get(auth_session_model, auth_session.id)
+
+    assert persisted is not None
+    assert persisted.user.username == "admin"
+    assert persisted.user.auth_sessions[0].token_hash == "a" * 64
+
+
+def test_auth_models_enforce_unique_usernames(session: Session) -> None:
+    """The one administrator identity cannot be duplicated."""
+    from app import models
+
+    user_model = getattr(models, "User", None)
+
+    assert user_model is not None
+    session.add_all(
+        [
+            user_model(username="admin", password_hash="first", is_active=True),
+            user_model(username="admin", password_hash="second", is_active=True),
+        ]
+    )
+
+    with pytest.raises(exc.IntegrityError):
+        session.commit()
+
+
+def test_auth_models_enforce_one_administrator_for_different_usernames(session: Session) -> None:
+    """The persistent singleton, rather than username comparison, limits administrators."""
+    from app import models
+
+    user_model = getattr(models, "User", None)
+
+    assert user_model is not None
+    session.add(user_model(username="admin", password_hash="first", is_active=True))
+    session.commit()
+    session.add(user_model(username="operator", password_hash="second", is_active=True))
+
+    with pytest.raises(exc.IntegrityError):
+        session.commit()
+
+
+def test_user_model_rejects_an_alternate_singleton_marker() -> None:
+    """Model callers cannot choose an additional administrator slot."""
+    from app import models
+
+    user_model = getattr(models, "User", None)
+
+    assert user_model is not None
+    with pytest.raises(ValueError, match="singleton_marker"):
+        user_model(
+            username="operator",
+            singleton_marker="operator",
+            password_hash="hash",
+            is_active=True,
+        )
+
+
+def test_user_singleton_marker_has_portable_database_constraints() -> None:
+    """SQLite and PostgreSQL both receive a fixed, unique administrator marker."""
+    from app import models
+
+    user_model = getattr(models, "User", None)
+
+    assert user_model is not None
+    user_table = user_model.__table__
+    marker = user_table.c.get("singleton_marker")
+
+    assert marker is not None
+    assert marker.nullable is False
+    assert marker.server_default is not None
+    assert "administrator" in str(marker.server_default.arg)
+    assert any(
+        isinstance(constraint, CheckConstraint)
+        and constraint.name == "ck_users_singleton_marker"
+        and "singleton_marker" in str(constraint.sqltext)
+        and "administrator" in str(constraint.sqltext)
+        for constraint in user_table.constraints
+    )
+    assert any(
+        isinstance(constraint, UniqueConstraint)
+        and constraint.name == "uq_users_singleton_marker"
+        and list(constraint.columns.keys()) == ["singleton_marker"]
+        for constraint in user_table.constraints
+    )
+
+    for dialect in (sqlite.dialect(), postgresql.dialect()):
+        ddl = str(CreateTable(user_table).compile(dialect=dialect))
+
+        assert "DEFAULT 'administrator'" in ddl
+        assert "CONSTRAINT ck_users_singleton_marker CHECK (singleton_marker = 'administrator')" in ddl
+        assert "CONSTRAINT uq_users_singleton_marker UNIQUE (singleton_marker)" in ddl
+
+
+def test_auth_session_requires_a_user_and_unique_token_digest(session: Session) -> None:
+    """Session bearer digests are unique and always belong to an administrator."""
+    from app import models
+
+    user_model = getattr(models, "User", None)
+    auth_session_model = getattr(models, "AuthSession", None)
+
+    assert user_model is not None
+    assert auth_session_model is not None
+    administrator = user_model(username="admin", password_hash="hash", is_active=True)
+    session.add(administrator)
+    session.flush()
+    session.add_all(
+        [
+            auth_session_model(
+                user_id=administrator.id,
+                token_hash="a" * 64,
+                csrf_token="first-csrf-token",
+                expires_at=datetime(2026, 8, 18, 12, tzinfo=UTC),
+            ),
+            auth_session_model(
+                user_id=administrator.id,
+                token_hash="a" * 64,
+                csrf_token="second-csrf-token",
+                expires_at=datetime(2026, 8, 18, 12, tzinfo=UTC),
+            ),
+        ]
+    )
+
+    with pytest.raises(exc.IntegrityError):
+        session.commit()
+
+    session.rollback()
+    session.add(
+        auth_session_model(
+            user_id=999,
+            token_hash="b" * 64,
+            csrf_token="csrf-token",
+            expires_at=datetime(2026, 8, 18, 12, tzinfo=UTC),
+        )
+    )
+
+    with pytest.raises(exc.IntegrityError):
+        session.commit()
 
 
 def test_initial_migration_matches_model_metadata(

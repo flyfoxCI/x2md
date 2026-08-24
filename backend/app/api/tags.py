@@ -1,10 +1,10 @@
 """Taxonomy inspection and explicit user governance endpoints."""
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from app.api.dependencies import DatabaseSession
+from app.api.dependencies import DatabaseSession, require_csrf
 from app.models import Source, TagAssignment, TagAssignmentEvidence
 from app.schemas import ApiErrorResponse, TagAssignmentRead, TagDefinitionRead
 from app.services.research.tags import TagError, TagService
@@ -41,6 +41,7 @@ def get_tag_tree(session: DatabaseSession) -> TagTreeRead:
 
 @router.post(
     "/sources/{source_id}/tags",
+    dependencies=[Depends(require_csrf)],
     response_model=TagAssignmentRead,
     status_code=201,
     responses={404: {"model": ApiErrorResponse, "description": "The source does not exist."}},
@@ -64,6 +65,7 @@ def create_custom_tag(
 
 @router.patch(
     "/tag-assignments/{assignment_id}",
+    dependencies=[Depends(require_csrf)],
     response_model=TagAssignmentRead,
     responses={404: {"model": ApiErrorResponse, "description": "The assignment does not exist."}},
 )
@@ -86,6 +88,7 @@ def decide_tag_assignment(
 
 @router.delete(
     "/tag-assignments/{assignment_id}",
+    dependencies=[Depends(require_csrf)],
     status_code=204,
     response_class=Response,
     responses={404: {"model": ApiErrorResponse, "description": "The assignment does not exist."}},

@@ -6,6 +6,7 @@ import type { ApiError, ResearchRun } from "../types";
 const terminalStatuses = new Set<ResearchRun["status"]>(["completed", "partial", "blocked", "failed"]);
 
 interface UseResearchRunOptions {
+  onAuthenticationRequired?: () => void;
   pollIntervalMs?: number;
 }
 
@@ -16,6 +17,7 @@ function asApiError(reason: unknown): ApiError {
 }
 
 export function useResearchRun(sourceId: number | null, options: UseResearchRunOptions = {}) {
+  const onAuthenticationRequired = options.onAuthenticationRequired;
   const pollIntervalMs = options.pollIntervalMs ?? 1_000;
   const [run, setRun] = useState<ResearchRun | null>(null);
   const [starting, setStarting] = useState(false);
@@ -47,7 +49,9 @@ export function useResearchRun(sourceId: number | null, options: UseResearchRunO
         }
       } catch (reason) {
         if (!disposed && !controller.signal.aborted && !isAbortError(reason)) {
-          setError(asApiError(reason));
+          const apiError = asApiError(reason);
+          if (apiError.code === "authentication_required") onAuthenticationRequired?.();
+          else setError(apiError);
         }
       }
     };
@@ -57,7 +61,7 @@ export function useResearchRun(sourceId: number | null, options: UseResearchRunO
       controller.abort();
       if (timer !== undefined) window.clearTimeout(timer);
     };
-  }, [pollIntervalMs, run, sourceId]);
+  }, [onAuthenticationRequired, pollIntervalMs, run, sourceId]);
 
   const start = useCallback(async () => {
     if (sourceId === null || starting) return;
@@ -70,12 +74,16 @@ export function useResearchRun(sourceId: number | null, options: UseResearchRunO
       const created = await startResearch(sourceId, controller.signal);
       if (!controller.signal.aborted && created.source_id === sourceId) setRun(created);
     } catch (reason) {
-      if (!controller.signal.aborted && !isAbortError(reason)) setError(asApiError(reason));
+      if (!controller.signal.aborted && !isAbortError(reason)) {
+        const apiError = asApiError(reason);
+        if (apiError.code === "authentication_required") onAuthenticationRequired?.();
+        else setError(apiError);
+      }
     } finally {
       if (startControllerRef.current === controller) startControllerRef.current = null;
       if (!controller.signal.aborted) setStarting(false);
     }
-  }, [sourceId, starting]);
+  }, [onAuthenticationRequired, sourceId, starting]);
 
   const adopt = useCallback((next: ResearchRun | null) => {
     if (next === null || next.source_id !== sourceId) return;

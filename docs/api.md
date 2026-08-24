@@ -11,13 +11,80 @@ Documented endpoint-domain and request-validation failures use the following saf
 Unknown routes and unsupported HTTP methods use FastAPI's standard HTTP error
 response, whose `detail` is a string rather than this domain envelope.
 
-Credentials are server-side environment settings only. No endpoint accepts or returns an AI, X, or GitHub credential.
+AI, X, and GitHub credentials are server-side environment settings only. No endpoint accepts or returns those provider credentials.
 
-## Health and settings
+## Public health
 
 ### `GET /health`
 
-Returns `{ "status": "ok", "database": "uninitialized", "aiConfigured": false }`. `aiConfigured` reports readiness only; it never reveals a key.
+This endpoint is public and does not require an administrator session. It returns `{ "status": "ok", "database": "uninitialized", "aiConfigured": false }`. `aiConfigured` reports readiness only; it never reveals a key.
+
+## Authentication
+
+Authentication is enabled by default. When it is enabled, other than public
+health and the login endpoint, routes require the opaque
+`expert_content_studio_session` cookie. The cookie is `HttpOnly`,
+`SameSite=Strict`, scoped to `/`, and uses the configured `Secure` attribute.
+JavaScript cannot read the cookie value.
+
+Successful login, current-session, and password-change responses all return the
+same browser-safe shape. They never return a password or opaque session token:
+
+```json
+{
+  "user": {"id": 1, "username": "admin"},
+  "csrfToken": "<CSRF token>"
+}
+```
+
+### `POST /auth/login`
+
+Creates a new administrator session. Request body:
+
+```json
+{"username":"admin","password":"<administrator secret>"}
+```
+
+On `200`, sets the `HttpOnly` session cookie and returns the safe session shape.
+Incorrect username or password returns `401 invalid_credentials`.
+
+### `GET /auth/me`
+
+Returns the safe current-session shape and a current `csrfToken`. A missing,
+expired, revoked, or otherwise invalid session returns `401 authentication_required`.
+
+### `POST /auth/logout`
+
+Requires the current session and a valid CSRF header. It revokes that server-side
+session, clears the browser cookie, and returns `204 No Content`.
+
+### `POST /auth/change-password`
+
+Requires the current session and a valid CSRF header. Request body:
+
+```json
+{
+  "currentPassword": "<current administrator secret>",
+  "newPassword": "<new administrator secret, at least 12 characters>"
+}
+```
+
+On `200`, invalidates prior sessions, sets a replacement session cookie, and
+returns the safe session shape. An incorrect current password returns
+`401 invalid_credentials`; an absent or invalid session returns
+`401 authentication_required`. `newPassword` has a minimum length of 12
+characters.
+
+### CSRF for state-changing routes
+
+After obtaining `csrfToken` from a successful authentication response, send it
+as `X-CSRF-Token` on every state-changing authenticated request, including
+logout, password change, imports, derivations, source chat, artifact edits, and
+settings changes. A missing or mismatched token returns `403 csrf_invalid`.
+`POST /auth/login` establishes a session and does not require a pre-existing
+CSRF token.
+
+## Authenticated library routes
 
 ### `GET /settings`
 
@@ -133,6 +200,9 @@ Streams the stored Markdown as a `text/markdown` attachment with a safe `.md` fi
 
 | HTTP | Code | Meaning |
 | --- | --- | --- |
+| 401 | `authentication_required` | A protected route has no valid current session. |
+| 401 | `invalid_credentials` | Login credentials or the current password are incorrect. |
+| 403 | `csrf_invalid` | A state-changing authenticated request has no valid `X-CSRF-Token`. |
 | 404 | `source_not_found`, `artifact_not_found`, `research_run_not_found`, `tag_assignment_not_found` | The requested stored entity does not exist. |
 | 422 | `invalid_request` | Payload or query validation failed. |
 | 422 | `unsupported_url` | URL is not public HTTPS or is an unsupported platform form. |
