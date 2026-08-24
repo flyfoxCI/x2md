@@ -9,6 +9,7 @@ import pytest
 from app.services.connectors.huggingface import HuggingFaceConnector
 from app.services.connectors.router import ConnectorRouter
 from app.services.connectors.web import WebConnector
+from app.services.url_safety import UnsafeUrlError
 
 
 @dataclass(frozen=True)
@@ -33,6 +34,113 @@ class FakeSafeHttpClient:
 
 def _fixture_bytes(name: str) -> bytes:
     return (Path(__file__).parents[1] / "fixtures" / name).read_bytes()
+
+
+@pytest.mark.asyncio
+async def test_huggingface_connector_normalizes_a_public_blog_article() -> None:
+    url = "https://huggingface.co/blog/introducing-smolvlm?utm_source=example"
+    canonical_url = "https://huggingface.co/blog/introducing-smolvlm"
+    incorrect_api_url = "https://huggingface.co/api/models/blog/introducing-smolvlm"
+    client = FakeSafeHttpClient(
+        {
+            canonical_url: FakeResponse(
+                200,
+                {"content-type": "text/html"},
+                b"""
+                <html>
+                  <head><title>Introducing SmolVLM</title></head>
+                  <body><article><p>A compact vision-language model.</p></article></body>
+                </html>
+                """,
+            ),
+            incorrect_api_url: FakeResponse(
+                404,
+                {"content-type": "application/json"},
+                b"{}",
+            ),
+        }
+    )
+
+    source = await HuggingFaceConnector(client).fetch(url)
+
+    assert source.status == "ready"
+    assert source.platform == "huggingface"
+    assert source.canonical_url == canonical_url
+    assert source.title == "Introducing SmolVLM"
+    assert source.text == "A compact vision-language model."
+    assert source.metadata["resource_type"] == "blog_article"
+    assert source.metadata["blog_slug"] == "introducing-smolvlm"
+    assert client.requests == [(canonical_url, {})]
+
+
+@pytest.mark.asyncio
+async def test_huggingface_connector_preserves_blog_canonical_url_when_fetch_is_unsafe() -> (
+    None
+):
+    canonical_url = "https://huggingface.co/blog/introducing-smolvlm"
+    client = FakeSafeHttpClient({canonical_url: UnsafeUrlError()})
+
+    source = await HuggingFaceConnector(client).fetch(canonical_url)
+
+    assert source.status == "blocked"
+    assert source.reason == "unsafe_url"
+    assert source.platform == "huggingface"
+    assert source.canonical_url == canonical_url
+    assert source.metadata == {
+        "resource_type": "blog_article",
+        "blog_slug": "introducing-smolvlm",
+    }
+    assert client.requests == [(canonical_url, {})]
+
+
+@pytest.mark.asyncio
+async def test_huggingface_connector_blocks_non_article_blog_paths() -> None:
+    url = "https://huggingface.co/blog/introducing-smolvlm/extra"
+    client = FakeSafeHttpClient({})
+
+    source = await HuggingFaceConnector(client).fetch(url)
+
+    assert source.status == "blocked"
+    assert source.reason == "unsupported_huggingface_url"
+    assert source.canonical_url == url
+    assert "repository_type" not in source.metadata
+    assert client.requests == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "url",
+    (
+        "https://huggingface.co/blog/introducing-smolvlm/",
+        "https://huggingface.co/blog//introducing-smolvlm",
+        "https://huggingface.co//blog/introducing-smolvlm",
+    ),
+)
+async def test_huggingface_connector_blocks_malformed_blog_article_paths(
+    url: str,
+) -> None:
+    canonical_url = "https://huggingface.co/blog/introducing-smolvlm"
+    incorrect_api_url = "https://huggingface.co/api/models/blog/introducing-smolvlm"
+    client = FakeSafeHttpClient(
+        {
+            canonical_url: FakeResponse(
+                200,
+                {"content-type": "text/html"},
+                b"<article><p>Should not be fetched.</p></article>",
+            ),
+            incorrect_api_url: FakeResponse(
+                404,
+                {"content-type": "application/json"},
+                b"{}",
+            ),
+        }
+    )
+
+    source = await HuggingFaceConnector(client).fetch(url)
+
+    assert source.status == "blocked"
+    assert source.reason == "unsupported_huggingface_url"
+    assert client.requests == []
 
 
 @pytest.mark.asyncio

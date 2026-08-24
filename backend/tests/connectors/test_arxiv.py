@@ -101,6 +101,39 @@ async def test_arxiv_connector_returns_partial_when_the_record_has_no_entry() ->
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://arxiv.org/pdf/2608.20320",
+        "https://arxiv.org/pdf/2608.20320.pdf",
+    ],
+)
+async def test_arxiv_connector_normalizes_pdf_urls_to_the_paper_record(url: str) -> None:
+    api_url = "https://export.arxiv.org/api/query?id_list=2608.20320"
+    client = FakeSafeHttpClient(
+        {
+            api_url: FakeResponse(
+                200,
+                {"content-type": "application/atom+xml"},
+                _fixture_bytes("arxiv_record.xml"),
+            )
+        }
+    )
+    connector = ArxivConnector(client)
+    router = ConnectorRouter(
+        generic_connector=WebConnector(client), connectors=(connector,)
+    )
+
+    source = await router.fetch(url)
+
+    assert router.select(url) is connector
+    assert source.status == "ready"
+    assert source.canonical_url == "https://arxiv.org/abs/2608.20320"
+    assert source.metadata["arxiv_id"] == "2608.20320"
+    assert client.requests[0][0] == api_url
+
+
+@pytest.mark.asyncio
 async def test_arxiv_connector_blocks_unsupported_paths_and_router_selects_it_for_arxiv() -> (
     None
 ):
@@ -110,9 +143,9 @@ async def test_arxiv_connector_blocks_unsupported_paths_and_router_selects_it_fo
         generic_connector=WebConnector(client), connectors=(connector,)
     )
 
-    source = await router.fetch("https://arxiv.org/pdf/2401.01234")
+    source = await router.fetch("https://arxiv.org/html/2401.01234")
 
-    assert router.select("https://arxiv.org/pdf/2401.01234") is connector
+    assert router.select("https://arxiv.org/html/2401.01234") is connector
     assert source.status == "blocked"
     assert source.reason == "unsupported_arxiv_url"
     assert client.requests == []

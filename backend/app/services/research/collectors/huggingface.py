@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -11,6 +12,7 @@ import httpx
 
 from app.services.connectors.huggingface import SafeHttpClientProtocol
 from app.services.connectors.response_policy import validate_response_body
+from app.services.connectors.web import WebConnector
 from app.services.research.collectors.base import ResearchableSource
 from app.services.research.contracts import (
     CollectedEvidence,
@@ -59,9 +61,12 @@ class HuggingFaceResearchCollector:
 
     def __init__(self, client: SafeHttpClientProtocol) -> None:
         self._client = client
+        self._web_connector = WebConnector(client)
 
     async def collect(self, source: ResearchableSource) -> CollectionResult:
         """Fetch a revision-pinned siblings list then at most twelve small text files."""
+        if source.metadata_json.get("resource_type") == "blog_article":
+            return await self._collect_blog_article(source)
         target = _target_from_source(source)
         if target is None:
             return _failure_result("invalid_huggingface_repository")
@@ -124,6 +129,41 @@ class HuggingFaceResearchCollector:
             source_revision=revision,
             evidence=tuple(evidence),
             coverage=coverage,
+        )
+
+    async def _collect_blog_article(self, source: ResearchableSource) -> CollectionResult:
+        blog_slug = source.metadata_json.get("blog_slug")
+        if not isinstance(blog_slug, str) or not blog_slug.strip():
+            return _blog_failure_result("invalid_blog_article", requests_used=0)
+        article = await self._web_connector.fetch(source.canonical_url)
+        if article.status != "ready":
+            return _blog_failure_result(
+                article.reason or "article_unavailable", requests_used=1
+            )
+        content = article.text
+        if len(content.encode("utf-8")) > collection_budget("huggingface").max_content_bytes:
+            return _blog_failure_result("response_too_large", requests_used=1)
+        source_revision = hashlib.sha256(content.encode("utf-8")).hexdigest()
+        evidence = CollectedEvidence(
+            locator=f"huggingface://blog/{blog_slug}#article",
+            kind="blog_article",
+            ordinal=0,
+            decision="included",
+            title=article.title,
+            content=content,
+            source_revision=source_revision,
+        )
+        return CollectionResult(
+            platform="huggingface",
+            source_revision=source_revision,
+            evidence=(evidence,),
+            coverage={
+                "complete": True,
+                "included_count": 1,
+                "excluded_count": 0,
+                "requests_used": 1,
+                "source_type": "blog_article",
+            },
         )
 
     async def _collect_files(
@@ -325,6 +365,22 @@ def _failure_result(reason: str) -> CollectionResult:
         source_revision=None,
         evidence=(),
         coverage={"complete": False, "reason": reason, "requests_used": 0},
+    )
+
+
+def _blog_failure_result(reason: str, *, requests_used: int) -> CollectionResult:
+    return CollectionResult(
+        platform="huggingface",
+        source_revision=None,
+        evidence=(),
+        coverage={
+            "complete": False,
+            "included_count": 0,
+            "excluded_count": 0,
+            "reason": reason,
+            "requests_used": requests_used,
+            "source_type": "blog_article",
+        },
     )
 
 

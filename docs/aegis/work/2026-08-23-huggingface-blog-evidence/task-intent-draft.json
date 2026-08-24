@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "requestedOutcome": "让 Hugging Face Blog 成为可导入、可做有界证据采集的 Hugging Face 研究对象，并用用户提供的三条真实链接完成 Podman 验收。",
+  "goal": "验证 GitHub、arXiv 和 Hugging Face Blog 的证据优先研究链路。",
+  "successEvidence": [
+    "Blog connector/collector fixture 与全量回归通过",
+    "Podman 容器健康并执行三条真实链接",
+    "采集成功、外部网络限制与 AI 配置限制被分开报告"
+  ],
+  "stopCondition": "实现与本机可执行验证完成，剩余项仅依赖外部网络或 AI provider 配置。",
+  "nonGoals": [
+    "Hugging Face Spaces、Docs、论坛、评论或站点爬取",
+    "绕过登录、反爬、网络策略或下载模型权重"
+  ],
+  "scope": "Hugging Face Blog URL 分类、单篇有界 evidence、arXiv PDF 持久化兼容和真实容器验收。",
+  "changeKinds": [
+    "connector contract",
+    "research collector",
+    "runtime bugfix",
+    "deployment verification"
+  ],
+  "riskHints": [
+    "Blog 不得误走 Hub 模型 API",
+    "公开材料必须有界且可追溯",
+    "外部网络与 AI 未配置不得被误报为采集成功"
+  ]
+}

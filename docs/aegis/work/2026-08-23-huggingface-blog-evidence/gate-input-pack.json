@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "baselineRefs": [
+    "docs/aegis/specs/2026-08-23-huggingface-blog-evidence-brief.md",
+    "docs/aegis/plans/2026-08-23-huggingface-blog-evidence.md"
+  ],
+  "impactStatement": "docs/aegis/work/2026-08-23-huggingface-blog-evidence/impact-statement-draft.json",
+  "compatPlan": "Hub 模型/数据集、GitHub、arXiv API、数据库 schema、标签合同和研究状态机保持不变。",
+  "retirementPlan": "Blog-to-model misclassification retired; no generic Web or DB fallback retained",
+  "evidenceBundle": [
+    "docs/aegis/work/2026-08-23-huggingface-blog-evidence/evidence-bundle-draft-runtime-acceptance.json"
+  ]
+}

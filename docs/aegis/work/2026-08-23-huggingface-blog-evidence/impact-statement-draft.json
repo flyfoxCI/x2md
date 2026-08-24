@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "affectedLayers": [
+    "Hugging Face connector",
+    "Hugging Face research collector",
+    "generic PDF extraction",
+    "Podman runtime verification"
+  ],
+  "owners": [
+    "HuggingFaceConnector",
+    "HuggingFaceResearchCollector",
+    "WebConnector",
+    "PDF extraction helper"
+  ],
+  "invariants": [
+    "Blog 仅产生一条不超过 1 MiB 的正文 evidence",
+    "HTML 安全提取仍由 WebConnector 独占",
+    "PDF 持久化文本不含 PostgreSQL 禁止的 NUL"
+  ],
+  "compatBoundary": "Hub 模型/数据集、GitHub、arXiv API、数据库 schema、标签合同和研究状态机保持不变。",
+  "nonGoals": [
+    "新增数据库清洗 fallback",
+    "递归抓取 Blog 链接",
+    "将外部网络失败伪装为完整覆盖"
+  ]
+}

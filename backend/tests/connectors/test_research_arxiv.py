@@ -77,6 +77,29 @@ def test_pdf_extraction_returns_page_locators_and_honest_partial_coverage() -> N
     }
 
 
+def test_pdf_extraction_replaces_nul_before_applying_character_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    page = SimpleNamespace(extract_text=lambda: "A\x00BC")
+    reader = SimpleNamespace(is_encrypted=False, pages=[page])
+    monkeypatch.setattr(
+        "app.services.research.collectors.pdf.PdfReader", lambda _: reader
+    )
+
+    result = extract_pdf_pages(
+        b"mock pdf",
+        locator_prefix="arxiv://2608.20320/pdf",
+        source_revision="2608.20320",
+        max_pages=1,
+        max_chars=3,
+    )
+
+    assert result.evidence[0].content == "A\ufffdB"
+    assert result.evidence[0].locator == "arxiv://2608.20320/pdf#page=1"
+    assert result.coverage["text_characters"] == 3
+    assert result.coverage["reason"] == "character_limit"
+
+
 def test_pdf_extraction_marks_encrypted_and_non_text_documents_partial() -> None:
     encrypted_writer = PdfWriter()
     encrypted_writer.add_blank_page(width=612, height=792)

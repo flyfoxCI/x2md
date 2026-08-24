@@ -46,7 +46,7 @@ class ArxivConnector:
         self._client = client
 
     def can_handle(self, url: str) -> bool:
-        """Own arXiv browser URLs, including unsupported PDF forms."""
+        """Own arXiv browser URLs, including paper PDF links."""
         return _normalized_host(url) in {"arxiv.org", "www.arxiv.org"}
 
     async def fetch(self, url: str) -> NormalizedSource:
@@ -136,9 +136,11 @@ def _identifier_from_url(url: str) -> str | None:
     if _normalized_host(url) not in {"arxiv.org", "www.arxiv.org"}:
         return None
     parts = [part for part in parsed.path.split("/") if part]
-    if not parts or parts[0] != "abs":
+    if not parts or parts[0] not in {"abs", "pdf"}:
         return None
     identifier = "/".join(parts[1:])
+    if parts[0] == "pdf" and identifier.endswith(".pdf"):
+        identifier = identifier[:-4]
     if _CURRENT_IDENTIFIER.fullmatch(identifier) or _LEGACY_IDENTIFIER.fullmatch(
         identifier
     ):

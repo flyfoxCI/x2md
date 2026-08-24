@@ -53,7 +53,7 @@ def extract_pdf_pages(
             )
             partial_reason = partial_reason or "text_extraction_failed"
             continue
-        text = " ".join((extracted or "").split())
+        text = " ".join((extracted or "").replace("\x00", "\ufffd").split())
         if not text:
             evidence.append(_excluded_page(locator, source_revision, page_index, "non_text_pdf_page"))
             partial_reason = partial_reason or "no_extractable_text"

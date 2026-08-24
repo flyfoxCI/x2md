@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "taskId": "2026-08-23-huggingface-blog-evidence",
+  "currentTodo": "无实现待办；等待外部网络与 AI provider 条件恢复。",
+  "completedTodos": [
+    "Blog 导入连接器与有界 evidence collector",
+    "arXiv PDF NUL 持久化修复",
+    "259 项后端回归和独立审查",
+    "Podman 重建与三条真实链接验收"
+  ],
+  "activeSlice": "runtime-acceptance-closed",
+  "evidenceRefs": [
+    "docs/aegis/work/2026-08-23-huggingface-blog-evidence/90-evidence.md",
+    "docs/aegis/work/2026-08-23-huggingface-blog-evidence/evidence-bundle-draft-runtime-acceptance.json"
+  ],
+  "blockedOn": "Hugging Face 443 网络不可达；AI provider 未配置。",
+  "nextStep": "外部条件恢复后重试 Blog import，并运行真实 AI 报告、引用和标签生成。",
+  "updatedAt": "2026-08-24"
+}

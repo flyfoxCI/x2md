@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "aegis.schema.v0",
+  "taskId": "2026-08-23-huggingface-blog-evidence",
+  "lastCheckpointRef": "docs/aegis/work/2026-08-23-huggingface-blog-evidence/todo-checkpoint-draft.json",
+  "resumeInstruction": "先检查 /api/health 的 aiConfigured 和主机到 huggingface.co:443 的连接，再重试 Blog；GitHub/arXiv evidence 已持久化。",
+  "knownPartialWork": [
+    "Hugging Face Blog 真实页面 evidence",
+    "真实 AI 报告、引用和标签生成"
+  ],
+  "mustReadBeforeContinuing": [
+    "docs/aegis/work/2026-08-23-huggingface-blog-evidence/20-checkpoint.md",
+    "docs/aegis/work/2026-08-23-huggingface-blog-evidence/90-evidence.md",
+    "docs/aegis/work/2026-08-23-huggingface-blog-evidence/todo-checkpoint-draft.json"
+  ],
+  "unsafeToAssume": [
+    "fixture 通过不代表当前主机可访问 Hugging Face",
+    "evidence 已采集不代表 AI 报告已经生成"
+  ]
+}

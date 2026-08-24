@@ -45,7 +45,13 @@ Entries are workspace records, not authoritative runtime decisions.
 | 2026-08-18 | plan | docs/aegis/plans/2026-08-18-public-login-security.md | Public deployment login and session security implementation |
 | 2026-08-23 | spec | docs/aegis/specs/2026-08-23-deep-research-knowledge-base-design.md | 深度研究知识库设计规格 |
 | 2026-08-23 | plan | docs/aegis/plans/2026-08-23-deep-research-knowledge-base.md | 深度研究知识库实施计划 |
+| 2026-08-23 | spec | docs/aegis/specs/2026-08-23-huggingface-blog-evidence-brief.md | Hugging Face Blog 证据采集规格简报 |
+| 2026-08-23 | plan | docs/aegis/plans/2026-08-23-huggingface-blog-evidence.md | Hugging Face Blog 证据采集实施计划 |
 | 2026-08-23 | work | docs/aegis/work/2026-08-23-deep-research-knowledge-base/10-intent.md | 深度研究知识库实施意图 |
+| 2026-08-23 | work | docs/aegis/work/2026-08-23-huggingface-blog-evidence/10-intent.md | Hugging Face Blog 证据采集实施意图 |
+| 2026-08-23 | work | docs/aegis/work/2026-08-23-huggingface-blog-evidence/20-checkpoint.md | Hugging Face Blog 证据采集检查点 |
+| 2026-08-23 | work | docs/aegis/work/2026-08-23-huggingface-blog-evidence/90-evidence.md | Hugging Face Blog 证据采集实施证据 |
+| 2026-08-24 | work | docs/aegis/work/2026-08-23-huggingface-blog-evidence/99-reflection.md | Hugging Face Blog 证据采集复盘 |
 | 2026-08-23 | work | docs/aegis/work/2026-08-23-deep-research-knowledge-base/20-checkpoint.md | 深度研究知识库检查点 |
 | 2026-08-23 | work | docs/aegis/work/2026-08-23-deep-research-knowledge-base/90-evidence.md | 深度研究知识库实施证据 |
 | 2026-08-23 | artifact | docs/aegis/work/2026-08-23-deep-research-knowledge-base/task-intent-draft.json | 深度研究知识库任务意图草案 |
@@ -57,3 +63,12 @@ Entries are workspace records, not authoritative runtime decisions.
 | 2026-08-23 | artifact | docs/aegis/work/2026-08-23-deep-research-knowledge-base/resume-state-hint.json | 2026-08-23-deep-research-knowledge-base resume state hint |
 | 2026-08-23 | artifact | docs/aegis/work/2026-08-23-deep-research-knowledge-base/gate-input-pack.json | 2026-08-23-deep-research-knowledge-base gate input pack |
 | 2026-08-23 | work | docs/aegis/work/2026-08-23-deep-research-knowledge-base/proof-bundle.md | 2026-08-23-deep-research-knowledge-base proof bundle |
+| 2026-08-24 | artifact | docs/aegis/work/2026-08-23-huggingface-blog-evidence/task-intent-draft.json | Hugging Face Blog task intent draft |
+| 2026-08-24 | artifact | docs/aegis/work/2026-08-23-huggingface-blog-evidence/baseline-read-set-hint.json | Hugging Face Blog baseline read-set hint |
+| 2026-08-24 | artifact | docs/aegis/work/2026-08-23-huggingface-blog-evidence/impact-statement-draft.json | Hugging Face Blog impact statement draft |
+| 2026-08-24 | artifact | docs/aegis/work/2026-08-23-huggingface-blog-evidence/todo-checkpoint-draft.json | Hugging Face Blog todo checkpoint draft |
+| 2026-08-24 | artifact | docs/aegis/work/2026-08-23-huggingface-blog-evidence/drift-check-draft.json | Hugging Face Blog drift check draft |
+| 2026-08-24 | artifact | docs/aegis/work/2026-08-23-huggingface-blog-evidence/resume-state-hint.json | Hugging Face Blog resume state hint |
+| 2026-08-24 | artifact | docs/aegis/work/2026-08-23-huggingface-blog-evidence/evidence-bundle-draft-runtime-acceptance.json | Hugging Face Blog runtime acceptance evidence |
+| 2026-08-24 | artifact | docs/aegis/work/2026-08-23-huggingface-blog-evidence/gate-input-pack.json | 2026-08-23-huggingface-blog-evidence gate input pack |
+| 2026-08-24 | work | docs/aegis/work/2026-08-23-huggingface-blog-evidence/proof-bundle.md | 2026-08-23-huggingface-blog-evidence proof bundle |

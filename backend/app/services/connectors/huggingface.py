@@ -1,7 +1,8 @@
-"""Public Hugging Face model/dataset metadata and card normalization."""
+"""Public Hugging Face repository and blog article normalization."""
 
 import json
 from collections.abc import Mapping
+from dataclasses import replace
 from typing import Literal, Protocol
 from urllib.parse import urlsplit
 
@@ -9,6 +10,7 @@ import httpx
 
 from app.services.connectors.base import NormalizedSource
 from app.services.connectors.response_policy import validate_response_body
+from app.services.connectors.web import WebConnector
 from app.services.url_safety import (
     RateLimitExceededError,
     UnsafeUrlError,
@@ -42,10 +44,11 @@ class SafeHttpClientProtocol(Protocol):
 
 
 class HuggingFaceConnector:
-    """Fetch public Hub metadata and the matching model or dataset card."""
+    """Fetch public Hub repository cards and blog articles."""
 
     def __init__(self, client: SafeHttpClientProtocol) -> None:
         self._client = client
+        self._web_connector = WebConnector(client)
 
     def can_handle(self, url: str) -> bool:
         """Own Hub URLs, including unsupported areas such as Spaces."""
@@ -57,6 +60,11 @@ class HuggingFaceConnector:
             safe_url = str(validate_public_url(url))
         except UnsafeUrlError:
             return _blocked(_INVALID_URL, "unsafe_url")
+        if _is_blog_path(safe_url):
+            blog_slug = _blog_slug_from_url(safe_url)
+            if blog_slug is None:
+                return _blocked(safe_url, "unsupported_huggingface_url")
+            return await self._fetch_blog_article(blog_slug)
         target = _target_from_url(safe_url)
         if target is None:
             return _blocked(safe_url, "unsupported_huggingface_url")
@@ -144,6 +152,20 @@ class HuggingFaceConnector:
             provenance={"metadata": "huggingface_hub", "card": "huggingface_raw"},
         )
 
+    async def _fetch_blog_article(self, blog_slug: str) -> NormalizedSource:
+        canonical_url = f"https://huggingface.co/blog/{blog_slug}"
+        source = await self._web_connector.fetch(canonical_url)
+        return replace(
+            source,
+            canonical_url=canonical_url,
+            platform="huggingface",
+            metadata={
+                **source.metadata,
+                "resource_type": "blog_article",
+                "blog_slug": blog_slug,
+            },
+        )
+
 
 def _target_from_url(url: str) -> tuple[RepositoryType, str] | None:
     try:
@@ -158,6 +180,29 @@ def _target_from_url(url: str) -> tuple[RepositoryType, str] | None:
     if len(parts) == 3 and parts[0] == "datasets":
         return "dataset", "/".join(parts[1:])
     return None
+
+
+def _blog_slug_from_url(url: str) -> str | None:
+    try:
+        parsed = urlsplit(url)
+    except ValueError:
+        return None
+    if _normalized_host(url) not in {"huggingface.co", "www.huggingface.co"}:
+        return None
+    parts = parsed.path.split("/")
+    if len(parts) == 3 and parts[:2] == ["", "blog"] and parts[2]:
+        return parts[2]
+    return None
+
+
+def _is_blog_path(url: str) -> bool:
+    if _normalized_host(url) not in {"huggingface.co", "www.huggingface.co"}:
+        return False
+    try:
+        path = urlsplit(url).path
+    except ValueError:
+        return False
+    return path.lstrip("/").split("/", 1)[0] == "blog"
 
 
 def _normalized_host(url: str) -> str | None:

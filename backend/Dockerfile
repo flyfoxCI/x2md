@@ -6,7 +6,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY --from=ghcr.io/astral-sh/uv:0.6.12 /uv /uvx /bin/
+# Keep the toolchain version pinned, while avoiding a build-time dependency on
+# GHCR: some Podman environments can reach the registry but not its blob CDN.
+RUN pip install --no-cache-dir "uv==0.6.12"
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev --no-install-project
 
