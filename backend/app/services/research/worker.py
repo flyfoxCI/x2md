@@ -166,13 +166,13 @@ class ResearchWorker:
 
 
 def auto_start_enabled(session: Session) -> bool:
-    """Read the opt-in automatic-research switch with a secure disabled default."""
+    """Read the automatic-research switch with an enabled default."""
     try:
         setting = session.get(AppSetting, "research.auto_start")
     except OperationalError:
-        return False
+        return True
     if setting is None:
-        return False
+        return True
     # ``enabled`` was used by pre-release rows; accepting it keeps those local
     # databases safe while the public settings API persists ``auto_start``.
     return bool(setting.value_json.get("auto_start", setting.value_json.get("enabled", False)))

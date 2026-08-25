@@ -65,13 +65,8 @@ async def test_enabled_auto_research_enqueues_only_supported_content_bearing_imp
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=api_harness.app), base_url="http://testserver"
     ) as client:
-        settings = await client.patch(
-            "/api/settings", json={"research": {"autoStart": True}}
-        )
         response = await client.post("/api/imports", json={"url": url})
 
-    assert settings.status_code == 200
-    assert settings.json()["research"] == {"autoStart": True}
     assert response.status_code == 200
     assert orchestrator.calls == [(response.json()["id"], "auto")]
 

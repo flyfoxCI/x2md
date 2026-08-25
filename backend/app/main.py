@@ -26,7 +26,7 @@ from app.services.ai import AIService
 from app.services.auth import AuthService
 from app.services.composition import compose_connector_resources
 from app.services.research.orchestrator import ResearchOrchestrator
-from app.services.research.worker import ResearchWorker, auto_start_enabled
+from app.services.research.worker import ResearchWorker
 
 logger = logging.getLogger(__name__)
 
@@ -72,14 +72,11 @@ async def app_lifespan(app: FastAPI) -> AsyncIterator[None]:
                 collectors=collectors,
                 ai=app.state.ai_service,
             )
-        with app.state.session_factory() as session:
-            should_start_research = auto_start_enabled(session)
-        if should_start_research:
-            research_worker = ResearchWorker(
-                app.state.session_factory, app.state.research_orchestrator
-            )
-            app.state.research_worker = research_worker
-            await research_worker.start()
+        research_worker = ResearchWorker(
+            app.state.session_factory, app.state.research_orchestrator
+        )
+        app.state.research_worker = research_worker
+        await research_worker.start()
         try:
             yield
         except BaseException as error:

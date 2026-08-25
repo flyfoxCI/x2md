@@ -91,6 +91,10 @@ async def test_lifespan_preserves_a_test_injected_router_without_composition(
     monkeypatch.setattr("app.main.compose_connector_resources", fail_if_composed)
     async with app.router.lifespan_context(app):
         assert isinstance(app.state.connector_router, FakeConnectorRouter)
+        assert app.state.research_worker.task is not None
+        assert not app.state.research_worker.task.done()
+
+    assert not hasattr(app.state, "research_worker")
 
 
 

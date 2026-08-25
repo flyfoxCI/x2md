@@ -23,12 +23,12 @@ class PresentationSettings(BaseModel):
 
 
 class ResearchSettings(BaseModel):
-    """An opt-in server-side queue preference exposed without operational details."""
+    """The automatic research preference exposed without operational details."""
 
     model_config = ConfigDict(extra="forbid")
 
     auto_start: bool = Field(
-        default=False,
+        default=True,
         validation_alias=AliasChoices("auto_start", "autoStart"),
         serialization_alias="autoStart",
     )
@@ -60,7 +60,7 @@ def _presentation(session: Session) -> PresentationSettings:
 
 
 def _research(session: Session) -> ResearchSettings:
-    """Read the persistent auto-start preference with a disabled default."""
+    """Read the persistent auto-start preference with an enabled default."""
     setting = session.get(AppSetting, "research.auto_start")
     if setting is None:
         return ResearchSettings()
