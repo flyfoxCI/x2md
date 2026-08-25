@@ -390,8 +390,32 @@ def _research_report_prompt(
     """Serialize bounded note input without letting large coverage bypass the ceiling."""
     coverage_text = json.dumps(dict(coverage), ensure_ascii=False, sort_keys=True)
     footer = "\n</untrusted-evidence-notes>"
+    allowed_tokens = ", ".join(f"[E{note.evidence_id}]" for note in notes)
+    template = f"""Fill this exact Markdown template. Keep every heading unchanged and add cited Chinese prose below each heading. Copy only these evidence tokens exactly and never renumber them: {allowed_tokens}.
+
+## 研究范围与覆盖率
+
+## 背景与目标
+
+## 核心贡献
+
+## 方法或架构
+
+## 实现、实验与配置
+
+## 关键结果
+
+## 局限与风险
+
+## 复现与应用建议
+
+## 标签
+
+## 证据索引
+
+"""
     header = _truncate(
-        f"Platform: {platform}\nCoverage: {coverage_text}\n\n<untrusted-evidence-notes>",
+        f"{template}Platform: {platform}\nCoverage: {coverage_text}\n\n<untrusted-evidence-notes>",
         MAX_PROMPT_CHARS - len(footer),
     )
     remaining = MAX_PROMPT_CHARS - len(header) - len(footer)

@@ -409,6 +409,39 @@ async def test_research_note_treats_public_evidence_as_untrusted_data() -> None:
 
 
 @pytest.mark.asyncio
+async def test_research_report_places_the_exact_markdown_template_before_evidence() -> None:
+    observed: dict[str, object] = {}
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        observed["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"choices": [{"message": {"content": "report"}}]})
+
+    service = AIService(
+        Settings(
+            ai_base_url="https://provider.example/v1",
+            ai_api_key="configured-secret",
+            ai_model="fixture-model",
+        ),
+        client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+
+    await service.research_report(
+        platform="github",
+        coverage={},
+        notes=(GeneratedResearchNote(evidence_id=782, markdown="证据笔记。"),),
+    )
+
+    body = observed["body"]
+    assert isinstance(body, dict)
+    prompt = body["messages"][1]["content"]
+    assert prompt.startswith("Fill this exact Markdown template")
+    assert prompt.index("## 研究范围与覆盖率") < prompt.index("<untrusted-evidence-notes>")
+    assert "Copy only these evidence tokens exactly and never renumber them: [E782]." in prompt
+    assert len(prompt) <= MAX_PROMPT_CHARS
+    await service.aclose()
+
+
+@pytest.mark.asyncio
 async def test_research_tag_candidates_are_json_and_evidence_scoped() -> None:
     observed: dict[str, object] = {}
 
