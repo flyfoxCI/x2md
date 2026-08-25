@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Protocol
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.session import sessionmaker
 
@@ -191,6 +191,9 @@ class ResearchOrchestrator:
     ) -> tuple[EvidenceInput, ...]:
         with self._session_factory() as session:
             run = _require_run(session, run_id)
+            session.execute(
+                delete(ResearchEvidence).where(ResearchEvidence.research_run_id == run.id)
+            )
             for item in collection.evidence:
                 session.add(
                     ResearchEvidence(

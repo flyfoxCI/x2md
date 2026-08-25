@@ -222,6 +222,45 @@ async def test_orchestrator_blocks_an_unconfigured_provider_without_creating_a_r
 
 
 @pytest.mark.asyncio
+async def test_orchestrator_replaces_collected_evidence_when_retrying_the_same_run(
+    db_factory: sessionmaker[Session],
+) -> None:
+    collector = FakeCollector(
+        CollectionResult(
+            platform="github",
+            source_revision="abc123",
+            evidence=(
+                CollectedEvidence(
+                    locator="github://openai/researcher@abc123/README.md",
+                    kind="repository_file",
+                    ordinal=0,
+                    decision="included",
+                    content="Grounded project evidence.",
+                ),
+            ),
+            coverage={"complete": True},
+        )
+    )
+    ai = FakeAI(_report(), note_error=ProviderError("provider_error", "safe", 502))
+    service = ResearchOrchestrator(db_factory, collectors={"github": collector}, ai=ai)
+    queued = service.enqueue(1, trigger="manual")
+
+    first = await service.execute(queued.id)
+    ai.note_error = None
+    second = await service.execute(queued.id)
+
+    assert first.status == "failed"
+    assert second.status == "completed", second.failure_code
+    with db_factory() as session:
+        evidence = list(
+            session.scalars(
+                select(ResearchEvidence).where(ResearchEvidence.research_run_id == queued.id)
+            )
+        )
+    assert len(evidence) == 1
+
+
+@pytest.mark.asyncio
 async def test_orchestrator_rejects_invalid_citations_and_keeps_accepted_tags(
     db_factory: sessionmaker[Session],
 ) -> None:
