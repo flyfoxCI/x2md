@@ -62,6 +62,19 @@ class FakeAI:
         return self.tags
 
 
+@dataclass
+class RepairingFakeAI(FakeAI):
+    reports: tuple[str, ...] = ()
+    report_calls: int = 0
+
+    async def research_report(
+        self, *, platform: str, coverage: Mapping[str, object], notes: tuple[GeneratedResearchNote, ...]
+    ) -> GeneratedResearchReport:
+        report = self.reports[self.report_calls]
+        self.report_calls += 1
+        return GeneratedResearchReport(markdown=report, model_metadata={"model": "fake"})
+
+
 def _report(token: str = "E1") -> str:
     return f"""## 研究范围与覆盖率
 
@@ -258,6 +271,35 @@ async def test_orchestrator_replaces_collected_evidence_when_retrying_the_same_r
             )
         )
     assert len(evidence) == 1
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_regenerates_one_invalid_report_before_failing_the_run(
+    db_factory: sessionmaker[Session],
+) -> None:
+    collector = FakeCollector(
+        CollectionResult(
+            platform="github",
+            source_revision="abc123",
+            evidence=(
+                CollectedEvidence(
+                    locator="github://openai/researcher@abc123/README.md",
+                    kind="repository_file",
+                    ordinal=0,
+                    decision="included",
+                    content="Grounded project evidence.",
+                ),
+            ),
+            coverage={"complete": True},
+        )
+    )
+    ai = RepairingFakeAI(report="", reports=(_report("E99"), _report("E1")))
+    service = ResearchOrchestrator(db_factory, collectors={"github": collector}, ai=ai)
+
+    result = await service.execute(service.enqueue(1, trigger="manual").id)
+
+    assert result.status == "completed", result.failure_code
+    assert ai.report_calls == 2
 
 
 @pytest.mark.asyncio

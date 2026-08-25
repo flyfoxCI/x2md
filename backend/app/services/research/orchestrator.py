@@ -146,11 +146,11 @@ class ResearchOrchestrator:
         try:
             notes = tuple([await self._ai.research_note(evidence) for evidence in inputs])
             self._persist_notes(run_id, notes)
-            report = await self._ai.research_report(
-                platform=source.platform, coverage=collection.coverage, notes=notes
-            )
-            validate_research_report(
-                report.markdown, known_tokens={evidence.evidence_id for evidence in inputs}
+            report = await self._generate_valid_report(
+                platform=source.platform,
+                coverage=collection.coverage,
+                notes=notes,
+                known_tokens={evidence.evidence_id for evidence in inputs},
             )
             tags = await self._ai.research_tags(notes=notes)
         except ProviderError as error:
@@ -161,6 +161,27 @@ class ResearchOrchestrator:
         except Exception:  # noqa: BLE001 - malformed AI adapters cannot leave a running run.
             return self._finish(run_id, status="failed", failure_code="research_processing_error")
         return self._persist_completion(run_id, collection, report, tags)
+
+    async def _generate_valid_report(
+        self,
+        *,
+        platform: str,
+        coverage: Mapping[str, object],
+        notes: tuple[GeneratedResearchNote, ...],
+        known_tokens: set[int],
+    ) -> GeneratedResearchReport:
+        """Retry one model-format failure without weakening citation validation."""
+        for attempt in range(2):
+            report = await self._ai.research_report(
+                platform=platform, coverage=coverage, notes=notes
+            )
+            try:
+                validate_research_report(report.markdown, known_tokens=known_tokens)
+                return report
+            except ResearchReportValidationError:
+                if attempt == 1:
+                    raise
+        raise AssertionError("unreachable")
 
     def _start_run(self, run_id: int) -> _SourceSnapshot:
         with self._session_factory() as session:
