@@ -126,6 +126,8 @@ Provider/API access can change independently of the application. A successful UR
 
 Initial imports run synchronously within the HTTP request. Deep research is intentionally separate: it uses a durable database queue and a single lifecycle-owned worker. Collected evidence, individual evidence notes, and a validated final report are durable checkpoints, so retries resume at the missing note, report, or tag stage instead of repeating completed collection and analysis. The report is committed before tag generation, so a tag-provider timeout cannot discard correct research output; if every tag retry is exhausted, the run remains `partial` with the report available instead of becoming a report-less failure. Each AI request allows a longer read window and retries transient timeouts, network failures, rate limits, and all server failures with exponential backoff; the worker retains two additional run-level recovery attempts and renews its lease during long provider calls. This worker is a local single-instance design, not a distributed job system.
 
+For DeepSeek V4 model names, report and structured-tag requests use DeepSeek's official non-thinking control and a larger report output budget. This prevents default high-effort reasoning from consuming the entire completion budget before any report text is emitted; other OpenAI-compatible model names do not receive this provider-specific field.
+
 ## Docker Compose (local HTTP development)
 
 Docker Compose runs production-built frontend, backend, and an internal PostgreSQL service on loopback addresses only. The frontend Nginx server reverse-proxies `/api` to the backend, so the browser uses a same-origin API path. It does not configure TLS. No build-time AI or source-provider secrets are required.
