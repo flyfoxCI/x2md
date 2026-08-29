@@ -89,6 +89,7 @@ class CheckpointFakeAI(FakeAI):
     fail_report_once: bool = False
     fail_second_note_once: bool = False
     fail_tags_once: bool = False
+    invalid_tags_always: bool = False
     wrong_note_evidence_id: int | None = None
     note_calls: list[int] = field(default_factory=list)
     report_calls: int = 0
@@ -123,6 +124,8 @@ class CheckpointFakeAI(FakeAI):
         if self.fail_tags_once:
             self.fail_tags_once = False
             raise ProviderError("provider_error", "safe", 502)
+        if self.invalid_tags_always:
+            raise ProviderError("invalid_research_tags", "safe", 502)
         return self.tags
 
 
@@ -469,6 +472,42 @@ async def test_orchestrator_checkpoints_report_before_retrying_failed_tags(
     assert ai.report_calls == 1
     assert ai.tag_calls == 2
     assert len(reports_after_retry) == 1
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_retries_invalid_tag_format_then_keeps_report_partial(
+    db_factory: sessionmaker[Session],
+) -> None:
+    collector = FakeCollector(
+        CollectionResult(
+            platform="github",
+            source_revision="abc123",
+            evidence=(
+                CollectedEvidence(
+                    locator="github://openai/researcher@abc123/README.md",
+                    kind="repository_file",
+                    ordinal=0,
+                    decision="included",
+                    content="Grounded project evidence.",
+                ),
+            ),
+            coverage={"complete": True},
+        )
+    )
+    ai = CheckpointFakeAI(report="", invalid_tags_always=True)
+    service = ResearchOrchestrator(db_factory, collectors={"github": collector}, ai=ai)
+
+    queued = service.enqueue(1, trigger="manual")
+    result = await service.execute(queued.id)
+
+    assert result.status == "partial"
+    assert result.failure_code == "invalid_research_tags"
+    assert ai.tag_calls == 2
+    with db_factory() as session:
+        reports = list(
+            session.scalars(select(Artifact).where(Artifact.research_run_id == queued.id))
+        )
+    assert len(reports) == 1
 
 
 @pytest.mark.asyncio

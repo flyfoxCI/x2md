@@ -18,6 +18,7 @@ DerivationKind = Literal["translation", "summary", "skill"]
 MAX_PROMPT_CHARS = 24_000
 MAX_COMPLETION_TOKENS = 1_200
 MAX_RESEARCH_COMPLETION_TOKENS = 6_000
+MAX_RESEARCH_TAG_COMPLETION_TOKENS = 2_000
 MAX_COMPLETION_CHARS = 32_000
 TRUNCATION_MARKER = "\n\n[Content truncated to fit the AI context budget.]"
 PROVIDER_RETRY_DELAYS = (1.0, 2.0, 4.0, 8.0)
@@ -222,6 +223,7 @@ class AIService:
                 "(number from 0 to 1), and evidence_ids (array of supplied positive integers)."
             ),
             user=prompt,
+            max_tokens=MAX_RESEARCH_TAG_COMPLETION_TOKENS,
             disable_thinking=True,
         )
         return _parse_research_tags(raw, allowed_evidence_ids={note.evidence_id for note in notes})
@@ -461,7 +463,29 @@ def _research_report_prompt(
 
 def _research_tags_prompt(notes: Sequence[GeneratedResearchNote]) -> str:
     """Present only evidence notes eligible to support a tag suggestion."""
-    return _research_report_prompt(platform="research", coverage={}, notes=notes)
+    footer = "\n</untrusted-evidence-notes>"
+    allowed_tokens = ", ".join(f"[E{note.evidence_id}]" for note in notes)
+    header = _truncate(
+        (
+            "Suggest 5 to 12 concise research tags. Return only a raw JSON array; "
+            "do not write Markdown, prose, headings, or code fences. Each object must "
+            "contain label, confidence, and evidence_ids. Use only these evidence "
+            f"tokens: {allowed_tokens}.\n\n<untrusted-evidence-notes>"
+        ),
+        MAX_PROMPT_CHARS - len(footer),
+    )
+    remaining = MAX_PROMPT_CHARS - len(header) - len(footer)
+    blocks: list[str] = []
+    for note in notes:
+        prefix = f"\n\n[E{note.evidence_id}]\n"
+        if len(prefix) >= remaining:
+            break
+        markdown = _truncate(note.markdown, remaining - len(prefix))
+        blocks.append(prefix + markdown)
+        remaining -= len(prefix) + len(markdown)
+        if len(markdown) < len(note.markdown):
+            break
+    return f"{header}{''.join(blocks)}{footer}"
 
 
 def _parse_research_tags(
@@ -472,6 +496,8 @@ def _parse_research_tags(
         payload = json.loads(raw)
         if not isinstance(payload, list):
             raise TypeError("tag payload is not an array")
+        if len(payload) > 12:
+            raise ValueError("tag payload exceeds the suggestion limit")
         suggestions: list[SuggestedResearchTag] = []
         seen_labels: set[str] = set()
         for candidate in payload:
