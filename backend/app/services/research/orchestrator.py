@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Protocol
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.session import sessionmaker
 
@@ -129,29 +129,38 @@ class ResearchOrchestrator:
     async def execute(self, run_id: int) -> ResearchRun:
         """Execute one durable run without keeping a database session during I/O."""
         source = self._start_run(run_id)
-        collector = self._collectors.get(source.platform)
-        if collector is None:
-            return self._finish(run_id, status="blocked", failure_code="unsupported_research_source")
-        try:
-            collection = await collector.collect(source)
-        except Exception:  # noqa: BLE001 - collectors are untrusted I/O boundaries.
-            return self._finish(run_id, status="failed", failure_code="collection_error")
-        inputs = self._persist_collection(run_id, collection)
+        checkpoint = self._load_collection_checkpoint(run_id)
+        if checkpoint is None:
+            collector = self._collectors.get(source.platform)
+            if collector is None:
+                return self._finish(
+                    run_id, status="blocked", failure_code="unsupported_research_source"
+                )
+            try:
+                collection = await collector.collect(source)
+            except Exception:  # noqa: BLE001 - collectors are untrusted I/O boundaries.
+                return self._finish(run_id, status="failed", failure_code="collection_error")
+            inputs = self._persist_collection(run_id, collection)
+            coverage = dict(collection.coverage)
+        else:
+            inputs, coverage = checkpoint
         if not inputs:
-            reason = collection.coverage.get("reason")
+            reason = coverage.get("reason")
             if reason in {"network_error", "rate_limited"}:
                 return self._finish(run_id, status="failed", failure_code=str(reason))
             return self._finish(run_id, status="blocked", failure_code="no_included_evidence")
 
         try:
-            notes = tuple([await self._ai.research_note(evidence) for evidence in inputs])
-            self._persist_notes(run_id, notes)
-            report = await self._generate_valid_report(
-                platform=source.platform,
-                coverage=collection.coverage,
-                notes=notes,
-                known_tokens={evidence.evidence_id for evidence in inputs},
-            )
+            notes = await self._research_notes(run_id, inputs)
+            if not self._has_report_checkpoint(run_id):
+                report = await self._generate_valid_report(
+                    platform=source.platform,
+                    coverage=coverage,
+                    notes=notes,
+                    known_tokens={evidence.evidence_id for evidence in inputs},
+                )
+                self._persist_report_checkpoint(run_id, report)
+            self._set_phase(run_id, "tagging")
             tags = await self._ai.research_tags(notes=notes)
         except ProviderError as error:
             status = "blocked" if error.code == "provider_not_configured" else "failed"
@@ -160,7 +169,7 @@ class ResearchOrchestrator:
             return self._finish(run_id, status="failed", failure_code="invalid_citation")
         except Exception:  # noqa: BLE001 - malformed AI adapters cannot leave a running run.
             return self._finish(run_id, status="failed", failure_code="research_processing_error")
-        return self._persist_completion(run_id, collection, report, tags)
+        return self._persist_completion(run_id, coverage, tags)
 
     async def _generate_valid_report(
         self,
@@ -212,9 +221,6 @@ class ResearchOrchestrator:
     ) -> tuple[EvidenceInput, ...]:
         with self._session_factory() as session:
             run = _require_run(session, run_id)
-            session.execute(
-                delete(ResearchEvidence).where(ResearchEvidence.research_run_id == run.id)
-            )
             for item in collection.evidence:
                 session.add(
                     ResearchEvidence(
@@ -260,40 +266,114 @@ class ResearchOrchestrator:
                 for evidence in included
             )
 
-    def _persist_notes(
-        self, run_id: int, notes: tuple[GeneratedResearchNote, ...]
-    ) -> None:
+    def _load_collection_checkpoint(
+        self, run_id: int
+    ) -> tuple[tuple[EvidenceInput, ...], dict[str, object]] | None:
         with self._session_factory() as session:
             run = _require_run(session, run_id)
-            evidence_by_id = {
-                evidence.id: evidence
+            evidence = list(
+                session.scalars(
+                    select(ResearchEvidence)
+                    .where(ResearchEvidence.research_run_id == run.id)
+                    .order_by(ResearchEvidence.ordinal, ResearchEvidence.id)
+                )
+            )
+            if not evidence:
+                return None
+            inputs = tuple(
+                EvidenceInput(
+                    evidence_id=item.id,
+                    locator=item.locator,
+                    kind=item.kind,
+                    title=item.title,
+                    content=item.content or "",
+                    source_revision=item.source_revision,
+                )
+                for item in evidence
+                if item.status == "included"
+            )
+            return inputs, dict(run.coverage_json)
+
+    async def _research_notes(
+        self, run_id: int, inputs: tuple[EvidenceInput, ...]
+    ) -> tuple[GeneratedResearchNote, ...]:
+        self._set_phase(run_id, "summarizing")
+        with self._session_factory() as session:
+            persisted = {
+                evidence.id: GeneratedResearchNote(
+                    evidence_id=evidence.id,
+                    markdown=evidence.digest_markdown,
+                    model_metadata=dict(evidence.digest_model_metadata_json),
+                )
                 for evidence in session.scalars(
                     select(ResearchEvidence).where(
-                        ResearchEvidence.research_run_id == run.id,
+                        ResearchEvidence.research_run_id == run_id,
                         ResearchEvidence.status == "included",
+                        ResearchEvidence.digest_markdown.is_not(None),
                     )
                 )
+                if evidence.digest_markdown is not None
             }
-            if {note.evidence_id for note in notes} != set(evidence_by_id):
+        notes: list[GeneratedResearchNote] = []
+        for evidence in inputs:
+            note = persisted.get(evidence.evidence_id)
+            if note is None:
+                note = await self._ai.research_note(evidence)
+                self._persist_note(run_id, evidence.evidence_id, note)
+            notes.append(note)
+        self._set_phase(run_id, "reporting")
+        return tuple(notes)
+
+    def _persist_note(
+        self, run_id: int, expected_evidence_id: int, note: GeneratedResearchNote
+    ) -> None:
+        with self._session_factory() as session:
+            evidence = session.get(ResearchEvidence, note.evidence_id)
+            if (
+                note.evidence_id != expected_evidence_id
+                or evidence is None
+                or evidence.research_run_id != run_id
+                or evidence.status != "included"
+            ):
                 raise ResearchError(
-                    "invalid_note_evidence", "Research notes did not match persisted evidence."
+                    "invalid_note_evidence", "Research note did not match persisted evidence."
                 )
-            for note in notes:
-                evidence = evidence_by_id[note.evidence_id]
-                evidence.digest_markdown = note.markdown
-                evidence.digest_model_metadata_json = dict(note.model_metadata or {})
-            run.phase = "reporting"
+            evidence.digest_markdown = note.markdown
+            evidence.digest_model_metadata_json = dict(note.model_metadata or {})
             session.commit()
 
-    def _persist_completion(
-        self,
-        run_id: int,
-        collection: CollectionResult,
-        report: GeneratedResearchReport,
-        tags: tuple[SuggestedResearchTag, ...],
-    ) -> ResearchRun:
+    def _set_phase(self, run_id: int, phase: str) -> None:
         with self._session_factory() as session:
             run = _require_run(session, run_id)
+            run.phase = phase
+            session.commit()
+
+    def _has_report_checkpoint(self, run_id: int) -> bool:
+        with self._session_factory() as session:
+            return (
+                session.scalar(
+                    select(Artifact.id).where(
+                        Artifact.research_run_id == run_id,
+                        Artifact.kind == "research",
+                    )
+                )
+                is not None
+            )
+
+    def _persist_report_checkpoint(
+        self, run_id: int, report: GeneratedResearchReport
+    ) -> None:
+        """Commit a validated report before the independent tag provider request."""
+        with self._session_factory() as session:
+            run = _require_run(session, run_id)
+            existing = session.scalar(
+                select(Artifact.id).where(
+                    Artifact.research_run_id == run.id,
+                    Artifact.kind == "research",
+                )
+            )
+            if existing is not None:
+                return
             source = session.get(Source, run.source_id)
             assert source is not None
             evidence = {
@@ -326,6 +406,18 @@ class ResearchOrchestrator:
                 )
                 for token in tokens
             )
+            run.provider_metadata_json = dict(report.model_metadata)
+            run.phase = "tagging"
+            session.commit()
+
+    def _persist_completion(
+        self,
+        run_id: int,
+        coverage: Mapping[str, object],
+        tags: tuple[SuggestedResearchTag, ...],
+    ) -> ResearchRun:
+        with self._session_factory() as session:
+            run = _require_run(session, run_id)
             tag_service = TagService(session)
             for candidate in tags:
                 tag_service.suggest(
@@ -335,9 +427,8 @@ class ResearchOrchestrator:
                     confidence=candidate.confidence,
                     evidence_ids=candidate.evidence_ids,
                 )
-            run.provider_metadata_json = dict(report.model_metadata)
             run.phase = None
-            run.status = "completed" if collection.coverage.get("complete") is True else "partial"
+            run.status = "completed" if coverage.get("complete") is True else "partial"
             run.finished_at = utc_now()
             session.commit()
             session.refresh(run)

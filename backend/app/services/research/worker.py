@@ -11,7 +11,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.session import sessionmaker
 
-from app.models import AppSetting, ResearchRun, utc_now
+from app.models import AppSetting, Artifact, ResearchRun, utc_now
 from app.services.research.orchestrator import ResearchOrchestrator
 
 type SessionFactory = sessionmaker[Session]
@@ -71,12 +71,49 @@ class ResearchWorker:
         run = self.claim_next(now=claimed_at)
         if run is None:
             return False
+        heartbeat_stop = asyncio.Event()
+        heartbeat = asyncio.create_task(
+            self._heartbeat_lease(run.id, heartbeat_stop),
+            name=f"research-lease-heartbeat-{run.id}",
+        )
         try:
-            await self._orchestrator.execute(run.id)
-        except Exception:  # noqa: BLE001 - a worker must never strand a claimed run.
-            self._mark_execution_exception(run.id)
-        self._release_or_retry(run.id, now=claimed_at)
+            try:
+                await self._orchestrator.execute(run.id)
+            except Exception:  # noqa: BLE001 - a worker must never strand a claimed run.
+                self._mark_execution_exception(run.id)
+        finally:
+            heartbeat_stop.set()
+            await heartbeat
+        self._release_or_retry(run.id, now=now or utc_now())
         return True
+
+    async def _heartbeat_lease(self, run_id: int, stop_event: asyncio.Event) -> None:
+        """Keep ownership live while collection or provider I/O is in flight."""
+        interval = max(0.05, self._lease_seconds / 3)
+        while not stop_event.is_set():
+            try:
+                await asyncio.wait_for(stop_event.wait(), timeout=interval)
+            except TimeoutError:
+                try:
+                    self._renew_lease(run_id)
+                except OperationalError:
+                    continue
+
+    def _renew_lease(self, run_id: int) -> None:
+        now = utc_now()
+        with self._session_factory() as session:
+            session.execute(
+                update(ResearchRun)
+                .where(
+                    ResearchRun.id == run_id,
+                    ResearchRun.status == "running",
+                    ResearchRun.lease_owner == self._worker_id,
+                )
+                .values(
+                    lease_expires_at=now + timedelta(seconds=self._lease_seconds)
+                )
+            )
+            session.commit()
 
     def claim_next(self, *, now) -> ResearchRun | None:
         """Atomically claim a queued or expired run with a compare-and-set update."""
@@ -160,6 +197,21 @@ class ResearchWorker:
                 run.failure_code = None
                 run.finished_at = None
                 run.next_attempt_at = now + timedelta(seconds=self._retry_delay_seconds)
+            elif (
+                run.status == "failed"
+                and run.failure_code == "provider_error"
+                and session.scalar(
+                    select(Artifact.id).where(
+                        Artifact.research_run_id == run.id,
+                        Artifact.kind == "research",
+                    )
+                )
+                is not None
+            ):
+                # A report checkpoint can only exist after report/citation validation.
+                # Exhausted tag generation must not hide that correct research output.
+                run.status = "partial"
+                run.failure_code = "tag_provider_error"
             run.lease_owner = None
             run.lease_expires_at = None
             session.commit()

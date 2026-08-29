@@ -314,8 +314,14 @@ async def test_adapter_uses_raw_text_when_source_markdown_is_only_whitespace() -
 
 
 @pytest.mark.asyncio
-async def test_adapter_maps_provider_failure_to_a_safe_error_without_body_details() -> None:
+async def test_adapter_maps_provider_failure_to_a_safe_error_without_body_details(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    attempts = 0
+    monkeypatch.setattr("app.services.ai.PROVIDER_RETRY_DELAYS", (0, 0, 0, 0))
     async def handler(_: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
         return httpx.Response(429, text="upstream internal token=provider-secret")
 
     service = AIService(
@@ -331,13 +337,181 @@ async def test_adapter_maps_provider_failure_to_a_safe_error_without_body_detail
         await service.derive(source_material(), "summary")
 
     assert "provider-secret" not in str(raised.value)
+    assert attempts == 5
     await service.aclose()
 
 
 @pytest.mark.asyncio
-async def test_adapter_rejects_completion_over_the_output_budget() -> None:
-    """A provider response cannot bypass the explicit output-size budget."""
+async def test_adapter_retries_transient_provider_failures_before_succeeding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    attempts = 0
+    monkeypatch.setattr("app.services.ai.PROVIDER_RETRY_DELAYS", (0, 0, 0, 0), raising=False)
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise httpx.ReadTimeout("temporary timeout", request=request)
+        if attempts == 2:
+            return httpx.Response(503, text="temporarily unavailable")
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": "恢复后的结果。"}}]},
+        )
+
+    service = AIService(
+        Settings(
+            ai_base_url="https://provider.example/v1",
+            ai_api_key="configured-secret",
+            ai_model="fixture-model",
+        ),
+        client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+
+    result = await service.derive(source_material(), "summary")
+
+    assert result.markdown == "恢复后的结果。"
+    assert attempts == 3
+    await service.aclose()
+
+
+@pytest.mark.asyncio
+async def test_adapter_does_not_retry_a_non_transient_provider_rejection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    attempts = 0
+    monkeypatch.setattr("app.services.ai.PROVIDER_RETRY_DELAYS", (0, 0, 0, 0), raising=False)
+
     async def handler(_: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        return httpx.Response(400, text="invalid request")
+
+    service = AIService(
+        Settings(
+            ai_base_url="https://provider.example/v1",
+            ai_api_key="configured-secret",
+            ai_model="fixture-model",
+        ),
+        client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+
+    with pytest.raises(ProviderError, match="provider_error"):
+        await service.derive(source_material(), "summary")
+
+    assert attempts == 1
+    await service.aclose()
+
+
+@pytest.mark.asyncio
+async def test_adapter_retries_any_gateway_server_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    attempts = 0
+    monkeypatch.setattr("app.services.ai.PROVIDER_RETRY_DELAYS", (0, 0, 0, 0))
+
+    async def handler(_: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            return httpx.Response(524, text="gateway timeout")
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": "网关恢复后的结果。"}}]},
+        )
+
+    service = AIService(
+        Settings(
+            ai_base_url="https://provider.example/v1",
+            ai_api_key="configured-secret",
+            ai_model="fixture-model",
+        ),
+        client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+
+    result = await service.derive(source_material(), "summary")
+
+    assert result.markdown == "网关恢复后的结果。"
+    assert attempts == 2
+    await service.aclose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["request_timeout", "network_disconnect"])
+async def test_adapter_retries_explicit_timeout_and_network_failure_classes(
+    failure: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    attempts = 0
+    monkeypatch.setattr("app.services.ai.PROVIDER_RETRY_DELAYS", (0, 0, 0, 0))
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1 and failure == "request_timeout":
+            return httpx.Response(408, text="request timeout")
+        if attempts == 1:
+            raise httpx.ConnectError("temporary disconnect", request=request)
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": "连接恢复后的结果。"}}]},
+        )
+
+    service = AIService(
+        Settings(
+            ai_base_url="https://provider.example/v1",
+            ai_api_key="configured-secret",
+            ai_model="fixture-model",
+        ),
+        client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+
+    result = await service.derive(source_material(), "summary")
+
+    assert result.markdown == "连接恢复后的结果。"
+    assert attempts == 2
+    await service.aclose()
+
+
+@pytest.mark.asyncio
+async def test_adapter_exhausts_exactly_five_transient_attempts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    attempts = 0
+    monkeypatch.setattr("app.services.ai.PROVIDER_RETRY_DELAYS", (0, 0, 0, 0))
+
+    async def handler(_: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        return httpx.Response(503, text="still unavailable")
+
+    service = AIService(
+        Settings(
+            ai_base_url="https://provider.example/v1",
+            ai_api_key="configured-secret",
+            ai_model="fixture-model",
+        ),
+        client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+
+    with pytest.raises(ProviderError, match="provider_error"):
+        await service.derive(source_material(), "summary")
+
+    assert attempts == 5
+    await service.aclose()
+
+
+@pytest.mark.asyncio
+async def test_adapter_rejects_completion_over_the_output_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A provider response cannot bypass the explicit output-size budget."""
+    attempts = 0
+    monkeypatch.setattr("app.services.ai.PROVIDER_RETRY_DELAYS", (0, 0, 0, 0))
+    async def handler(_: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
         return httpx.Response(
             200,
             json={
@@ -359,6 +533,7 @@ async def test_adapter_rejects_completion_over_the_output_budget() -> None:
     with pytest.raises(ProviderError, match="provider_error"):
         await service.derive(source_material(), "summary")
 
+    assert attempts == 1
     await service.aclose()
 
 
