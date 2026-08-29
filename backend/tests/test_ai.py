@@ -762,4 +762,9 @@ async def test_research_tag_candidates_are_json_and_evidence_scoped() -> None:
     body = observed["body"]
     assert isinstance(body, dict)
     assert "JSON" in body["messages"][0]["content"]
+    tag_prompt = body["messages"][1]["content"]
+    assert tag_prompt.startswith("Suggest 5 to 12 concise research tags")
+    assert "Fill this exact Markdown template" not in tag_prompt
+    assert "## 研究范围与覆盖率" not in tag_prompt
+    assert "[E1]" in tag_prompt
     await service.aclose()

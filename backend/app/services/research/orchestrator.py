@@ -161,9 +161,12 @@ class ResearchOrchestrator:
                 )
                 self._persist_report_checkpoint(run_id, report)
             self._set_phase(run_id, "tagging")
-            tags = await self._ai.research_tags(notes=notes)
+            tags = await self._generate_valid_tags(notes)
         except ProviderError as error:
-            status = "blocked" if error.code == "provider_not_configured" else "failed"
+            if error.code == "invalid_research_tags" and self._has_report_checkpoint(run_id):
+                status = "partial"
+            else:
+                status = "blocked" if error.code == "provider_not_configured" else "failed"
             return self._finish(run_id, status=status, failure_code=error.code)
         except ResearchReportValidationError:
             return self._finish(run_id, status="failed", failure_code="invalid_citation")
@@ -189,6 +192,18 @@ class ResearchOrchestrator:
                 return report
             except ResearchReportValidationError:
                 if attempt == 1:
+                    raise
+        raise AssertionError("unreachable")
+
+    async def _generate_valid_tags(
+        self, notes: tuple[GeneratedResearchNote, ...]
+    ) -> tuple[SuggestedResearchTag, ...]:
+        """Retry one malformed structured-tag response before honest degradation."""
+        for attempt in range(2):
+            try:
+                return await self._ai.research_tags(notes=notes)
+            except ProviderError as error:
+                if error.code != "invalid_research_tags" or attempt == 1:
                     raise
         raise AssertionError("unreachable")
 
