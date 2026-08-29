@@ -124,7 +124,7 @@ Only public HTTPS URLs are accepted. The importer rejects localhost, private/lin
 
 Provider/API access can change independently of the application. A successful URL submission does not imply the source is accessible, and a partial source cannot be used to fabricate AI material.
 
-Initial imports run synchronously within the HTTP request. Deep research is intentionally separate: it uses a durable database queue and a single lifecycle-owned worker, with a lease and at most two retries after the initial attempt for transient collection/provider failures. This worker is a local single-instance design, not a distributed job system.
+Initial imports run synchronously within the HTTP request. Deep research is intentionally separate: it uses a durable database queue and a single lifecycle-owned worker. Collected evidence, individual evidence notes, and a validated final report are durable checkpoints, so retries resume at the missing note, report, or tag stage instead of repeating completed collection and analysis. The report is committed before tag generation, so a tag-provider timeout cannot discard correct research output; if every tag retry is exhausted, the run remains `partial` with the report available instead of becoming a report-less failure. Each AI request allows a longer read window and retries transient timeouts, network failures, rate limits, and all server failures with exponential backoff; the worker retains two additional run-level recovery attempts and renews its lease during long provider calls. This worker is a local single-instance design, not a distributed job system.
 
 ## Docker Compose (local HTTP development)
 

@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.db import create_database_engine
-from app.models import Base, ResearchRun, Source
+from app.models import Artifact, Base, ResearchRun, Source, utc_now
 from app.services.research.worker import ResearchWorker
 
 
@@ -24,6 +26,56 @@ class TransientFailureOrchestrator:
         with self._factory() as session:
             run = session.get(ResearchRun, run_id)
             assert run is not None
+            run.status = "failed"
+            run.failure_code = "provider_error"
+            session.commit()
+            session.refresh(run)
+            return run
+
+
+class BlockingOrchestrator:
+    """Hold one run open long enough to observe lease heartbeats."""
+
+    def __init__(self, factory: sessionmaker[Session]) -> None:
+        self._factory = factory
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def execute(self, run_id: int) -> ResearchRun:
+        self.started.set()
+        await self.release.wait()
+        with self._factory() as session:
+            run = session.get(ResearchRun, run_id)
+            assert run is not None
+            run.status = "completed"
+            session.commit()
+            session.refresh(run)
+            return run
+
+
+class CheckpointedTagFailureOrchestrator:
+    """Persist a valid report, then emulate an exhausted tag-provider failure."""
+
+    def __init__(self, factory: sessionmaker[Session]) -> None:
+        self._factory = factory
+
+    async def execute(self, run_id: int) -> ResearchRun:
+        with self._factory() as session:
+            run = session.get(ResearchRun, run_id)
+            assert run is not None
+            if session.scalar(
+                select(Artifact.id).where(Artifact.research_run_id == run_id)
+            ) is None:
+                session.add(
+                    Artifact(
+                        source_id=run.source_id,
+                        research_run_id=run.id,
+                        kind="research",
+                        title="Checkpointed report",
+                        markdown="# Correct report",
+                        language="zh",
+                    )
+                )
             run.status = "failed"
             run.failure_code = "provider_error"
             session.commit()
@@ -102,6 +154,58 @@ async def test_worker_retries_transient_failures_at_most_twice(
         assert run.status == "failed"
         assert run.attempt_count == 3
     assert orchestrator.calls == [1, 1, 1]
+
+
+@pytest.mark.asyncio
+async def test_worker_renews_the_lease_while_a_provider_call_is_running(
+    worker_factory: sessionmaker[Session],
+) -> None:
+    orchestrator = BlockingOrchestrator(worker_factory)
+    first = ResearchWorker(
+        worker_factory,
+        orchestrator,  # type: ignore[arg-type]
+        worker_id="heartbeat-owner",
+        lease_seconds=1,
+    )
+    second = ResearchWorker(
+        worker_factory,
+        TransientFailureOrchestrator(worker_factory),
+        worker_id="competing-worker",
+        lease_seconds=1,
+    )
+
+    execution = asyncio.create_task(first.run_once())
+    await asyncio.wait_for(orchestrator.started.wait(), timeout=1)
+    await asyncio.sleep(1.2)
+
+    assert second.claim_next(now=utc_now()) is None
+
+    orchestrator.release.set()
+    assert await asyncio.wait_for(execution, timeout=1) is True
+
+
+@pytest.mark.asyncio
+async def test_worker_keeps_a_checkpointed_report_as_partial_after_tag_retries_exhaust(
+    worker_factory: sessionmaker[Session],
+) -> None:
+    now = datetime(2026, 8, 23, 12, tzinfo=UTC)
+    worker = ResearchWorker(
+        worker_factory,
+        CheckpointedTagFailureOrchestrator(worker_factory),  # type: ignore[arg-type]
+        worker_id="tag-retry",
+        retry_delay_seconds=1,
+    )
+
+    assert await worker.run_once(now=now) is True
+    assert await worker.run_once(now=now + timedelta(seconds=2)) is True
+    assert await worker.run_once(now=now + timedelta(seconds=4)) is True
+
+    with worker_factory() as session:
+        run = session.get(ResearchRun, 1)
+        report = session.scalar(select(Artifact).where(Artifact.research_run_id == 1))
+    assert report is not None and report.markdown == "# Correct report"
+    assert run is not None and run.status == "partial"
+    assert run.failure_code == "tag_provider_error"
 
 
 @pytest.mark.asyncio

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -19,6 +20,8 @@ MAX_COMPLETION_TOKENS = 1_200
 MAX_RESEARCH_COMPLETION_TOKENS = 2_400
 MAX_COMPLETION_CHARS = 32_000
 TRUNCATION_MARKER = "\n\n[Content truncated to fit the AI context budget.]"
+PROVIDER_RETRY_DELAYS = (1.0, 2.0, 4.0, 8.0)
+PROVIDER_MAX_ATTEMPTS = 5
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,7 +101,9 @@ class AIService:
             else None
         )
         self._model = _nonblank(settings.ai_model)
-        self._client = client or httpx.AsyncClient(timeout=httpx.Timeout(30.0))
+        self._client = client or httpx.AsyncClient(
+            timeout=httpx.Timeout(connect=15.0, read=120.0, write=30.0, pool=30.0)
+        )
 
     async def aclose(self) -> None:
         """Close the service-owned or injected HTTP client deterministically."""
@@ -224,36 +229,47 @@ class AIService:
     ) -> str:
         """Perform the sole provider request without exposing transport diagnostics."""
         base_url, api_key, model = self._configuration_or_error()
-        try:
-            response = await self._client.post(
-                f"{base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}"},
-                json={
-                    "model": model,
-                    "messages": [
-                        {"role": "system", "content": system},
-                        {"role": "user", "content": user},
-                    ],
-                    "temperature": 0.2,
-                    "max_tokens": max_tokens,
-                },
-            )
-            response.raise_for_status()
-            payload = response.json()
-            content = payload["choices"][0]["message"]["content"]
-            if (
-                not isinstance(content, str)
-                or not content.strip()
-                or len(content) > MAX_COMPLETION_CHARS
-            ):
-                raise ValueError("empty completion")
-        except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as error:
-            raise ProviderError(
-                code="provider_error",
-                message="The AI provider could not complete the request.",
-                status_code=502,
-            ) from error
-        return content.strip()
+        last_error: Exception | None = None
+        for attempt in range(PROVIDER_MAX_ATTEMPTS):
+            try:
+                response = await self._client.post(
+                    f"{base_url}/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    json={
+                        "model": model,
+                        "messages": [
+                            {"role": "system", "content": system},
+                            {"role": "user", "content": user},
+                        ],
+                        "temperature": 0.2,
+                        "max_tokens": max_tokens,
+                    },
+                )
+                response.raise_for_status()
+            except httpx.HTTPStatusError as error:
+                if not _is_transient_provider_status(error.response.status_code):
+                    raise _provider_error() from error
+                last_error = error
+            except (httpx.TimeoutException, httpx.NetworkError) as error:
+                last_error = error
+            except httpx.HTTPError as error:
+                raise _provider_error() from error
+            else:
+                try:
+                    payload = response.json()
+                    content = payload["choices"][0]["message"]["content"]
+                    if (
+                        not isinstance(content, str)
+                        or not content.strip()
+                        or len(content) > MAX_COMPLETION_CHARS
+                    ):
+                        raise ValueError("empty completion")
+                except (KeyError, IndexError, TypeError, ValueError) as error:
+                    raise _provider_error() from error
+                return content.strip()
+            if attempt < PROVIDER_MAX_ATTEMPTS - 1:
+                await asyncio.sleep(PROVIDER_RETRY_DELAYS[attempt])
+        raise _provider_error() from last_error
 
     def _configuration_or_error(self) -> tuple[str, str, str]:
         """Require a complete environment-only provider configuration."""
@@ -493,6 +509,19 @@ def _nonblank(value: str | None) -> str | None:
         return None
     stripped = value.strip()
     return stripped or None
+
+
+def _provider_error() -> ProviderError:
+    return ProviderError(
+        code="provider_error",
+        message="The AI provider could not complete the request.",
+        status_code=502,
+    )
+
+
+def _is_transient_provider_status(status_code: int) -> bool:
+    """Retry timeouts, rate limits, and every upstream/proxy server failure."""
+    return status_code in {408, 429} or 500 <= status_code < 600
 
 
 def _truncate(value: str, limit: int) -> str:

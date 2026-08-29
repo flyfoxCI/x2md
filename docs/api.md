@@ -88,7 +88,7 @@ CSRF token.
 
 ### `GET /settings`
 
-Returns browser-safe presentation settings, `aiConfigured`, and `{ "research": { "autoStart": false } }`.
+Returns browser-safe presentation settings, `aiConfigured`, and `{ "research": { "autoStart": true } }` on a fresh installation. A persisted user preference overrides that default.
 
 ### `PATCH /settings`
 
@@ -98,7 +98,7 @@ Updates the supplied typed, non-secret presentation and automatic-research prefe
 {"presentation":{"theme":"dark","preview_device":"mobile"}}
 ```
 
-To enable automatic enqueueing after a successful supported import, send `{"research":{"autoStart":true}}`. The worker starts on the next application lifespan; it is disabled by default. Allowed themes are `system`, `light`, `dark`; allowed preview devices are `desktop`, `mobile`. Extra fields are rejected with `422 invalid_request`.
+To change automatic enqueueing after a successful supported import, send `{"research":{"autoStart":false}}` or `{"research":{"autoStart":true}}`. The worker is lifecycle-owned and remains available while the application runs; this preference controls automatic enqueueing and defaults to enabled. Allowed themes are `system`, `light`, `dark`; allowed preview devices are `desktop`, `mobile`. Extra fields are rejected with `422 invalid_request`.
 
 ## Import and library
 
@@ -130,13 +130,15 @@ Returns `{ "source": Source, "artifacts": [Artifact], "research_runs": [Research
 
 ## Deep research and taxonomy
 
+Fresh installations default `research.autoStart` to `true`, so successful imports of supported GitHub, arXiv, and Hugging Face sources are queued automatically. `GET/PATCH /settings` can disable or re-enable this preference without exposing worker or provider secrets.
+
 ### `POST /sources/{source_id}/research`
 
 Queues a manual deep-research run for a GitHub repository, arXiv paper, or Hugging Face model/dataset. Returns `202` with the persisted `ResearchRun`; when a run is already queued/running for that source, returns the same run. The request never invokes external collection or the AI provider inline.
 
 ### `GET /research-runs/{run_id}`
 
-Returns durable run state, phase, bounded budget/coverage snapshots, retry counts, safe failure code and provider/model metadata. Worker leases are never returned.
+Returns durable run state, phase, bounded budget/coverage snapshots, retry counts, safe failure code and provider/model metadata. Worker leases are never returned. Collected evidence, evidence notes, and a citation-validated research Artifact are durable checkpoints; the Artifact is committed before tag generation, so a transient tag failure can resume without regenerating or losing the report. If tag retries are exhausted after that checkpoint, the run is `partial` with `tag_provider_error` and the validated report remains available.
 
 ### `GET /research-runs/{run_id}/evidence`
 

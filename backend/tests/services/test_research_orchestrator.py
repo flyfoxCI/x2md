@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import pytest
 from sqlalchemy import select
@@ -73,6 +73,57 @@ class RepairingFakeAI(FakeAI):
         report = self.reports[self.report_calls]
         self.report_calls += 1
         return GeneratedResearchReport(markdown=report, model_metadata={"model": "fake"})
+
+
+@dataclass
+class CountingCollector(FakeCollector):
+    calls: int = 0
+
+    async def collect(self, source: object) -> CollectionResult:
+        self.calls += 1
+        return self.result
+
+
+@dataclass
+class CheckpointFakeAI(FakeAI):
+    fail_report_once: bool = False
+    fail_second_note_once: bool = False
+    fail_tags_once: bool = False
+    wrong_note_evidence_id: int | None = None
+    note_calls: list[int] = field(default_factory=list)
+    report_calls: int = 0
+    tag_calls: int = 0
+
+    async def research_note(self, evidence: EvidenceInput) -> GeneratedResearchNote:
+        self.note_calls.append(evidence.evidence_id)
+        if self.fail_second_note_once and len(self.note_calls) == 2:
+            self.fail_second_note_once = False
+            raise ProviderError("provider_error", "safe", 502)
+        return GeneratedResearchNote(
+            evidence_id=self.wrong_note_evidence_id or evidence.evidence_id,
+            markdown=f"笔记 {evidence.evidence_id}",
+        )
+
+    async def research_report(
+        self, *, platform: str, coverage: Mapping[str, object], notes: tuple[GeneratedResearchNote, ...]
+    ) -> GeneratedResearchReport:
+        self.report_calls += 1
+        if self.fail_report_once:
+            self.fail_report_once = False
+            raise ProviderError("provider_error", "safe", 502)
+        return GeneratedResearchReport(
+            markdown=_report(f"E{notes[0].evidence_id}"),
+            model_metadata={"model": "fake"},
+        )
+
+    async def research_tags(
+        self, *, notes: tuple[GeneratedResearchNote, ...]
+    ) -> tuple[SuggestedResearchTag, ...]:
+        self.tag_calls += 1
+        if self.fail_tags_once:
+            self.fail_tags_once = False
+            raise ProviderError("provider_error", "safe", 502)
+        return self.tags
 
 
 def _report(token: str = "E1") -> str:
@@ -300,6 +351,162 @@ async def test_orchestrator_regenerates_one_invalid_report_before_failing_the_ru
 
     assert result.status == "completed", result.failure_code
     assert ai.report_calls == 2
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_resumes_at_report_without_recollecting_or_redigesting(
+    db_factory: sessionmaker[Session],
+) -> None:
+    collector = CountingCollector(
+        CollectionResult(
+            platform="github",
+            source_revision="abc123",
+            evidence=(
+                CollectedEvidence(
+                    locator="github://openai/researcher@abc123/README.md",
+                    kind="repository_file",
+                    ordinal=0,
+                    decision="included",
+                    content="Grounded project evidence.",
+                ),
+            ),
+            coverage={"complete": True},
+        )
+    )
+    ai = CheckpointFakeAI(report="", fail_report_once=True)
+    service = ResearchOrchestrator(db_factory, collectors={"github": collector}, ai=ai)
+    queued = service.enqueue(1, trigger="manual")
+
+    first = await service.execute(queued.id)
+    second = await service.execute(queued.id)
+
+    assert first.status == "failed" and first.failure_code == "provider_error"
+    assert second.status == "completed", second.failure_code
+    assert collector.calls == 1
+    assert len(ai.note_calls) == 1
+    assert ai.report_calls == 2
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_persists_each_note_and_resumes_only_missing_notes(
+    db_factory: sessionmaker[Session],
+) -> None:
+    collector = CountingCollector(
+        CollectionResult(
+            platform="github",
+            source_revision="abc123",
+            evidence=tuple(
+                CollectedEvidence(
+                    locator=f"github://openai/researcher@abc123/file-{ordinal}.md",
+                    kind="repository_file",
+                    ordinal=ordinal,
+                    decision="included",
+                    content=f"Grounded evidence {ordinal}.",
+                )
+                for ordinal in range(2)
+            ),
+            coverage={"complete": True},
+        )
+    )
+    ai = CheckpointFakeAI(report="", fail_second_note_once=True)
+    service = ResearchOrchestrator(db_factory, collectors={"github": collector}, ai=ai)
+    queued = service.enqueue(1, trigger="manual")
+
+    first = await service.execute(queued.id)
+    with db_factory() as session:
+        saved_after_failure = session.scalar(
+            select(ResearchEvidence).where(ResearchEvidence.digest_markdown.is_not(None))
+        )
+    second = await service.execute(queued.id)
+
+    assert first.status == "failed" and first.failure_code == "provider_error"
+    assert saved_after_failure is not None
+    assert second.status == "completed", second.failure_code
+    assert collector.calls == 1
+    assert len(ai.note_calls) == 3
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_checkpoints_report_before_retrying_failed_tags(
+    db_factory: sessionmaker[Session],
+) -> None:
+    collector = CountingCollector(
+        CollectionResult(
+            platform="github",
+            source_revision="abc123",
+            evidence=(
+                CollectedEvidence(
+                    locator="github://openai/researcher@abc123/README.md",
+                    kind="repository_file",
+                    ordinal=0,
+                    decision="included",
+                    content="Grounded project evidence.",
+                ),
+            ),
+            coverage={"complete": True},
+        )
+    )
+    ai = CheckpointFakeAI(report="", fail_tags_once=True)
+    service = ResearchOrchestrator(db_factory, collectors={"github": collector}, ai=ai)
+    queued = service.enqueue(1, trigger="manual")
+
+    first = await service.execute(queued.id)
+    with db_factory() as session:
+        reports_after_failure = list(
+            session.scalars(select(Artifact).where(Artifact.research_run_id == queued.id))
+        )
+    second = await service.execute(queued.id)
+    with db_factory() as session:
+        reports_after_retry = list(
+            session.scalars(select(Artifact).where(Artifact.research_run_id == queued.id))
+        )
+
+    assert first.status == "failed" and first.failure_code == "provider_error"
+    assert len(reports_after_failure) == 1
+    assert second.status == "completed", second.failure_code
+    assert collector.calls == 1
+    assert len(ai.note_calls) == 1
+    assert ai.report_calls == 1
+    assert ai.tag_calls == 2
+    assert len(reports_after_retry) == 1
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_rejects_a_note_bound_to_different_evidence(
+    db_factory: sessionmaker[Session],
+) -> None:
+    collector = FakeCollector(
+        CollectionResult(
+            platform="github",
+            source_revision="abc123",
+            evidence=tuple(
+                CollectedEvidence(
+                    locator=f"github://openai/researcher@abc123/file-{ordinal}.md",
+                    kind="repository_file",
+                    ordinal=ordinal,
+                    decision="included",
+                    content=f"Grounded project evidence {ordinal}.",
+                )
+                for ordinal in range(2)
+            ),
+            coverage={"complete": True},
+        )
+    )
+    # SQLite assigns IDs 1 and 2 in this isolated database. The first model
+    # response is deliberately bound to the other included row in the same run.
+    ai = CheckpointFakeAI(report="", wrong_note_evidence_id=2)
+    service = ResearchOrchestrator(db_factory, collectors={"github": collector}, ai=ai)
+
+    queued = service.enqueue(1, trigger="manual")
+    result = await service.execute(queued.id)
+
+    assert result.status == "failed"
+    assert result.failure_code == "research_processing_error"
+    with db_factory() as session:
+        evidence = list(session.scalars(
+            select(ResearchEvidence).where(ResearchEvidence.research_run_id == queued.id)
+        ))
+    assert evidence and all(item.digest_markdown is None for item in evidence)
 
 
 @pytest.mark.asyncio

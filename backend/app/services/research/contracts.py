@@ -10,9 +10,7 @@ EvidenceDecision = Literal["included", "excluded"]
 ResearchRunStatus = Literal[
     "queued", "running", "completed", "partial", "blocked", "failed"
 ]
-ResearchPhase = Literal[
-    "collecting", "summarizing", "reporting", "tagging", "persisting"
-]
+ResearchPhase = Literal["collecting", "summarizing", "reporting", "tagging"]
 
 
 @dataclass(frozen=True, slots=True)
