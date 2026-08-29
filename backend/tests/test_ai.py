@@ -11,6 +11,7 @@ from app.services.ai import (
     MAX_COMPLETION_CHARS,
     MAX_COMPLETION_TOKENS,
     MAX_PROMPT_CHARS,
+    MAX_RESEARCH_COMPLETION_TOKENS,
     TRUNCATION_MARKER,
     AIService,
     GeneratedResearchNote,
@@ -613,6 +614,111 @@ async def test_research_report_places_the_exact_markdown_template_before_evidenc
     assert prompt.index("## 研究范围与覆盖率") < prompt.index("<untrusted-evidence-notes>")
     assert "Copy only these evidence tokens exactly and never renumber them: [E782]." in prompt
     assert len(prompt) <= MAX_PROMPT_CHARS
+    await service.aclose()
+
+
+@pytest.mark.asyncio
+async def test_research_report_disables_deepseek_v4_thinking_and_expands_output_budget() -> None:
+    observed: dict[str, object] = {}
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        observed["body"] = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {"finish_reason": "stop", "message": {"content": "report"}}
+                ]
+            },
+        )
+
+    service = AIService(
+        Settings(
+            ai_base_url="https://provider.example/v1",
+            ai_api_key="configured-secret",
+            ai_model="DeepSeek-V4-Flash-0731",
+        ),
+        client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+
+    await service.research_report(
+        platform="github",
+        coverage={},
+        notes=(GeneratedResearchNote(evidence_id=782, markdown="证据笔记。"),),
+    )
+
+    body = observed["body"]
+    assert isinstance(body, dict)
+    assert body["thinking"] == {"type": "disabled"}
+    assert body["max_tokens"] == MAX_RESEARCH_COMPLETION_TOKENS == 6_000
+    await service.aclose()
+
+
+@pytest.mark.asyncio
+async def test_regular_openai_compatible_report_does_not_receive_deepseek_controls() -> None:
+    observed: dict[str, object] = {}
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        observed["body"] = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": "report"}}]},
+        )
+
+    service = AIService(
+        Settings(
+            ai_base_url="https://provider.example/v1",
+            ai_api_key="configured-secret",
+            ai_model="fixture-model",
+        ),
+        client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+
+    await service.research_report(
+        platform="github",
+        coverage={},
+        notes=(GeneratedResearchNote(evidence_id=1, markdown="证据笔记。"),),
+    )
+
+    body = observed["body"]
+    assert isinstance(body, dict)
+    assert "thinking" not in body
+    await service.aclose()
+
+
+@pytest.mark.asyncio
+async def test_deepseek_v4_controls_tags_but_keeps_note_reasoning_default() -> None:
+    bodies: list[dict[str, object]] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(json.loads(request.content))
+        content = "证据笔记。" if len(bodies) == 1 else "[]"
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": content}}]},
+        )
+
+    service = AIService(
+        Settings(
+            ai_base_url="https://provider.example/v1",
+            ai_api_key="configured-secret",
+            ai_model="deepseek-v4-pro",
+        ),
+        client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+    evidence = EvidenceInput(
+        evidence_id=1,
+        locator="github://owner/repo@abc/README.md",
+        kind="repository_file",
+        title="README.md",
+        content="Grounded evidence.",
+    )
+
+    note = await service.research_note(evidence)
+    await service.research_tags(notes=(note,))
+
+    assert "thinking" not in bodies[0]
+    assert bodies[1]["thinking"] == {"type": "disabled"}
     await service.aclose()
 
 

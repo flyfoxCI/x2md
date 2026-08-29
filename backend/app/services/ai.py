@@ -17,7 +17,7 @@ from app.services.research.contracts import EvidenceInput
 DerivationKind = Literal["translation", "summary", "skill"]
 MAX_PROMPT_CHARS = 24_000
 MAX_COMPLETION_TOKENS = 1_200
-MAX_RESEARCH_COMPLETION_TOKENS = 2_400
+MAX_RESEARCH_COMPLETION_TOKENS = 6_000
 MAX_COMPLETION_CHARS = 32_000
 TRUNCATION_MARKER = "\n\n[Content truncated to fit the AI context budget.]"
 PROVIDER_RETRY_DELAYS = (1.0, 2.0, 4.0, 8.0)
@@ -200,6 +200,7 @@ class AIService:
             ),
             user=prompt,
             max_tokens=MAX_RESEARCH_COMPLETION_TOKENS,
+            disable_thinking=True,
         )
         return GeneratedResearchReport(
             markdown=markdown, model_metadata=self._research_model_metadata()
@@ -221,29 +222,38 @@ class AIService:
                 "(number from 0 to 1), and evidence_ids (array of supplied positive integers)."
             ),
             user=prompt,
+            disable_thinking=True,
         )
         return _parse_research_tags(raw, allowed_evidence_ids={note.evidence_id for note in notes})
 
     async def _complete(
-        self, *, system: str, user: str, max_tokens: int = MAX_COMPLETION_TOKENS
+        self,
+        *,
+        system: str,
+        user: str,
+        max_tokens: int = MAX_COMPLETION_TOKENS,
+        disable_thinking: bool = False,
     ) -> str:
         """Perform the sole provider request without exposing transport diagnostics."""
         base_url, api_key, model = self._configuration_or_error()
         last_error: Exception | None = None
         for attempt in range(PROVIDER_MAX_ATTEMPTS):
             try:
+                request_json: dict[str, object] = {
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                    "temperature": 0.2,
+                    "max_tokens": max_tokens,
+                }
+                if disable_thinking and _supports_deepseek_thinking_control(model):
+                    request_json["thinking"] = {"type": "disabled"}
                 response = await self._client.post(
                     f"{base_url}/chat/completions",
                     headers={"Authorization": f"Bearer {api_key}"},
-                    json={
-                        "model": model,
-                        "messages": [
-                            {"role": "system", "content": system},
-                            {"role": "user", "content": user},
-                        ],
-                        "temperature": 0.2,
-                        "max_tokens": max_tokens,
-                    },
+                    json=request_json,
                 )
                 response.raise_for_status()
             except httpx.HTTPStatusError as error:
@@ -522,6 +532,11 @@ def _provider_error() -> ProviderError:
 def _is_transient_provider_status(status_code: int) -> bool:
     """Retry timeouts, rate limits, and every upstream/proxy server failure."""
     return status_code in {408, 429} or 500 <= status_code < 600
+
+
+def _supports_deepseek_thinking_control(model: str) -> bool:
+    """Identify DeepSeek V4 names that accept the official thinking toggle."""
+    return "deepseek-v4" in model.casefold()
 
 
 def _truncate(value: str, limit: int) -> str:
