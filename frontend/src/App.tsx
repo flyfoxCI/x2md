@@ -20,6 +20,7 @@ import {
   updateSettings,
 } from "./api";
 import { AccountDialog } from "./components/AccountDialog";
+import { rootArtifactKind } from "./components/artifactLineage";
 import { AppHeader } from "./components/AppHeader";
 import { EditorWorkspace, type WorkspaceTab } from "./components/EditorWorkspace";
 import { ImportDialog } from "./components/ImportDialog";
@@ -643,10 +644,6 @@ function AuthenticatedStudio({
             autoStart={autoResearch}
             autoStartPending={autoResearchPending}
           />
-          {detail ? <TagManager
-            assignments={detail.tag_assignments ?? []}
-            definitions={tagDefinitions}
-          /> : null}
           <EditorWorkspace
             currentMarkdown={currentMarkdown}
             deriving={activeDerivation}
@@ -658,9 +655,19 @@ function AuthenticatedStudio({
             saving={activeSaving}
             selectedArtifact={selectedArtifact}
           />
+          {detail ? <TagManager
+            assignments={detail.tag_assignments ?? []}
+            definitions={tagDefinitions}
+          /> : null}
         </div>
         <PreviewPanel
           artifact={selectedArtifact}
+          isResearchArtifact={selectedArtifact
+            ? rootArtifactKind(
+              selectedArtifact,
+              new Map((detail?.artifacts ?? []).map((artifact) => [artifact.id, artifact])),
+            ) === "research"
+            : false}
           markdown={currentMarkdown}
           onPresentationChange={handlePresentationChange}
           onAuthenticationRequired={handleAuthenticationRequired}

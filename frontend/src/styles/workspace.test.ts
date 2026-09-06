@@ -33,4 +33,10 @@ describe("compact preview overlay styles", () => {
     expect(css).toMatch(/@media\s*\(max-width:\s*1120px\)\s*\{[\s\S]*\.workspace-column\s*\{[^}]*padding-bottom:\s*calc\(3rem\s*\+\s*1px\s*\+\s*env\(safe-area-inset-bottom,\s*0px\)\)/);
     expect(css).toMatch(/@media\s*\(max-width:\s*720px\)\s*\{[\s\S]*\.workspace-column\s*\{[^}]*padding-bottom:\s*calc\(3rem\s*\+\s*1px\s*\+\s*env\(safe-area-inset-bottom,\s*0px\)\)/);
   });
+
+  it("lets a top-down research diagram fit the report column without forced horizontal scrolling", async () => {
+    const css = await readFile(workspacePath, "utf8");
+
+    expect(css).toMatch(/\.mermaid-diagram svg\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0/);
+  });
 });

@@ -585,7 +585,7 @@ async def test_research_note_treats_public_evidence_as_untrusted_data() -> None:
 
 
 @pytest.mark.asyncio
-async def test_research_report_places_the_exact_markdown_template_before_evidence() -> None:
+async def test_research_report_places_the_github_template_and_diagram_rules_before_evidence() -> None:
     observed: dict[str, object] = {}
 
     async def handler(request: httpx.Request) -> httpx.Response:
@@ -611,9 +611,55 @@ async def test_research_report_places_the_exact_markdown_template_before_evidenc
     assert isinstance(body, dict)
     prompt = body["messages"][1]["content"]
     assert prompt.startswith("Fill this exact Markdown template")
-    assert prompt.index("## 研究范围与覆盖率") < prompt.index("<untrusted-evidence-notes>")
+    assert prompt.index("## 研究摘要") < prompt.index("<untrusted-evidence-notes>")
+    assert "## 系统架构与模块边界" in prompt
+    assert "exactly one fenced `mermaid` flowchart" in prompt
+    assert "Start it with `flowchart TB`" in prompt
+    assert "不要把 README 改写成摘要" in prompt
     assert "Copy only these evidence tokens exactly and never renumber them: [E782]." in prompt
     assert len(prompt) <= MAX_PROMPT_CHARS
+    await service.aclose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("platform", "expected", "unexpected"),
+    [
+        ("arxiv", "## 实验设计与评估协议", "## 系统架构与模块边界"),
+        ("huggingface", "## 内容定位与目标读者", "## 实验设计与评估协议"),
+    ],
+)
+async def test_research_report_uses_platform_specific_research_lens(
+    platform: str, expected: str, unexpected: str
+) -> None:
+    observed: dict[str, object] = {}
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        observed["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"choices": [{"message": {"content": "report"}}]})
+
+    service = AIService(
+        Settings(
+            ai_base_url="https://provider.example/v1",
+            ai_api_key="configured-secret",
+            ai_model="fixture-model",
+        ),
+        client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+
+    await service.research_report(
+        platform=platform,
+        coverage={},
+        notes=(GeneratedResearchNote(evidence_id=1, markdown="证据笔记。"),),
+    )
+
+    body = observed["body"]
+    assert isinstance(body, dict)
+    system = body["messages"][0]["content"]
+    prompt = body["messages"][1]["content"]
+    assert expected in prompt
+    assert unexpected not in prompt
+    assert "untrusted data" in system
     await service.aclose()
 
 

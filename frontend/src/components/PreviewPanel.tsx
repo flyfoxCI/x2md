@@ -8,6 +8,7 @@ import { MarkdownPreview } from "./MarkdownPreview";
 
 interface PreviewPanelProps {
   artifact: Artifact | null;
+  isResearchArtifact?: boolean;
   isOverlayViewport: boolean;
   markdown: string;
   source: Source | null;
@@ -20,6 +21,7 @@ type MobileSurface = "editor" | "preview" | "chat";
 
 export function PreviewPanel({
   artifact,
+  isResearchArtifact = artifact?.kind === "research",
   isOverlayViewport,
   markdown,
   source,
@@ -67,7 +69,7 @@ export function PreviewPanel({
         hidden={!isPreviewSurfaceVisible}
         inert={!isPreviewSurfaceVisible || undefined}
       >
-        <h2>预览</h2>
+        <h2>{isResearchArtifact ? "完整研究报告" : "预览"}</h2>
         <div className="preview-actions">
           <label className="theme-select">
             <span>界面主题</span>

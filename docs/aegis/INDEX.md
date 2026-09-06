@@ -72,6 +72,8 @@ Entries are workspace records, not authoritative runtime decisions.
 | 2026-08-24 | artifact | docs/aegis/work/2026-08-23-huggingface-blog-evidence/evidence-bundle-draft-runtime-acceptance.json | Hugging Face Blog runtime acceptance evidence |
 | 2026-08-24 | artifact | docs/aegis/work/2026-08-23-huggingface-blog-evidence/gate-input-pack.json | 2026-08-23-huggingface-blog-evidence gate input pack |
 | 2026-08-24 | work | docs/aegis/work/2026-08-23-huggingface-blog-evidence/proof-bundle.md | 2026-08-23-huggingface-blog-evidence proof bundle |
+| 2026-08-30 | spec | docs/aegis/specs/2026-08-30-visual-deep-research-workspace-design.md | 可视化深度研究工作区设计规格 |
+| 2026-08-30 | plan | docs/aegis/plans/2026-08-30-visual-deep-research-workspace.md | 可视化深度研究工作区实施计划 |
 | 2026-08-18 | artifact | docs/aegis/work/2026-08-18-public-login-security/evidence-bundle-draft-baseline-green.json | 2026-08-18-public-login-security evidence baseline-green |
 | 2026-08-18 | artifact | docs/aegis/work/2026-08-18-public-login-security/resume-state-hint.json | 2026-08-18-public-login-security resume state hint |
 | 2026-08-18 | artifact | docs/aegis/work/2026-08-18-public-login-security/evidence-bundle-draft-task1-green.json | 2026-08-18-public-login-security evidence task1-green |

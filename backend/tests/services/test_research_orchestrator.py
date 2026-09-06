@@ -30,6 +30,7 @@ from app.services.research.contracts import (
     EvidenceInput,
 )
 from app.services.research.orchestrator import ResearchOrchestrator
+from app.services.research.templates import research_template
 
 
 @dataclass
@@ -130,46 +131,25 @@ class CheckpointFakeAI(FakeAI):
 
 
 def _report(token: str = "E1") -> str:
-    return f"""## 研究范围与覆盖率
+    sections: list[str] = []
+    for heading in research_template("github").headings:
+        if heading == "一图综述":
+            body = f"""```mermaid
+flowchart TB
+    A[\"项目\"] --> B[\"机制\"]
+```
 
-本次材料范围有限。
-
-## 背景与目标
-
-背景来自公开证据。[{token}]
-
-## 核心贡献
-
-贡献来自公开证据。[{token}]
-
-## 方法或架构
-
-方法来自公开证据。[{token}]
-
-## 实现、实验与配置
-
-实现来自公开证据。[{token}]
-
-## 关键结果
-
-结果来自公开证据。[{token}]
-
-## 局限与风险
-
-局限来自公开证据。[{token}]
-
-## 复现与应用建议
-
-复现来自公开证据。[{token}]
-
-## 标签
-
-- 检索增强生成
-
-## 证据索引
-
-- [{token}] README
-"""
+图示依据来自公开证据。[{token}]"""
+        elif heading == "研究范围与证据质量":
+            body = "本次材料范围有限。"
+        elif heading == "标签":
+            body = "- 检索增强生成"
+        elif heading == "证据索引":
+            body = f"- [{token}] README"
+        else:
+            body = f"{heading}来自公开证据。[{token}]"
+        sections.append(f"## {heading}\n\n{body}")
+    return "\n\n".join(sections) + "\n"
 
 
 @pytest.fixture
