@@ -494,6 +494,23 @@ def test_alembic_preserves_percent_encoded_postgresql_password_before_connecting
     assert normalized_url.password == "password@with-symbol"
 
 
+def test_research_run_defaults_to_five_transient_retries(session: Session) -> None:
+    source = Source(
+        canonical_url="https://github.com/example/retryable",
+        platform="github",
+        title="Retryable repository",
+        raw_text="# README",
+        source_markdown="# README",
+        metadata_json={},
+        import_status="ready",
+    )
+    run = ResearchRun(source=source, trigger="auto", status="queued")
+    session.add_all([source, run])
+    session.flush()
+
+    assert run.max_attempts == 5
+
+
 def test_research_records_preserve_source_lineage_and_evidence_links(
     session: Session,
 ) -> None:

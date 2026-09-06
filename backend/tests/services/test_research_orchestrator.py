@@ -130,6 +130,18 @@ class CheckpointFakeAI(FakeAI):
         return self.tags
 
 
+@dataclass
+class SelectiveNoteFailureAI(CheckpointFakeAI):
+    async def research_note(self, evidence: EvidenceInput) -> GeneratedResearchNote:
+        self.note_calls.append(evidence.evidence_id)
+        if "provider-rejected" in evidence.content:
+            raise ProviderError("provider_error", "safe", 502)
+        return GeneratedResearchNote(
+            evidence_id=evidence.evidence_id,
+            markdown=f"笔记 {evidence.evidence_id}",
+        )
+
+
 def _report(token: str = "E1") -> str:
     sections: list[str] = []
     for heading in research_template("github").headings:
@@ -407,6 +419,63 @@ async def test_orchestrator_persists_each_note_and_resumes_only_missing_notes(
     assert second.status == "completed", second.failure_code
     assert collector.calls == 1
     assert len(ai.note_calls) == 3
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_excludes_one_repeatedly_unavailable_note_and_finishes_report(
+    db_factory: sessionmaker[Session],
+) -> None:
+    collector = CountingCollector(
+        CollectionResult(
+            platform="github",
+            source_revision="abc123",
+            evidence=(
+                CollectedEvidence(
+                    locator="github://openai/researcher@abc123/rejected.md",
+                    kind="repository_file",
+                    ordinal=0,
+                    decision="included",
+                    content="provider-rejected",
+                ),
+                CollectedEvidence(
+                    locator="github://openai/researcher@abc123/usable.md",
+                    kind="repository_file",
+                    ordinal=1,
+                    decision="included",
+                    content="Grounded usable evidence.",
+                ),
+            ),
+            coverage={"complete": True, "included_count": 2, "excluded_count": 0},
+        )
+    )
+    ai = SelectiveNoteFailureAI(report="")
+    service = ResearchOrchestrator(db_factory, collectors={"github": collector}, ai=ai)
+    queued = service.enqueue(1, trigger="manual")
+
+    first = await service.execute(queued.id)
+    second = await service.execute(queued.id)
+    third = await service.execute(queued.id)
+
+    assert first.status == "failed" and second.status == "failed"
+    assert third.status == "partial", third.failure_code
+    with db_factory() as session:
+        evidence = list(
+            session.scalars(
+                select(ResearchEvidence)
+                .where(ResearchEvidence.research_run_id == queued.id)
+                .order_by(ResearchEvidence.ordinal)
+            )
+        )
+        run = session.get(ResearchRun, queued.id)
+        artifact = session.scalar(select(Artifact).where(Artifact.research_run_id == queued.id))
+    assert collector.calls == 1
+    assert [item.status for item in evidence] == ["excluded", "included"]
+    assert evidence[0].exclusion_reason == "provider_error"
+    assert evidence[0].digest_model_metadata_json["provider_failure_count"] == 3
+    assert evidence[1].digest_markdown is not None
+    assert run is not None and run.coverage_json["provider_excluded_count"] == 1
+    assert run.coverage_json["included_count"] == 1
+    assert artifact is not None
 
 
 @pytest.mark.asyncio

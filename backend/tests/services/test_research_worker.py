@@ -104,6 +104,7 @@ def worker_factory(tmp_path) -> sessionmaker[Session]:
                 source_id=source.id,
                 trigger="manual",
                 status="queued",
+                max_attempts=2,
                 next_attempt_at=datetime(2026, 8, 23, tzinfo=UTC),
             )
         )
