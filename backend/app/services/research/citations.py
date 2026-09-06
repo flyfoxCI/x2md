@@ -5,21 +5,14 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 
-REQUIRED_REPORT_HEADINGS = (
-    "研究范围与覆盖率",
-    "背景与目标",
-    "核心贡献",
-    "方法或架构",
-    "实现、实验与配置",
-    "关键结果",
-    "局限与风险",
-    "复现与应用建议",
-    "标签",
-    "证据索引",
-)
-CITATION_REQUIRED_HEADINGS = REQUIRED_REPORT_HEADINGS[1:8]
+from app.services.research.templates import research_template
+
 _TOKEN_PATTERN = re.compile(r"\[E([1-9][0-9]*)\]")
 _HEADING_PATTERN = re.compile(r"^## (.+?)\s*$", re.MULTILINE)
+_MERMAID_PATTERN = re.compile(r"```mermaid\s*\n(.*?)```", re.DOTALL | re.IGNORECASE)
+_UNSAFE_MERMAID_PATTERN = re.compile(
+    r"%%\{|\bclick\b|javascript\s*:|<\/?[a-z][^>]*>", re.IGNORECASE
+)
 
 
 class ResearchReportValidationError(ValueError):
@@ -39,15 +32,18 @@ def parse_report_citations(markdown: str) -> tuple[str, ...]:
 
 
 def validate_research_report(
-    markdown: str, *, known_tokens: Iterable[str | int]
+    markdown: str, *, platform: str, known_tokens: Iterable[str | int]
 ) -> tuple[str, ...]:
-    """Require the fixed template and a known evidence citation per body paragraph."""
+    """Require the platform template, safe diagram, and known citations."""
+    template = research_template(platform)
     sections = _report_sections(markdown)
     actual_headings = tuple(sections)
-    if actual_headings != REQUIRED_REPORT_HEADINGS:
+    if actual_headings != template.headings:
         raise ResearchReportValidationError(
             "report headings must exactly match the required research template"
         )
+
+    _validate_mermaid(sections["一图综述"])
 
     citations = parse_report_citations(markdown)
     known = {_normalize_token(token) for token in known_tokens}
@@ -55,7 +51,7 @@ def validate_research_report(
         if token not in known:
             raise ResearchReportValidationError(f"unknown evidence token: {token}")
 
-    for heading in CITATION_REQUIRED_HEADINGS:
+    for heading in template.citation_required_headings:
         for paragraph in _nonempty_paragraphs(sections[heading]):
             if not any(token in paragraph for token in _TOKEN_PATTERN.findall(paragraph)):
                 raise ResearchReportValidationError(
@@ -83,7 +79,22 @@ def _report_sections(markdown: str) -> dict[str, str]:
 
 
 def _nonempty_paragraphs(body: str) -> tuple[str, ...]:
-    return tuple(part.strip() for part in re.split(r"\n\s*\n", body) if part.strip())
+    without_fences = re.sub(r"```.*?```", "", body, flags=re.DOTALL)
+    return tuple(part.strip() for part in re.split(r"\n\s*\n", without_fences) if part.strip())
+
+
+def _validate_mermaid(body: str) -> None:
+    diagrams = _MERMAID_PATTERN.findall(body)
+    if len(diagrams) != 1:
+        raise ResearchReportValidationError("report must contain exactly one Mermaid diagram")
+    diagram = diagrams[0].strip()
+    if len(diagram) > 3_000:
+        raise ResearchReportValidationError("Mermaid diagram exceeds the safe size limit")
+    first_line = diagram.splitlines()[0].strip().lower() if diagram else ""
+    if first_line not in {"flowchart tb", "flowchart td", "graph tb", "graph td"}:
+        raise ResearchReportValidationError("Mermaid diagram must be a top-down flowchart")
+    if _UNSAFE_MERMAID_PATTERN.search(diagram):
+        raise ResearchReportValidationError("unsafe Mermaid directive")
 
 
 def _normalize_token(token: str | int) -> str:

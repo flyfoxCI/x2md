@@ -188,7 +188,9 @@ class ResearchOrchestrator:
                 platform=platform, coverage=coverage, notes=notes
             )
             try:
-                validate_research_report(report.markdown, known_tokens=known_tokens)
+                validate_research_report(
+                    report.markdown, platform=platform, known_tokens=known_tokens
+                )
                 return report
             except ResearchReportValidationError:
                 if attempt == 1:
@@ -400,7 +402,9 @@ class ResearchOrchestrator:
                     )
                 )
             }
-            tokens = validate_research_report(report.markdown, known_tokens=evidence)
+            tokens = validate_research_report(
+                report.markdown, platform=source.platform, known_tokens=evidence
+            )
             artifact = Artifact(
                 source_id=run.source_id,
                 research_run_id=run.id,

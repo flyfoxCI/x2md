@@ -23,6 +23,7 @@ import {
   updateSettings,
 } from "./api";
 import { AccountDialog } from "./components/AccountDialog";
+import { rootArtifactKind } from "./components/artifactLineage";
 import { AppHeader } from "./components/AppHeader";
 import { EditorWorkspace, type WorkspaceTab } from "./components/EditorWorkspace";
 import { ImportDialog } from "./components/ImportDialog";
@@ -695,14 +696,6 @@ function AuthenticatedStudio({
             autoStart={autoResearch}
             autoStartPending={autoResearchPending}
           />
-          {detail ? <TagManager
-            assignments={detail.tag_assignments ?? []}
-            definitions={tagDefinitions}
-            onCreate={(label) => void handleCreateTag(label)}
-            onDecision={(assignmentId, status) => void handleTagDecision(assignmentId, status)}
-            onDelete={(assignmentId) => void handleDeleteTag(assignmentId)}
-            pending={tagPending}
-          /> : null}
           <EditorWorkspace
             currentMarkdown={currentMarkdown}
             deriving={activeDerivation}
@@ -714,9 +707,23 @@ function AuthenticatedStudio({
             saving={activeSaving}
             selectedArtifact={selectedArtifact}
           />
+          {detail ? <TagManager
+            assignments={detail.tag_assignments ?? []}
+            definitions={tagDefinitions}
+            onCreate={(label) => void handleCreateTag(label)}
+            onDecision={(assignmentId, status) => void handleTagDecision(assignmentId, status)}
+            onDelete={(assignmentId) => void handleDeleteTag(assignmentId)}
+            pending={tagPending}
+          /> : null}
         </div>
         <PreviewPanel
           artifact={selectedArtifact}
+          isResearchArtifact={selectedArtifact
+            ? rootArtifactKind(
+              selectedArtifact,
+              new Map((detail?.artifacts ?? []).map((artifact) => [artifact.id, artifact])),
+            ) === "research"
+            : false}
           markdown={currentMarkdown}
           onPresentationChange={handlePresentationChange}
           onAuthenticationRequired={handleAuthenticationRequired}

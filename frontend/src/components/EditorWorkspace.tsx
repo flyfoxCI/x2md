@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 
 import type { Artifact, ArtifactKind, DerivationKind, SourceDetail } from "../types";
+import { rootArtifactKind } from "./artifactLineage";
+import { ResearchOverview } from "./ResearchOverview";
 
 export type WorkspaceTab = "original" | "translation" | "summary" | "skill" | "research";
 
@@ -42,9 +44,11 @@ export function EditorWorkspace({
   selectedArtifact,
 }: EditorWorkspaceProps) {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("original");
+  const [researchEditing, setResearchEditing] = useState(false);
 
   useEffect(() => {
     setActiveTab("original");
+    setResearchEditing(false);
   }, [detail?.source.id]);
 
   const activeDefinition = useMemo(
@@ -53,6 +57,12 @@ export function EditorWorkspace({
   );
   const activeArtifact = findArtifact(detail, activeDefinition);
   const canEdit = activeArtifact !== null;
+  const isResearchOverview = activeDefinition.id === "research" && canEdit && !researchEditing;
+
+  function selectTab(tab: WorkspaceTab) {
+    setActiveTab(tab);
+    setResearchEditing(false);
+  }
 
   function moveTab(event: KeyboardEvent<HTMLButtonElement>, index: number) {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight" && event.key !== "Home" && event.key !== "End") {
@@ -65,7 +75,7 @@ export function EditorWorkspace({
         ? tabs.length - 1
         : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
     const nextTab = tabs[nextIndex];
-    setActiveTab(nextTab.id);
+    selectTab(nextTab.id);
     document.getElementById(`tab-${nextTab.id}`)?.focus();
   }
 
@@ -113,7 +123,7 @@ export function EditorWorkspace({
             className={activeTab === tab.id ? "is-active" : ""}
             id={`tab-${tab.id}`}
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => selectTab(tab.id)}
             onKeyDown={(event) => moveTab(event, index)}
             role="tab"
             tabIndex={activeTab === tab.id ? 0 : -1}
@@ -124,9 +134,18 @@ export function EditorWorkspace({
         ))}
       </div>
       <div className="editor-toolbar">
-        <span>{activeDefinition.label}</span>
+        <span>{isResearchOverview ? "研究速览" : activeDefinition.label}</span>
         <div>
-          {canEdit ? (
+          {activeDefinition.id === "research" && canEdit ? (
+            <button
+              className="secondary-button"
+              onClick={() => setResearchEditing((editing) => !editing)}
+              type="button"
+            >
+              {researchEditing ? "返回研究速览" : "编辑完整报告"}
+            </button>
+          ) : null}
+          {canEdit && (!isResearchOverview) ? (
             <button
               className="primary-button save-button"
               disabled={saving}
@@ -156,6 +175,11 @@ export function EditorWorkspace({
               {deriving === activeTab ? "正在生成…" : `生成${activeDefinition.label}`}
             </button> : null}
           </div>
+        ) : isResearchOverview ? (
+          <ResearchOverview
+            markdown={currentMarkdown || activeArtifact.markdown}
+            platform={detail.source.platform}
+          />
         ) : (
           <textarea
             aria-label="Markdown 内容"
@@ -168,7 +192,7 @@ export function EditorWorkspace({
       </div>
       <footer className="editor-footer">
         <span>{currentMarkdown.length.toLocaleString()} 字符</span>
-        <span>{canEdit ? activeDefinition.id === "research" ? "编辑后的研究报告不再自动验证引用" : "编辑会保存为新版本" : "原始来源保持不变"}</span>
+        <span>{isResearchOverview ? "右侧展示完整研究报告" : canEdit ? activeDefinition.id === "research" ? "编辑后的研究报告不再自动验证引用" : "编辑会保存为新版本" : "原始来源保持不变"}</span>
       </footer>
     </section>
   );
@@ -180,21 +204,9 @@ function findArtifact(detail: SourceDetail | null, tab: TabDefinition): Artifact
   }
   const byId = new Map(detail.artifacts.map((artifact) => [artifact.id, artifact]));
   const candidates = detail.artifacts.filter(
-    (artifact) => rootKind(artifact, byId) === tab.artifactKind,
+    (artifact) => rootArtifactKind(artifact, byId) === tab.artifactKind,
   );
   return candidates.at(-1) ?? null;
-}
-
-function rootKind(artifact: Artifact, byId: Map<number, Artifact>): ArtifactKind {
-  let current = artifact;
-  const visited = new Set<number>();
-  while (current.kind === "user_edit" && current.parent_artifact_id !== null && !visited.has(current.id)) {
-    visited.add(current.id);
-    const parent = byId.get(current.parent_artifact_id);
-    if (!parent) break;
-    current = parent;
-  }
-  return current.kind;
 }
 
 function platformSymbol(platform: string): string {

@@ -2,7 +2,7 @@
 
 将公开专家内容沉淀为可检索、可编辑、可导出的知识库。输入一条公开 HTTPS 链接，服务端会抓取并规范化内容；配置兼容 OpenAI 的 AI 服务后，可生成中文翻译、知识摘要和可复用 Skill Markdown。
 
-对于 GitHub、arXiv 和 Hugging Face，产品还提供“深度研究”工作流：它不是 README 或摘要的改写，而是从版本固定、预算受限的公开材料中建立证据集，逐条生成研究笔记，并产出有章节和可验证 `[E<n>]` 引文的中文研究报告。每次运行都会保存覆盖范围、没有采集的材料及其原因；AI 推荐标签必须经用户接受后才会影响知识库筛选。
+对于 GitHub、arXiv 和 Hugging Face，产品还提供“深度研究”工作流：它不是 README 或摘要的改写，而是从版本固定、预算受限的公开材料中建立证据集，逐条生成研究笔记，并产出有专业章节、Mermaid 一图综述和可验证 `[E<n>]` 引文的中文研究报告。GitHub 项目、arXiv 论文与 Hugging Face 技术内容分别采用工程架构、研究方法/实验和技术内容脉络模板。每次运行都会保存覆盖范围、没有采集的材料及其原因；AI 推荐标签必须经用户接受后才会影响知识库筛选。
 
 支持的来源包括通用公开网页、GitHub 公开仓库、arXiv 论文、Hugging Face 模型/数据集页面、可公开获得字幕的 YouTube 视频，以及配置 X API bearer token 后的 X 帖子。详细 API 合同见 [docs/api.md](docs/api.md)。
 
@@ -56,7 +56,7 @@ uv run --env-file ../.env alembic upgrade head
 | arXiv | 版本化公开 PDF 的页级文本 | 25 MiB PDF、60 页、50 万字符、32 请求/run | OCR、加密/无文本 PDF 的伪造文本 |
 | Hugging Face | card、配置和小型源码文本；定位到 revision | 12 个文件、1 MiB、32 请求/run | 模型权重、数据集载荷及其他二进制对象 |
 
-报告在写入前接受固定章节和引文校验：背景与目标、核心贡献、方法或架构、实现/实验与配置、关键结果、局限与风险、复现与应用建议等实质段落必须引用同一运行中的证据。编辑研究报告会创建普通的 `user_edit` 版本，界面会明确标注该版本不再自动验证引用。
+报告在写入前接受平台专属章节、引文和图示校验。三类报告都以“研究摘要”“一图综述”“研究范围与证据质量”开篇，再分别分析项目架构与实现、论文方法与实验、或技术内容与关联工件；研究判断段落必须引用同一运行中的证据。图示限定为安全、纵向且适合窄栏阅读的 Mermaid flowchart。深度研究标签页默认显示结论先行的研究速览，右侧显示完整报告；编辑完整报告会创建普通的 `user_edit` 版本，界面会明确标注该版本不再自动验证引用。
 
 Do not `source` or dot-execute `.env`: it is configuration data, not shell
 code. `uv run --env-file ../.env` parses it without executing it. For a secret
