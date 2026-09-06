@@ -242,7 +242,10 @@ class ResearchRun(Base):
     budget_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     coverage_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     attempt_count: Mapped[int] = mapped_column(default=0)
-    max_attempts: Mapped[int] = mapped_column(default=2)
+    # A research run can contain dozens of separately checkpointed provider calls.
+    # Five task-level retries let transient provider outages recover without losing
+    # completed notes, while the durable cap still prevents an infinite loop.
+    max_attempts: Mapped[int] = mapped_column(default=5)
     next_attempt_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, index=True
     )

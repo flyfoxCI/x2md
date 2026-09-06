@@ -22,7 +22,7 @@ _TRANSIENT_FAILURE_CODES = frozenset(
 
 
 class ResearchWorker:
-    """Claim at most one leased run at a time and retry only transient failures twice."""
+    """Claim one leased run and retry transient failures up to its durable limit."""
 
     def __init__(
         self,

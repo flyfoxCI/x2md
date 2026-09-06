@@ -39,6 +39,8 @@ from app.services.research.tags import TagService
 
 type SessionFactory = sessionmaker[Session]
 
+_NOTE_PROVIDER_FAILURE_LIMIT = 3
+
 
 @dataclass(frozen=True, slots=True)
 class ResearchError(Exception):
@@ -151,13 +153,13 @@ class ResearchOrchestrator:
             return self._finish(run_id, status="blocked", failure_code="no_included_evidence")
 
         try:
-            notes = await self._research_notes(run_id, inputs)
+            notes = await self._research_notes(run_id, inputs, coverage)
             if not self._has_report_checkpoint(run_id):
                 report = await self._generate_valid_report(
                     platform=source.platform,
                     coverage=coverage,
                     notes=notes,
-                    known_tokens={evidence.evidence_id for evidence in inputs},
+                    known_tokens={note.evidence_id for note in notes},
                 )
                 self._persist_report_checkpoint(run_id, report)
             self._set_phase(run_id, "tagging")
@@ -312,7 +314,10 @@ class ResearchOrchestrator:
             return inputs, dict(run.coverage_json)
 
     async def _research_notes(
-        self, run_id: int, inputs: tuple[EvidenceInput, ...]
+        self,
+        run_id: int,
+        inputs: tuple[EvidenceInput, ...],
+        coverage: dict[str, object],
     ) -> tuple[GeneratedResearchNote, ...]:
         self._set_phase(run_id, "summarizing")
         with self._session_factory() as session:
@@ -335,11 +340,66 @@ class ResearchOrchestrator:
         for evidence in inputs:
             note = persisted.get(evidence.evidence_id)
             if note is None:
-                note = await self._ai.research_note(evidence)
+                try:
+                    note = await self._ai.research_note(evidence)
+                except ProviderError as error:
+                    if error.code != "provider_error" or not self._record_note_provider_failure(
+                        run_id, evidence.evidence_id, coverage
+                    ):
+                        raise
+                    continue
                 self._persist_note(run_id, evidence.evidence_id, note)
             notes.append(note)
         self._set_phase(run_id, "reporting")
         return tuple(notes)
+
+    def _record_note_provider_failure(
+        self,
+        run_id: int,
+        evidence_id: int,
+        coverage: dict[str, object],
+    ) -> bool:
+        """Persist failures and honestly exclude one item after repeated provider rejection."""
+        with self._session_factory() as session:
+            evidence = session.get(ResearchEvidence, evidence_id)
+            if evidence is None or evidence.research_run_id != run_id:
+                raise ResearchError(
+                    "invalid_note_evidence", "Research note did not match persisted evidence."
+                )
+            metadata = dict(evidence.digest_model_metadata_json)
+            failure_count = int(metadata.get("provider_failure_count", 0)) + 1
+            metadata["provider_failure_count"] = failure_count
+            evidence.digest_model_metadata_json = metadata
+            if failure_count < _NOTE_PROVIDER_FAILURE_LIMIT:
+                session.commit()
+                return False
+
+            evidence.status = "excluded"
+            evidence.exclusion_reason = "provider_error"
+            included_count = sum(
+                1
+                for item in session.scalars(
+                    select(ResearchEvidence).where(ResearchEvidence.research_run_id == run_id)
+                )
+                if item.status == "included"
+            )
+            coverage["complete"] = False
+            coverage["included_count"] = included_count
+            coverage["excluded_count"] = sum(
+                1
+                for item in session.scalars(
+                    select(ResearchEvidence).where(ResearchEvidence.research_run_id == run_id)
+                )
+                if item.status == "excluded"
+            )
+            coverage["provider_excluded_count"] = int(
+                coverage.get("provider_excluded_count", 0)
+            ) + 1
+            coverage.setdefault("reason", "provider_material_excluded")
+            run = _require_run(session, run_id)
+            run.coverage_json = dict(coverage)
+            session.commit()
+            return True
 
     def _persist_note(
         self, run_id: int, expected_evidence_id: int, note: GeneratedResearchNote
