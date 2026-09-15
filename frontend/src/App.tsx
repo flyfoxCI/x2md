@@ -3,8 +3,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   changePassword,
   clearAuthentication,
-  createCustomTag,
-  deleteTagAssignment,
   deriveSource,
   editArtifact,
   getCurrentSession,
@@ -18,7 +16,6 @@ import {
   listTags,
   login,
   logout,
-  updateTagAssignment,
   updateResearchSettings,
   updateSettings,
 } from "./api";
@@ -143,7 +140,6 @@ function AuthenticatedStudio({
   const [presentationError, setPresentationError] = useState<string | null>(null);
   const [researchEvidence, setResearchEvidence] = useState<ResearchEvidence[]>([]);
   const [tagDefinitions, setTagDefinitions] = useState<TagDefinition[]>([]);
-  const [tagPending, setTagPending] = useState(false);
   const [autoResearch, setAutoResearch] = useState(false);
   const [autoResearchPending, setAutoResearchPending] = useState(false);
   const detailRequestRef = useRef<AbortController | null>(null);
@@ -571,54 +567,6 @@ function AuthenticatedStudio({
     }
   }
 
-  async function handleTagDecision(assignmentId: number, status: "accepted" | "rejected") {
-    const actionSource = selectedSourceRef.current;
-    if (!actionSource || tagPending) return;
-    setTagPending(true);
-    try {
-      await updateTagAssignment(assignmentId, status);
-      await loadDetail(actionSource);
-      setSuccess(status === "accepted" ? "标签已接受" : "标签已拒绝");
-    } catch (reason) {
-      if (isAuthenticationRequired(reason)) handleAuthenticationRequired();
-      else setError(asApiError(reason));
-    } finally {
-      setTagPending(false);
-    }
-  }
-
-  async function handleCreateTag(label: string) {
-    const actionSource = selectedSourceRef.current;
-    if (!actionSource || tagPending) return;
-    setTagPending(true);
-    try {
-      await createCustomTag(actionSource.id, label);
-      await loadDetail(actionSource);
-      setSuccess("自定义标签已添加");
-    } catch (reason) {
-      if (isAuthenticationRequired(reason)) handleAuthenticationRequired();
-      else setError(asApiError(reason));
-    } finally {
-      setTagPending(false);
-    }
-  }
-
-  async function handleDeleteTag(assignmentId: number) {
-    const actionSource = selectedSourceRef.current;
-    if (!actionSource || tagPending) return;
-    setTagPending(true);
-    try {
-      await deleteTagAssignment(assignmentId);
-      await loadDetail(actionSource);
-      setSuccess("标签已移除");
-    } catch (reason) {
-      if (isAuthenticationRequired(reason)) handleAuthenticationRequired();
-      else setError(asApiError(reason));
-    } finally {
-      setTagPending(false);
-    }
-  }
-
   async function handleAutoResearchChange(nextAutoStart: boolean) {
     if (autoResearchPending) return;
     setAutoResearchPending(true);
@@ -698,10 +646,6 @@ function AuthenticatedStudio({
           {detail ? <TagManager
             assignments={detail.tag_assignments ?? []}
             definitions={tagDefinitions}
-            onCreate={(label) => void handleCreateTag(label)}
-            onDecision={(assignmentId, status) => void handleTagDecision(assignmentId, status)}
-            onDelete={(assignmentId) => void handleDeleteTag(assignmentId)}
-            pending={tagPending}
           /> : null}
           <EditorWorkspace
             currentMarkdown={currentMarkdown}

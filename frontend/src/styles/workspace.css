@@ -82,17 +82,10 @@
 .research-evidence li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .research-evidence em { font-size: .65rem; font-style: normal; }
 .evidence-excluded { color: var(--warning-ink); }
-.tag-manager { display: grid; gap: .45rem; }
-.tag-heading { align-items: baseline; }
-.tag-group { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; color: var(--muted); font-size: .7rem; }
-.tag-group > span { min-width: 3.6rem; font-weight: 700; }
-.tag-group > em { font-style: normal; }
-.tag-row { display: inline-flex; align-items: center; gap: .3rem; padding: .2rem .35rem; background: var(--control-surface); border-radius: 4px; }
-.tag-row b { color: var(--ink); font-size: .68rem; }
-.tag-row small { color: var(--muted); }
-.tag-row button, .tag-create button { min-height: 1.55rem; padding: 0 .35rem; color: var(--link); font-size: .65rem; background: transparent; border: 1px solid var(--line-strong); border-radius: 3px; }
-.tag-create { display: flex; align-items: center; gap: .35rem; color: var(--muted); font-size: .7rem; }
-.tag-create input { width: 8rem; min-height: 1.7rem; padding: 0 .35rem; color: var(--ink); background: var(--paper); border: 1px solid var(--line-strong); border-radius: 3px; }
+.tag-manager { padding: .45rem .9rem; background: var(--paper); border-bottom: 1px solid var(--line); }
+.tag-chips { display: flex; flex-wrap: wrap; gap: .3rem; }
+.tag-chip { display: inline-flex; align-items: center; padding: .14rem .55rem; color: var(--control-active-ink); font-size: .68rem; font-weight: 680; background: var(--control-surface); border: 1px solid var(--line); border-radius: 999px; }
+.tag-chip.is-suggested { color: var(--muted); border-style: dashed; }
 .editor-workspace { display: grid; min-width: 0; min-height: 0; grid-template-rows: auto auto minmax(0, 1fr) auto; background: var(--paper); }
 .editor-workspace.is-loading { display: grid; place-items: center; color: var(--muted); }
 .empty-workspace { display: grid; place-items: center; padding: 2rem; color: var(--muted); text-align: center; background: radial-gradient(circle at 48% 22%, rgb(34 211 238 / 7%), transparent 42%), var(--paper); }
@@ -117,8 +110,8 @@
 .workspace-actions { display: flex; flex: none; align-items: center; gap: .5rem; }
 .workspace-actions .save-button { min-height: 2.05rem; padding: 0 .8rem; font-size: .76rem; }
 .save-button { min-width: 5.6rem; }
-.markdown-editor-wrap { min-height: 0; overflow: auto; padding: .85rem .9rem 1rem; background: var(--ground); }
-.markdown-editor-wrap textarea { display: block; width: 100%; max-width: 56rem; min-height: 100%; margin: 0 auto; resize: none; padding: 1.5rem 1.7rem 2.6rem 3.3rem; color: var(--ink); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: .88rem; line-height: 1.88; background: linear-gradient(90deg, var(--editor-gutter) 0 2.5rem, var(--paper) 2.5rem); border: 1px solid var(--line); border-radius: var(--radius-md); outline: 0; box-shadow: var(--shadow-card); }
+.markdown-editor-wrap { min-height: 0; overflow: auto; padding: 1rem 1rem 1.2rem; background: var(--ground); }
+.markdown-editor-wrap textarea { display: block; width: 100%; max-width: 58rem; min-height: 100%; margin: 0 auto; resize: none; padding: 1.9rem 2rem 3.2rem 3.2rem; color: var(--ink); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: .93rem; line-height: 1.95; background: linear-gradient(90deg, var(--editor-gutter) 0 2.5rem, var(--paper) 2.5rem); border: 1px solid var(--line); border-radius: var(--radius-md); outline: 0; box-shadow: var(--shadow-card); }
 .markdown-editor-wrap textarea[readonly] { color: var(--ink); opacity: .86; }
 .markdown-editor-wrap textarea:focus { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
 .derive-empty { display: grid; min-height: 13rem; place-content: center; gap: .6rem; max-width: 30rem; margin: 2.5rem auto; padding: 2rem 2.2rem; color: var(--muted); text-align: center; background: var(--paper); border: 1px dashed var(--line-strong); border-radius: var(--radius-md); box-shadow: var(--shadow-card); }
