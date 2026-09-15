@@ -105,28 +105,27 @@ export function EditorWorkspace({
           <p>{detail.source.platform} · <a href={detail.source.canonical_url} rel="noreferrer" target="_blank">查看原始来源</a></p>
         </div>
       </div>
-      <div aria-label="内容视图" className="artifact-tabs" role="tablist">
-        {tabs.map((tab, index) => (
-          <button
-            aria-controls="markdown-editor"
-            aria-selected={activeTab === tab.id}
-            className={activeTab === tab.id ? "is-active" : ""}
-            id={`tab-${tab.id}`}
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            onKeyDown={(event) => moveTab(event, index)}
-            role="tab"
-            tabIndex={activeTab === tab.id ? 0 : -1}
-            type="button"
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-      <div className="editor-toolbar">
-        <span>{activeDefinition.label}</span>
-        <div>
-          {canEdit ? (
+      <div className="workspace-header">
+        <div aria-label="内容视图" className="artifact-tabs" role="tablist">
+          {tabs.map((tab, index) => (
+            <button
+              aria-controls="markdown-editor"
+              aria-selected={activeTab === tab.id}
+              className={activeTab === tab.id ? "is-active" : ""}
+              id={`tab-${tab.id}`}
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              onKeyDown={(event) => moveTab(event, index)}
+              role="tab"
+              tabIndex={activeTab === tab.id ? 0 : -1}
+              type="button"
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        {canEdit ? (
+          <div className="workspace-actions">
             <button
               className="primary-button save-button"
               disabled={saving}
@@ -135,8 +134,8 @@ export function EditorWorkspace({
             >
               {saving ? "保存中…" : "保存版本"}
             </button>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </div>
       <div
         aria-labelledby={`tab-${activeDefinition.id}`}
