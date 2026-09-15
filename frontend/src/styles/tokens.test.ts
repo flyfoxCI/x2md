@@ -27,11 +27,11 @@ describe("presentation theme tokens", () => {
   it("applies the dark token set to the system theme only when the OS prefers dark", async () => {
     const css = await readFile(tokensPath, "utf8");
 
-    expect(css).toMatch(/:root\[data-theme="dark"\]\s*\{[\s\S]*--paper:\s*#132228/);
+    expect(css).toMatch(/:root\[data-theme="dark"\]\s*\{[\s\S]*--paper:\s*#0d141c/);
     expect(css).toMatch(
-      /@media\s*\(prefers-color-scheme:\s*dark\)\s*\{[\s\S]*:root\[data-theme="system"\]\s*\{[\s\S]*--paper:\s*#132228[\s\S]*:root\[data-theme="system"\]\s+\.mobile-workspace-tools/,
+      /@media\s*\(prefers-color-scheme:\s*dark\)\s*\{[\s\S]*:root\[data-theme="system"\]\s*\{[\s\S]*--paper:\s*#0d141c[\s\S]*:root\[data-theme="system"\]\s+\.mobile-workspace-tools/,
     );
-    expect(css).not.toMatch(/:root\[data-theme="light"\][\s\S]*--paper:\s*#132228/);
+    expect(css).not.toMatch(/:root\[data-theme="light"\][\s\S]*--paper:\s*#0d141c/);
     expect(css).not.toMatch(
       /:root\[data-theme="dark"\]\s+\.mobile-workspace-tools,\s*:root\[data-theme="system"\]\s+\.mobile-workspace-tools/,
     );

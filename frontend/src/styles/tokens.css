@@ -1,92 +1,128 @@
 :root {
-  color: #1a2429;
-  background: #f7f9fa;
+  color: #182430;
+  background: #eef1f5;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 
-  --ink: #172227;
-  --muted: #67757c;
-  --faint: #8c979d;
-  --paper: #ffffff;
-  --ground: #f7f9fa;
-  --line: #dce3e6;
-  --line-strong: #c6d0d4;
-  --ocean-950: #06252d;
-  --ocean-900: #073641;
-  --ocean-800: #0c4752;
-  --ocean-700: #106171;
-  --accent: #07515d;
-  --accent-hover: #063f49;
-  --on-accent: #ffffff;
-  --control-surface: #eef3f4;
-  --control-ink: #45565c;
+  /* Midnight Studio — light sibling: cool paper, cyan→indigo accents */
+  --ink: #182430;
+  --muted: #5d6d7c;
+  --faint: #8494a3;
+  --paper: #fdfeff;
+  --ground: #eef1f5;
+  --line: #dbe3ea;
+  --line-strong: #c2ced9;
+  --ocean-950: #0b1220;
+  --ocean-900: #0e1726;
+  --ocean-800: #121e30;
+  --ocean-700: #17293f;
+  --accent: #0e7490;
+  --accent-hover: #0b5d73;
+  --accent-2: #6366f1;
+  --on-accent: #f2fbfd;
+  --control-surface: #eaf0f5;
+  --control-ink: #3f4f5e;
   --control-active-surface: #ffffff;
-  --control-active-ink: #0c4752;
-  --editor-gutter: #f7f9fa;
-  --link: #0b5361;
+  --control-active-ink: #0c4a5e;
+  --editor-gutter: #f2f6f9;
+  --link: #0e7490;
   --success: #148557;
-  --success-ink: #087548;
-  --warning-bg: #fff7e7;
-  --warning-ink: #79520c;
-  --success-bg: #edfbf4;
+  --success-ink: #0e6b45;
+  --warning-bg: #fdf3dd;
+  --warning-ink: #7a5410;
+  --success-bg: #e3f5ec;
   --preview-frame-surface: #ffffff;
-  --preview-frame-ink: #172227;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --shadow-dialog: 0 22px 65px rgb(9 30 36 / 28%);
-  --focus-ring: 0 0 0 3px rgb(33 118 135 / 30%);
+  --preview-frame-ink: #17222b;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --panel-gap: 10px;
+  --shadow-dialog: 0 24px 70px rgb(4 18 28 / 30%);
+  --shadow-card: 0 1px 2px rgb(10 26 38 / 5%), 0 10px 30px rgb(10 26 38 / 6%);
+  --btn-shadow: 0 2px 10px rgb(12 74 94 / 24%);
+  --btn-shadow-hover: 0 5px 18px rgb(12 74 94 / 32%);
+  --header-surface: rgb(253 254 255 / 88%);
+  --control-hover: #e0e9f0;
+  --focus-ring: 0 0 0 3px rgb(34 211 238 / 32%);
 }
 
 :root[data-theme="dark"] {
-  color: #e8f2f3;
-  --ink: #e8f2f3;
-  --muted: #aebec2;
-  --paper: #132228;
-  --ground: #0c181c;
-  --line: #2b4148;
-  --line-strong: #496068;
-  --accent: #57aeb9;
-  --accent-hover: #7bc7d0;
-  --on-accent: #06252d;
-  --control-surface: #1d3036;
-  --control-ink: #e8f2f3;
-  --control-active-surface: #2a4650;
-  --control-active-ink: #ffffff;
-  --editor-gutter: #172c32;
-  --link: #8ed7df;
-  --warning-bg: #3c3117;
+  color: #e8eef4;
+  --ink: #e8eef4;
+  --muted: #93a3b2;
+  --faint: #647689;
+  --paper: #0d141c;
+  --ground: #070b10;
+  --line: #1d3145;
+  --line-strong: #2c445c;
+  --ocean-950: #060b12;
+  --ocean-900: #0a1119;
+  --ocean-800: #0e1722;
+  --ocean-700: #14202e;
+  --accent: #3fc9de;
+  --accent-hover: #22a9c4;
+  --accent-2: #818cf8;
+  --on-accent: #04222b;
+  --control-surface: #131d29;
+  --control-ink: #c6d3e2;
+  --control-active-surface: #1e2c3e;
+  --control-active-ink: #eef4fb;
+  --editor-gutter: #0a111a;
+  --link: #67d8ef;
+  --warning-bg: #2e2410;
   --warning-ink: #f2cd80;
-  --success-bg: #163b2c;
-  --success-ink: #9ee6bd;
-  --preview-frame-surface: #1b3037;
-  --preview-frame-ink: #e8f2f3;
+  --success: #34d399;
+  --success-bg: #0e2b21;
+  --success-ink: #7fe3b4;
+  --preview-frame-surface: #101a26;
+  --preview-frame-ink: #e8eef4;
+  --shadow-dialog: 0 30px 90px rgb(0 0 0 / 55%);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 40%), 0 14px 40px rgb(0 0 0 / 38%);
+  --btn-shadow: 0 4px 18px rgb(34 211 238 / 22%);
+  --btn-shadow-hover: 0 6px 24px rgb(34 211 238 / 34%);
+  --header-surface: rgb(9 15 22 / 84%);
+  --control-hover: #182535;
+  --focus-ring: 0 0 0 3px rgb(34 211 238 / 36%);
 }
 
 @media (prefers-color-scheme: dark) {
   :root[data-theme="system"] {
-    color: #e8f2f3;
-    --ink: #e8f2f3;
-    --muted: #aebec2;
-    --paper: #132228;
-    --ground: #0c181c;
-    --line: #2b4148;
-    --line-strong: #496068;
-    --accent: #57aeb9;
-    --accent-hover: #7bc7d0;
-    --on-accent: #06252d;
-    --control-surface: #1d3036;
-    --control-ink: #e8f2f3;
-    --control-active-surface: #2a4650;
-    --control-active-ink: #ffffff;
-    --editor-gutter: #172c32;
-    --link: #8ed7df;
-    --warning-bg: #3c3117;
+    color: #e8eef4;
+    --ink: #e8eef4;
+    --muted: #93a3b2;
+    --faint: #647689;
+    --paper: #0d141c;
+    --ground: #070b10;
+    --line: #1d3145;
+    --line-strong: #2c445c;
+    --ocean-950: #060b12;
+    --ocean-900: #0a1119;
+    --ocean-800: #0e1722;
+    --ocean-700: #14202e;
+    --accent: #3fc9de;
+    --accent-hover: #22a9c4;
+    --accent-2: #818cf8;
+    --on-accent: #04222b;
+    --control-surface: #131d29;
+    --control-ink: #c6d3e2;
+    --control-active-surface: #1e2c3e;
+    --control-active-ink: #eef4fb;
+    --editor-gutter: #0a111a;
+    --link: #67d8ef;
+    --warning-bg: #2e2410;
     --warning-ink: #f2cd80;
-    --success-bg: #163b2c;
-    --success-ink: #9ee6bd;
-    --preview-frame-surface: #1b3037;
-    --preview-frame-ink: #e8f2f3;
+    --success: #34d399;
+    --success-bg: #0e2b21;
+    --success-ink: #7fe3b4;
+    --preview-frame-surface: #101a26;
+    --preview-frame-ink: #e8eef4;
+    --shadow-dialog: 0 30px 90px rgb(0 0 0 / 55%);
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 40%), 0 14px 40px rgb(0 0 0 / 38%);
+    --btn-shadow: 0 4px 18px rgb(34 211 238 / 22%);
+    --btn-shadow-hover: 0 6px 24px rgb(34 211 238 / 34%);
+    --header-surface: rgb(9 15 22 / 84%);
+    --control-hover: #182535;
+    --focus-ring: 0 0 0 3px rgb(34 211 238 / 36%);
   }
 
   :root[data-theme="system"] .app-header,
@@ -150,6 +186,8 @@ textarea:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 a { color: inherit; }
 
+::selection { background: rgb(34 211 238 / 30%); }
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -166,5 +204,5 @@ a { color: inherit; }
   .source-row,
   .primary-button,
   .secondary-button,
-  .artifact-tabs button { transition: color .16s ease, background-color .16s ease, border-color .16s ease, transform .16s ease; }
+  .artifact-tabs button { transition: color .16s ease, background-color .16s ease, border-color .16s ease, transform .16s ease, box-shadow .18s ease; }
 }

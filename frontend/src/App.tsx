@@ -57,7 +57,7 @@ const defaultError: ApiError = {
 };
 
 const defaultPresentation: PresentationSettings = {
-  theme: "system",
+  theme: "dark",
   preview_device: "desktop",
 };
 

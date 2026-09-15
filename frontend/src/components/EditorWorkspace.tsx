@@ -90,7 +90,7 @@ export function EditorWorkspace({
         <div>
           <span aria-hidden="true">↙</span>
           <h2>从一个专家链接开始</h2>
-          <p>导入公开来源后，原文、中文翻译、知识摘要和 Skill 会在这里沉淀为可编辑 Markdown。</p>
+          <p>导入公开来源后，原文、中文翻译、知识摘要、Skill 和深度研究都会在这里沉淀为可编辑 Markdown。</p>
         </div>
       </section>
     );

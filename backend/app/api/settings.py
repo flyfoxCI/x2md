@@ -18,7 +18,7 @@ class PresentationSettings(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    theme: Literal["system", "light", "dark"] = "system"
+    theme: Literal["system", "light", "dark"] = "dark"
     preview_device: Literal["desktop", "mobile"] = "desktop"
 
 

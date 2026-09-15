@@ -189,7 +189,7 @@ async def test_settings_exposes_and_accepts_only_non_secret_presentation_values(
     assert first.status_code == 200
     assert first.json() == {
         "aiConfigured": False,
-        "presentation": {"theme": "system", "preview_device": "desktop"},
+        "presentation": {"theme": "dark", "preview_device": "desktop"},
         "research": {"autoStart": True},
     }
     assert rejected.status_code == 422
