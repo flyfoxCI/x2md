@@ -56,7 +56,7 @@
 .source-row-copy em { color: #f2ce7b; }
 .row-more { padding-top: .15rem; color: #a9c5c8; }
 
-.workspace-column { display: grid; min-width: 0; min-height: 0; grid-template-rows: auto auto auto minmax(0, 1fr); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-card); }
+.workspace-column { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-card); }
 .research-panel, .tag-manager { padding: .55rem .9rem .6rem; background: var(--paper); border-bottom: 1px solid var(--line); }
 .research-panel { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .9rem; }
 .research-heading, .tag-heading { display: flex; align-items: center; justify-content: space-between; gap: .8rem; }
@@ -86,7 +86,7 @@
 .tag-chips { display: flex; flex-wrap: wrap; gap: .3rem; }
 .tag-chip { display: inline-flex; align-items: center; padding: .14rem .55rem; color: var(--control-active-ink); font-size: .68rem; font-weight: 680; background: var(--control-surface); border: 1px solid var(--line); border-radius: 999px; }
 .tag-chip.is-suggested { color: var(--muted); border-style: dashed; }
-.editor-workspace { display: grid; min-width: 0; min-height: 0; grid-template-rows: auto auto minmax(0, 1fr) auto; background: var(--paper); }
+.editor-workspace { display: grid; flex: 1 1 auto; min-width: 0; min-height: 0; grid-template-rows: auto auto minmax(0, 1fr) auto; background: var(--paper); }
 .editor-workspace.is-loading { display: grid; place-items: center; color: var(--muted); }
 .empty-workspace { display: grid; place-items: center; padding: 2rem; color: var(--muted); text-align: center; background: radial-gradient(circle at 48% 22%, rgb(34 211 238 / 7%), transparent 42%), var(--paper); }
 .empty-workspace > div { max-width: 27rem; }
@@ -110,7 +110,7 @@
 .workspace-actions { display: flex; flex: none; align-items: center; gap: .5rem; }
 .workspace-actions .save-button { min-height: 2.05rem; padding: 0 .8rem; font-size: .76rem; }
 .save-button { min-width: 5.6rem; }
-.markdown-editor-wrap { min-height: 0; overflow: auto; padding: 1rem 1rem 1.2rem; background: var(--ground); }
+.markdown-editor-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 1rem 1rem 1.2rem; background: var(--ground); }
 .markdown-editor-wrap textarea { display: block; width: 100%; max-width: 58rem; min-height: 100%; margin: 0 auto; resize: none; padding: 1.9rem 2rem 3.2rem 3.2rem; color: var(--ink); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: .93rem; line-height: 1.95; background: linear-gradient(90deg, var(--editor-gutter) 0 2.5rem, var(--paper) 2.5rem); border: 1px solid var(--line); border-radius: var(--radius-md); outline: 0; box-shadow: var(--shadow-card); }
 .markdown-editor-wrap textarea[readonly] { color: var(--ink); opacity: .86; }
 .markdown-editor-wrap textarea:focus { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }

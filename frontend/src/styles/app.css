@@ -3,7 +3,7 @@
 .studio-shell {
   display: grid;
   grid-template-rows: var(--app-header-height) minmax(0, 1fr);
-  min-height: 100vh;
+  height: 100vh;
   overflow: hidden;
 }
 
@@ -197,7 +197,7 @@
 
 @media (max-width: 900px) {
   :root { --app-header-height: calc(7rem + env(safe-area-inset-top, 0px)); }
-  .studio-shell { grid-template-rows: var(--app-header-height) minmax(0, 1fr); overflow: visible; }
+  .studio-shell { grid-template-rows: var(--app-header-height) minmax(0, 1fr); height: auto; overflow: visible; }
   .app-header { grid-template-columns: auto 1fr auto; gap: .75rem; min-height: var(--app-header-height); padding: .65rem 1rem; }
   .brand-lockup span, .header-status { display: none; }
   .header-account-actions { grid-column: 3; grid-row: 1; }
