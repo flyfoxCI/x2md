@@ -49,6 +49,7 @@ export function KnowledgeSidebar({
   const sidebarRef = useRef<HTMLElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(new Set());
+  const [showAllCategories, setShowAllCategories] = useState(false);
   const isMobileHidden = isCompactViewport && !mobileOpen;
 
   useLayoutEffect(() => {
@@ -147,7 +148,12 @@ export function KnowledgeSidebar({
           >
             全部 <strong>{total}</strong>
           </button>
-          {tagDefinitions.filter((tag) => (tag.source_count ?? 0) > 0).map((tag) => (
+          {(showAllCategories
+            ? [...tagDefinitions]
+            : [...tagDefinitions]
+              .sort((a, b) => (b.source_count ?? 0) - (a.source_count ?? 0) || a.label.localeCompare(tagDefinitions.find((t) => t.label === b.label)?.label ?? b.label, "zh"))
+              .slice(0, 12)
+          ).filter((tag) => (tag.source_count ?? 0) > 0).map((tag) => (
             <button
               aria-pressed={tagFilter === tag.slug}
               className={`directory-chip${tagFilter === tag.slug ? " is-active" : ""}`}
@@ -158,6 +164,16 @@ export function KnowledgeSidebar({
               {tag.label} <strong>{tag.source_count}</strong>
             </button>
           ))}
+          {tagDefinitions.filter((tag) => (tag.source_count ?? 0) > 0).length > 12 ? (
+            <button
+              aria-expanded={showAllCategories}
+              className="directory-chip directory-more"
+              onClick={() => setShowAllCategories((value) => !value)}
+              type="button"
+            >
+              {showAllCategories ? "收起" : `更多 ${tagDefinitions.filter((tag) => (tag.source_count ?? 0) > 0).length - 12}`}
+            </button>
+          ) : null}
         </div>
       </nav>
       <div className="sidebar-list-heading">来源列表</div>
