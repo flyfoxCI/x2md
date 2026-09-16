@@ -148,7 +148,7 @@ describe("App", () => {
     await renderAuthenticatedApp();
 
     expect(await screen.findByText("Reasoning at Scale")).toBeVisible();
-    expect(mockedListSources).toHaveBeenCalledWith({}, expect.any(AbortSignal));
+    expect(mockedListSources).toHaveBeenCalledWith({ page_size: 100 }, expect.any(AbortSignal));
   });
 
   it("explains when an AI provider has not been configured", async () => {
@@ -457,7 +457,7 @@ describe("App", () => {
     });
 
     expect(await screen.findByRole("button", { name: "打开知识库" })).toBeVisible();
-    await waitFor(() => expect(mockedListSources).toHaveBeenCalledWith({}, expect.any(AbortSignal)));
+    await waitFor(() => expect(mockedListSources).toHaveBeenCalledWith({ page_size: 100 }, expect.any(AbortSignal)));
     await waitFor(() => expect(mockedGetSettings).toHaveBeenCalledWith(expect.any(AbortSignal)));
   });
 

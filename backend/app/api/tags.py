@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.api.dependencies import DatabaseSession, require_csrf
 from app.models import Source, TagAssignment, TagAssignmentEvidence
@@ -36,7 +36,19 @@ def get_tag_tree(session: DatabaseSession) -> TagTreeRead:
     service = TagService(session)
     items = service.tree()
     session.commit()
-    return TagTreeRead(items=[TagDefinitionRead.model_validate(item) for item in items])
+    counts: dict[int, int] = {}
+    for tag_id, total in session.execute(
+        select(TagAssignment.tag_id, func.count(func.distinct(TagAssignment.source_id)))
+        .where(TagAssignment.status.in_(("accepted", "suggested")))
+        .group_by(TagAssignment.tag_id)
+    ).all():
+        counts[tag_id] = int(total)
+    reads = []
+    for item in items:
+        read = TagDefinitionRead.model_validate(item)
+        read.source_count = counts.get(item.id, 0)
+        reads.append(read)
+    return TagTreeRead(items=reads)
 
 
 @router.post(

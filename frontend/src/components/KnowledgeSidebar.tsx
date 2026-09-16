@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, type ChangeEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 
 import type { Source, TagDefinition } from "../types";
 
@@ -48,6 +48,7 @@ export function KnowledgeSidebar({
 }: KnowledgeSidebarProps) {
   const sidebarRef = useRef<HTMLElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(new Set());
   const isMobileHidden = isCompactViewport && !mobileOpen;
 
   useLayoutEffect(() => {
@@ -64,6 +65,33 @@ export function KnowledgeSidebar({
 
   function updateQuery(event: ChangeEvent<HTMLInputElement>) {
     onQueryChange(event.target.value);
+  }
+
+  const sourceGroups = useMemo(() => {
+    const labelOf = new Map(tagDefinitions.map((tag) => [tag.id, tag.label]));
+    const groups = new Map<string, Source[]>();
+    for (const source of sources) {
+      const key = source.tag_labels?.[0] ?? "未分类";
+      const bucket = groups.get(key);
+      if (bucket) {
+        bucket.push(source);
+      } else {
+        groups.set(key, [source]);
+      }
+    }
+    return [...groups.entries()];
+  }, [sources, tagDefinitions]);
+
+  function toggleGroup(label: string) {
+    setCollapsedGroups((current) => {
+      const next = new Set(current);
+      if (current.has(label)) {
+        next.delete(label);
+      } else {
+        next.add(label);
+      }
+      return next;
+    });
   }
 
   function selectSource(source: Source) {
@@ -108,38 +136,64 @@ export function KnowledgeSidebar({
           value={query}
         />
       </label>
-      <label className="tag-filter" htmlFor="library-tag-filter">
-        <span>标签</span>
-        <select id="library-tag-filter" onChange={(event) => onTagFilterChange(event.target.value)} value={tagFilter}>
-          <option value="">全部已接受标签</option>
-          {tagDefinitions.map((tag) => <option key={tag.id} value={tag.slug}>{tag.label}</option>)}
-        </select>
-      </label>
-      <nav aria-label="知识库筛选" className="sidebar-nav">
-        <span>全部来源 <strong>{total}</strong></span>
-        <span>最近导入</span>
-        <span>我的 Skill</span>
+      <nav aria-label="分类目录" className="category-directory">
+        <div className="directory-heading">分类目录</div>
+        <div className="directory-chips">
+          <button
+            aria-pressed={tagFilter === ""}
+            className={`directory-chip${tagFilter === "" ? " is-active" : ""}`}
+            onClick={() => onTagFilterChange("")}
+            type="button"
+          >
+            全部 <strong>{total}</strong>
+          </button>
+          {tagDefinitions.filter((tag) => (tag.source_count ?? 0) > 0).map((tag) => (
+            <button
+              aria-pressed={tagFilter === tag.slug}
+              className={`directory-chip${tagFilter === tag.slug ? " is-active" : ""}`}
+              key={tag.id}
+              onClick={() => onTagFilterChange(tagFilter === tag.slug ? "" : tag.slug)}
+              type="button"
+            >
+              {tag.label} <strong>{tag.source_count}</strong>
+            </button>
+          ))}
+        </div>
       </nav>
       <div className="sidebar-list-heading">来源列表</div>
       <div aria-busy={loading} className="source-list">
         {loading ? <p className="sidebar-muted" role="status">正在加载来源…</p> : null}
         {!loading && sources.length === 0 ? <p className="sidebar-muted">还没有已导入的来源。</p> : null}
-        {sources.map((source) => (
-          <button
-            aria-current={selectedSourceId === source.id ? "page" : undefined}
-            className={`source-row${selectedSourceId === source.id ? " is-selected" : ""}`}
-            key={source.id}
-            onClick={() => selectSource(source)}
-            type="button"
-          >
-            <span aria-hidden="true" className={`platform-mark platform-${source.platform}`}>{platformMark(source.platform)}</span>
-            <span className="source-row-copy">
-              <strong>{source.title}</strong>
-              <span>{platformLabels[source.platform] ?? source.platform}{source.author ? ` · ${source.author}` : ""}</span>
-              {source.import_status !== "ready" ? <em>{source.import_status === "partial" ? "部分导入" : "已受限"}</em> : null}
-            </span>
-            <span aria-hidden="true" className="row-more">⋮</span>
-          </button>
+        {sourceGroups.map(([label, groupSources]) => (
+          <section className="source-group" key={label}>
+            <button
+              aria-expanded={!collapsedGroups.has(label)}
+              className="source-group-heading"
+              onClick={() => toggleGroup(label)}
+              type="button"
+            >
+              <span>{label}</span>
+              <strong>{label === "未分类" ? groupSources.length : (tagDefinitions.find((tag) => tag.label === label)?.source_count ?? groupSources.length)}</strong>
+              <span aria-hidden="true" className="group-caret">{collapsedGroups.has(label) ? "▸" : "▾"}</span>
+            </button>
+            {!collapsedGroups.has(label) ? groupSources.map((source) => (
+              <button
+                aria-current={selectedSourceId === source.id ? "page" : undefined}
+                className={`source-row${selectedSourceId === source.id ? " is-selected" : ""}`}
+                key={source.id}
+                onClick={() => selectSource(source)}
+                type="button"
+              >
+                <span aria-hidden="true" className={`platform-mark platform-${source.platform}`}>{platformMark(source.platform)}</span>
+                <span className="source-row-copy">
+                  <strong>{source.title}</strong>
+                  <span>{platformLabels[source.platform] ?? source.platform}{source.author ? ` · ${source.author}` : ""}</span>
+                  {source.import_status !== "ready" ? <em>{source.import_status === "partial" ? "部分导入" : "已受限"}</em> : null}
+                </span>
+                <span aria-hidden="true" className="row-more">⋮</span>
+              </button>
+            )) : null}
+          </section>
         ))}
       </div>
     </aside>

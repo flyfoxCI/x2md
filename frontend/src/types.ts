@@ -21,6 +21,7 @@ export interface Source {
   metadata_json: Record<string, unknown>;
   import_status: ImportStatus;
   failure_reason: string | null;
+  tag_labels?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -105,6 +106,7 @@ export interface TagDefinition {
   parent_id: number | null;
   is_system: boolean;
   description: string | null;
+  source_count?: number;
   created_at: string;
 }
 

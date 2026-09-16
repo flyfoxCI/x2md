@@ -70,8 +70,13 @@ def list_sources(
     result = service.list_sources(
         query=q, platform=platform, tag=tag, page=page, page_size=page_size
     )
+    reads = []
+    for source in result.items:
+        read = SourceRead.model_validate(source)
+        read.tag_labels = list(result.tag_labels.get(source.id, []))
+        reads.append(read)
     return SourcePageRead(
-        items=[SourceRead.model_validate(source) for source in result.items],
+        items=reads,
         total=result.total,
         page=page,
         page_size=page_size,

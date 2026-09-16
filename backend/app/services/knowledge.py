@@ -37,6 +37,7 @@ class SourcePage:
 
     items: list[Source]
     total: int
+    tag_labels: Mapping[int, list[str]]
 
 
 @dataclass(frozen=True, slots=True)
@@ -232,7 +233,11 @@ class KnowledgeService:
                 .limit(page_size)
             )
         )
-        return SourcePage(items=items, total=total or 0)
+        return SourcePage(
+            items=items,
+            total=total or 0,
+            tag_labels=_tag_labels_for(items, self._read_session),
+        )
 
     def get_source(self, source_id: int) -> Source:
         """Return a source with its append-only artifact history."""
@@ -358,6 +363,27 @@ class KnowledgeService:
         if self._session is None:
             raise RuntimeError("this knowledge service has no request session")
         return self._session
+
+
+def _tag_labels_for(items: list[Source], session: Session) -> dict[int, list[str]]:
+    """Collect one label per assignment for the page, accepted labels first."""
+    if not items:
+        return {}
+    rows = session.execute(
+        select(TagAssignment.source_id, TagDefinition.label, TagAssignment.status)
+        .join(TagDefinition, TagDefinition.id == TagAssignment.tag_id)
+        .where(
+            TagAssignment.source_id.in_([item.id for item in items]),
+            TagAssignment.status.in_(("accepted", "suggested")),
+        )
+        .order_by(TagAssignment.status.desc(), TagAssignment.created_at.asc())
+    ).all()
+    labels: dict[int, list[str]] = {}
+    for source_id, label, _status in rows:
+        bucket = labels.setdefault(source_id, [])
+        if label not in bucket:
+            bucket.append(label)
+    return labels
 
 
 def _source_has_tag(tag: str, session: Session) -> object:

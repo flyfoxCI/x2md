@@ -311,6 +311,7 @@ function AuthenticatedStudio({
       const sourceQuery = {
         ...(search.trim() ? { q: search.trim() } : {}),
         ...(tag ? { tag } : {}),
+        page_size: 100,
       };
       const page = await listSources(sourceQuery, signal);
       setSources(page.items);

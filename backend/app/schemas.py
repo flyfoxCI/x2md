@@ -81,6 +81,7 @@ class SourceRead(SourceCreate):
     id: int
     created_at: datetime
     updated_at: datetime
+    tag_labels: list[str] = Field(default_factory=list)
 
 
 class ArtifactCreate(BaseModel):
@@ -199,6 +200,7 @@ class TagDefinitionRead(BaseModel):
     is_system: bool
     description: str | None
     created_at: datetime
+    source_count: int = 0
 
 
 class TagAssignmentRead(BaseModel):
